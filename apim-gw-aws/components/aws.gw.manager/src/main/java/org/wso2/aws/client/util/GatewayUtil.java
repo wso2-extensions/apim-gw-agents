@@ -212,7 +212,7 @@ public class GatewayUtil {
         apiGatewayClient.updateIntegrationResponse(updateIntegrationResponseRequest);
     }
 
-    public static CreateAuthorizerResponse getAuthorizer(String awsApiId, String name, String lambdaArn,
+    public static CreateAuthorizerResponse getAuthorizer(String awsApiId, String name, String lambdaArn, String roleArn,
                                                          String region, ApiGatewayClient apiGatewayClient) {
 
         CreateAuthorizerRequest createAuthorizerRequest = CreateAuthorizerRequest.builder()
@@ -222,7 +222,7 @@ public class GatewayUtil {
                 .identitySource("method.request.header.Authorization")
                 .authorizerUri("arn:aws:apigateway:" + region + ":lambda:path/2015-03-31/functions/" + lambdaArn +
                         "/invocations")
-                .authorizerCredentials("arn:aws:iam::713881799780:role/LambdaAuthInvokeRole")
+                .authorizerCredentials(roleArn)
                 .build();
         return apiGatewayClient.createAuthorizer(createAuthorizerRequest);
     }

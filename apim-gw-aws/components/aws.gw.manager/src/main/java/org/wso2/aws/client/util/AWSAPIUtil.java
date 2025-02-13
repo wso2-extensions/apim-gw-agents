@@ -83,11 +83,13 @@ public class AWSAPIUtil {
 
             //configure authorizers
             String lambdaArnAPI = null;
+            String invokeRoleArn = null;
             List<OperationPolicy> apiPolicies = api.getApiPolicies();
             if (apiPolicies != null) {
                 for (OperationPolicy policy : apiPolicies) {
                     if (policy.getPolicyName().equals("awsOAuth2")) {
                         lambdaArnAPI = policy.getParameters().get("lambdaARN").toString();
+                        invokeRoleArn = policy.getParameters().get("invokeRoleArn").toString();
                         break;
                     }
                 }
@@ -96,7 +98,7 @@ public class AWSAPIUtil {
                 pathToArnMapping.put("API", lambdaArnAPI);
                 authorizers.put(lambdaArnAPI ,GatewayUtil.getAuthorizer(apiId,
                         lambdaArnAPI.substring(lambdaArnAPI.lastIndexOf(':') + 1),
-                        lambdaArnAPI, region,
+                        lambdaArnAPI, invokeRoleArn, region,
                         apiGatewayClient).id());
             }
 
@@ -114,7 +116,7 @@ public class AWSAPIUtil {
                                     + "|" + resource.getHTTPVerb().toLowerCase(), resourceLambdaARN);
                     authorizers.put(resourceLambdaARN, GatewayUtil.getAuthorizer(apiId,
                             resourceLambdaARN.substring(resourceLambdaARN.lastIndexOf(':') + 1),
-                            resourceLambdaARN, region,
+                            resourceLambdaARN, invokeRoleArn, region,
                             apiGatewayClient).id());
                 }
             }
@@ -244,11 +246,13 @@ public class AWSAPIUtil {
             }
 
             String lambdaArnAPI = null;
+            String invokeRoleArn = null;
             List<OperationPolicy> apiPolicies = api.getApiPolicies();
             if (apiPolicies != null) {
                 for (OperationPolicy policy : apiPolicies) {
                     if (policy.getPolicyName().equals("awsOAuth2")) {
                         lambdaArnAPI = policy.getParameters().get("lambdaARN").toString();
+                        invokeRoleArn = policy.getParameters().get("invokeRoleArn").toString();
                         break;
                     }
                 }
@@ -257,7 +261,7 @@ public class AWSAPIUtil {
                 pathToArnMapping.put("API", lambdaArnAPI);
                 authorizers.put(lambdaArnAPI ,GatewayUtil.getAuthorizer(awsApiId,
                         lambdaArnAPI.substring(lambdaArnAPI.lastIndexOf(':') + 1),
-                        lambdaArnAPI, region,
+                        lambdaArnAPI, invokeRoleArn, region,
                         apiGatewayClient).id());
             }
 
@@ -280,7 +284,7 @@ public class AWSAPIUtil {
                                 + "|" + resource.getHTTPVerb().toLowerCase(), resourceLambdaARN);
                         authorizers.put(resourceLambdaARN, GatewayUtil.getAuthorizer(awsApiId,
                                 resourceLambdaARN.substring(resourceLambdaARN.lastIndexOf(':') + 1),
-                                resourceLambdaARN, region,
+                                resourceLambdaARN, invokeRoleArn, region,
                                 apiGatewayClient).id());
                     }
                 }

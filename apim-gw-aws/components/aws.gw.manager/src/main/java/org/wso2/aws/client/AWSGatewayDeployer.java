@@ -68,19 +68,15 @@ public class AWSGatewayDeployer implements ExternalGatewayDeployer {
     public List<ConfigurationDto> getConnectionConfigurations() {
         List<ConfigurationDto> configurationDtoList = new ArrayList<>();
         configurationDtoList
+                .add(new ConfigurationDto("region", "AWS Region", "input", "AWS Region", "", true, false, Collections.emptyList(), false));
+        configurationDtoList
                 .add(new ConfigurationDto("access_key", "Access Key", "input", "AWS Access Key for Signature Authentication", "", true,
                         true, Collections.emptyList(), false));
         configurationDtoList
                 .add(new ConfigurationDto("secret_key", "Secret Key", "input", "AWS Secret Key for Signature Authentication", "",
                         true, true, Collections.emptyList(), false));
-        configurationDtoList
-                .add(new ConfigurationDto("region", "AWS Region", "input", "AWS Region", "", true, false, Collections.emptyList(), false));
-        configurationDtoList
-                .add(new ConfigurationDto("oauth2_lambda_arn", "OAuth2 Lambda ARN", "input", "Lambda function to " +
-                        "support OAuth2", "", true, false, Collections.emptyList(), false));
         configurationDtoList.add(new ConfigurationDto("stage", "Stage Name", "input", "Default stage name", "", true,
-                false,
-                Collections.emptyList(), false));
+                false, Collections.emptyList(), false));
 
         return configurationDtoList;
     }
@@ -154,5 +150,10 @@ public class AWSGatewayDeployer implements ExternalGatewayDeployer {
                 resource.setUriTemplate(resource.getUriTemplate().replace("/*", "/"));
             }
         }
+    }
+
+    @Override
+    public String getDefaultHostnameTemplate() {
+        return "{apiId}.execute-api.{region}.amazonaws.com";
     }
 }
