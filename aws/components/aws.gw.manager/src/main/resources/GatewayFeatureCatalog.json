@@ -1,0 +1,17 @@
+{
+  "AWS": {
+    "apiTypes": ["rest"],
+    "gatewayFeatures": {
+      "basic": [],
+      "runtime": ["transportsHTTP", "transportsHTTPS", "oauth2"],
+      "resources": [],
+      "localScopes": [],
+      "policies": [],
+      "monetization": [],
+      "subscriptions": [],
+      "endpoints": ["http", "typePRODUCTION"],
+      "endpointSecurity": [],
+      "tryout": []
+    }
+  }
+}
