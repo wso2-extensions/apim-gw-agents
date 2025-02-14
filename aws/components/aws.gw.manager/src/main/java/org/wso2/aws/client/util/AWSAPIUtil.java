@@ -124,9 +124,11 @@ public class AWSAPIUtil {
 
             for (URITemplate resource: api.getUriTemplates()) {
                 String resourceLambdaARN = null;
+                String invokeRoleArnResource = null;
                 for (OperationPolicy policy: resource.getOperationPolicies()) {
                     if (policy.getPolicyName().equals("awsOAuth2")) {
                         resourceLambdaARN = policy.getParameters().get("lambdaARN").toString();
+                        invokeRoleArnResource = policy.getParameters().get("invokeRoleArn").toString();
                         break;
                     }
                 }
@@ -136,7 +138,7 @@ public class AWSAPIUtil {
                                     + "|" + resource.getHTTPVerb().toLowerCase(), resourceLambdaARN);
                     authorizers.put(resourceLambdaARN, GatewayUtil.getAuthorizer(apiId,
                             resourceLambdaARN.substring(resourceLambdaARN.lastIndexOf(':') + 1),
-                            resourceLambdaARN, invokeRoleArn, region,
+                            resourceLambdaARN, invokeRoleArnResource, region,
                             apiGatewayClient).id());
                 }
             }
@@ -289,11 +291,13 @@ public class AWSAPIUtil {
             if (uriTemplates != null) {
                 for (URITemplate resource : uriTemplates) {
                     String resourceLambdaARN = null;
+                    String invokeRoleArnResource = null;
                     List<OperationPolicy> resourcePolicies = resource.getOperationPolicies();
                     if (resourcePolicies != null) {
                         for (OperationPolicy policy : resourcePolicies) {
                             if (policy.getPolicyName().equals("awsOAuth2")) {
                                 resourceLambdaARN = policy.getParameters().get("lambdaARN").toString();
+                                invokeRoleArnResource = policy.getParameters().get("invokeRoleArn").toString();
                                 break;
                             }
                         }
@@ -304,7 +308,7 @@ public class AWSAPIUtil {
                                 + "|" + resource.getHTTPVerb().toLowerCase(), resourceLambdaARN);
                         authorizers.put(resourceLambdaARN, GatewayUtil.getAuthorizer(awsApiId,
                                 resourceLambdaARN.substring(resourceLambdaARN.lastIndexOf(':') + 1),
-                                resourceLambdaARN, invokeRoleArn, region,
+                                resourceLambdaARN, invokeRoleArnResource, region,
                                 apiGatewayClient).id());
                     }
                 }
