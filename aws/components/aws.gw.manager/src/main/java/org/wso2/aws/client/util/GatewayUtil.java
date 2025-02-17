@@ -18,9 +18,6 @@
 
 package org.wso2.aws.client.util;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import org.apache.commons.lang3.StringUtils;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -28,7 +25,7 @@ import org.json.simple.parser.ParseException;
 import org.wso2.aws.client.AWSConstants;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.model.API;
-import org.wso2.carbon.apimgt.impl.deployer.exceptions.DeployerException;
+import org.wso2.carbon.apimgt.api.model.URITemplate;
 import software.amazon.awssdk.services.apigateway.ApiGatewayClient;
 import software.amazon.awssdk.services.apigateway.model.AuthorizerType;
 import software.amazon.awssdk.services.apigateway.model.CreateAuthorizerRequest;
@@ -50,7 +47,6 @@ import software.amazon.awssdk.services.apigateway.model.UpdateMethodResponseRequ
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -63,14 +59,14 @@ public class GatewayUtil {
 
     private static final Pattern VALID_PATH_PATTERN = Pattern.compile("^[a-zA-Z0-9-._~%!$&'()*+,;=:@/]*$");
 
-    public static String getAWSApiIdFromReferenceArtifact(String referenceArtifact) throws DeployerException {
+    public static String getAWSApiIdFromReferenceArtifact(String referenceArtifact) throws APIManagementException {
         Pattern pattern = Pattern.compile(AWSConstants.AWS_ID_PATTERN);
         Matcher matcher = pattern.matcher(referenceArtifact);
 
         if (matcher.find()) {
             return matcher.group(1);
         } else {
-            throw new DeployerException("Error while extracting AWS API ID from reference artifact");
+            throw new APIManagementException("Error while extracting AWS API ID from reference artifact");
         }
     }
 
@@ -83,7 +79,7 @@ public class GatewayUtil {
         }
     }
 
-    public static String getEndpointURL(API api) throws DeployerException {
+    public static String getEndpointURL(API api) throws APIManagementException {
 
         try {
             String endpointConfig = api.getEndpointConfig();
@@ -101,7 +97,7 @@ public class GatewayUtil {
             return productionEndpoint.charAt(productionEndpoint.length() - 1) == '/' ?
                     productionEndpoint.substring(0, productionEndpoint.length() - 1) : productionEndpoint;
         } catch (ParseException e) {
-            throw new DeployerException("Error while parsing endpoint configuration", e);
+            throw new APIManagementException("Error while parsing endpoint configuration", e);
         }
     }
 
@@ -135,20 +131,14 @@ public class GatewayUtil {
     }
 
     public static String validateResourceContexts(API api) {
-        String openAPI = api.getSwaggerDefinition();
+        Set<URITemplate> uriTemplates = api.getUriTemplates();
 
-        JsonObject swaggerJson = new Gson().fromJson(openAPI, JsonObject.class);
-        Set<String> contexts = new HashSet<>();
-
-        if (swaggerJson.has("paths")) {
-            JsonObject paths = swaggerJson.getAsJsonObject("paths");
-            for (Map.Entry<String, JsonElement> entry : paths.entrySet()) {
-                contexts.add(entry.getKey());
+        if (!uriTemplates.isEmpty()) {
+            for (URITemplate uriTemplate : uriTemplates) {
+                if (uriTemplate.getUriTemplate().contains("*")) {
+                    return "Some resource contexts contain '*' wildcard";
+                }
             }
-        }
-
-        if (contexts.stream().anyMatch(context -> context.contains("*"))) {
-            return "Some resource contexts contain '*' wildcard";
         }
         return null;
     }
