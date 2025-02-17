@@ -28,7 +28,6 @@ import org.json.simple.parser.ParseException;
 import org.wso2.aws.client.AWSConstants;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.model.API;
-import org.wso2.carbon.apimgt.impl.deployer.exceptions.DeployerException;
 import software.amazon.awssdk.services.apigateway.ApiGatewayClient;
 import software.amazon.awssdk.services.apigateway.model.AuthorizerType;
 import software.amazon.awssdk.services.apigateway.model.CreateAuthorizerRequest;
@@ -63,14 +62,14 @@ public class GatewayUtil {
 
     private static final Pattern VALID_PATH_PATTERN = Pattern.compile("^[a-zA-Z0-9-._~%!$&'()*+,;=:@/]*$");
 
-    public static String getAWSApiIdFromReferenceArtifact(String referenceArtifact) throws DeployerException {
+    public static String getAWSApiIdFromReferenceArtifact(String referenceArtifact) throws APIManagementException {
         Pattern pattern = Pattern.compile(AWSConstants.AWS_ID_PATTERN);
         Matcher matcher = pattern.matcher(referenceArtifact);
 
         if (matcher.find()) {
             return matcher.group(1);
         } else {
-            throw new DeployerException("Error while extracting AWS API ID from reference artifact");
+            throw new APIManagementException("Error while extracting AWS API ID from reference artifact");
         }
     }
 
@@ -83,7 +82,7 @@ public class GatewayUtil {
         }
     }
 
-    public static String getEndpointURL(API api) throws DeployerException {
+    public static String getEndpointURL(API api) throws APIManagementException {
 
         try {
             String endpointConfig = api.getEndpointConfig();
@@ -101,7 +100,7 @@ public class GatewayUtil {
             return productionEndpoint.charAt(productionEndpoint.length() - 1) == '/' ?
                     productionEndpoint.substring(0, productionEndpoint.length() - 1) : productionEndpoint;
         } catch (ParseException e) {
-            throw new DeployerException("Error while parsing endpoint configuration", e);
+            throw new APIManagementException("Error while parsing endpoint configuration", e);
         }
     }
 
