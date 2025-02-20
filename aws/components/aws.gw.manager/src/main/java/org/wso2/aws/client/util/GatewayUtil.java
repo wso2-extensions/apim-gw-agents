@@ -35,7 +35,10 @@ import software.amazon.awssdk.services.apigateway.model.CreateAuthorizerRequest;
 import software.amazon.awssdk.services.apigateway.model.CreateAuthorizerResponse;
 import software.amazon.awssdk.services.apigateway.model.DeleteAuthorizerRequest;
 import software.amazon.awssdk.services.apigateway.model.DeleteRestApiRequest;
+import software.amazon.awssdk.services.apigateway.model.GetMethodRequest;
+import software.amazon.awssdk.services.apigateway.model.GetMethodResponse;
 import software.amazon.awssdk.services.apigateway.model.IntegrationType;
+import software.amazon.awssdk.services.apigateway.model.MethodResponse;
 import software.amazon.awssdk.services.apigateway.model.Op;
 import software.amazon.awssdk.services.apigateway.model.PatchOperation;
 import software.amazon.awssdk.services.apigateway.model.PutIntegrationRequest;
@@ -216,18 +219,27 @@ public class GatewayUtil {
 
     public static void configureCORSHeadersAtMethodLevel(String apiId, Resource resource, String httpMethod,
                                                           ApiGatewayClient apiGatewayClient) {
-        UpdateMethodResponseRequest updateMethodResponseRequest = UpdateMethodResponseRequest.builder()
-                .restApiId(apiId).resourceId(resource.id()).httpMethod(httpMethod).statusCode("200")
-                .patchOperations(PatchOperation.builder().op(Op.ADD).path("/responseParameters/method" +
-                        ".response.header.Access-Control-Allow-Origin").build()).build();
-        apiGatewayClient.updateMethodResponse(updateMethodResponseRequest);
+        GetMethodRequest getMethodRequest = GetMethodRequest.builder().restApiId(apiId).resourceId(resource.id())
+                .httpMethod(httpMethod).build();
+        GetMethodResponse getMethodResponse = apiGatewayClient.getMethod(getMethodRequest);
 
-        UpdateIntegrationResponseRequest updateIntegrationResponseRequest =
-                UpdateIntegrationResponseRequest.builder()
-                        .restApiId(apiId).resourceId(resource.id()).httpMethod(httpMethod).statusCode("200")
+        if (getMethodResponse.hasMethodResponses()) {
+            Map<String, MethodResponse> responses = getMethodResponse.methodResponses();
+            for (Map.Entry<String, MethodResponse> entry : responses.entrySet()) {
+                UpdateMethodResponseRequest updateMethodResponseRequest = UpdateMethodResponseRequest.builder()
+                        .restApiId(apiId).resourceId(resource.id()).httpMethod(httpMethod).statusCode(entry.getKey())
                         .patchOperations(PatchOperation.builder().op(Op.ADD).path("/responseParameters/method" +
-                                ".response.header.Access-Control-Allow-Origin").value("'*'").build()).build();
-        apiGatewayClient.updateIntegrationResponse(updateIntegrationResponseRequest);
+                                ".response.header.Access-Control-Allow-Origin").build()).build();
+                apiGatewayClient.updateMethodResponse(updateMethodResponseRequest);
+            }
+
+            UpdateIntegrationResponseRequest updateIntegrationResponseRequest =
+                    UpdateIntegrationResponseRequest.builder()
+                            .restApiId(apiId).resourceId(resource.id()).httpMethod(httpMethod).statusCode("200")
+                            .patchOperations(PatchOperation.builder().op(Op.ADD).path("/responseParameters/method" +
+                                    ".response.header.Access-Control-Allow-Origin").value("'*'").build()).build();
+            apiGatewayClient.updateIntegrationResponse(updateIntegrationResponseRequest);
+        }
     }
 
     public static CreateAuthorizerResponse getAuthorizer(String awsApiId, String name, String lambdaArn, String roleArn,
