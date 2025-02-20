@@ -24,4 +24,17 @@ package org.wso2.aws.client;
 public class AWSConstants {
     public static final String AWS_TYPE = "AWS";
     public static final String AWS_ID_PATTERN = "Id=([a-zA-Z0-9]+)";
+    public static final String AWS_API_EXECUTION_URL_TEMPLATE = "{apiId}.execute-api.{region}.amazonaws.com";
+
+    // Environment related constants
+    public static final String AWS_ENVIRONMENT_REGION = "region";
+    public static final String AWS_ENVIRONMENT_ACCESS_KEY = "access_key";
+    public static final String AWS_ENVIRONMENT_SECRET_KEY = "secret_key";
+    public static final String AWS_API_STAGE = "stage";
+
+    // Authorizer related constants
+    public static final String AWS_OPERATION_POLICY_NAME = "awsOAuth2";
+    public static final String OPERATION_POLICY_ARN_PARAMETER = "lambdaARN";
+    public static final String OPERATION_POLICY_ROLE_PARAMETER = "invokeRoleArn";
+    public static final String OPERATION_POLICY_API = "API";
 }

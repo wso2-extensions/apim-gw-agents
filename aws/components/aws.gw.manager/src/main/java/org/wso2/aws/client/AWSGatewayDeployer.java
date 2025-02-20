@@ -18,25 +18,18 @@
 
 package org.wso2.aws.client;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.osgi.service.component.annotations.Component;
 import org.wso2.aws.client.util.AWSAPIUtil;
+import org.wso2.aws.client.util.ApiGatewayClientManager;
 import org.wso2.aws.client.util.GatewayUtil;
+import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.model.API;
-import org.wso2.carbon.apimgt.api.model.ConfigurationDto;
-import org.wso2.carbon.apimgt.api.model.Environment;
+import org.wso2.carbon.apimgt.api.model.GatewayAPIValidationResult;
+import org.wso2.carbon.apimgt.api.model.GatewayConfiguration;
+import org.wso2.carbon.apimgt.api.model.GatewayDeployer;
 import org.wso2.carbon.apimgt.api.model.URITemplate;
-import org.wso2.carbon.apimgt.impl.deployer.ExternalGatewayDeployer;
-import org.wso2.carbon.apimgt.impl.deployer.exceptions.DeployerException;
+import software.amazon.awssdk.services.apigateway.ApiGatewayClient;
 
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -45,52 +38,27 @@ import java.util.stream.Collectors;
 /**
  * This class controls the API artifact deployments on the AWS API Gateway
  */
-@Component(
-        name = "aws.external.gateway.deployer.component",
-        immediate = true,
-        service = ExternalGatewayDeployer.class
-)
-public class AWSGatewayDeployer implements ExternalGatewayDeployer {
-    private static final Log log = LogFactory.getLog(AWSAPIUtil.class);
+public class AWSGatewayDeployer implements GatewayDeployer {
+    private ApiGatewayClient apiGatewayClient;
+    private String region;
+    private String stage;
+
 
     @Override
-    public String deploy(API api, Environment environment, String referenceArtifact) throws DeployerException {
-        if (referenceArtifact == null) {
-            return AWSAPIUtil.importRestAPI(api, environment);
-        } else {
-            return AWSAPIUtil.reimportRestAPI(referenceArtifact, api, environment);
+    public void init(GatewayConfiguration gatewayConfiguration) throws APIManagementException {
+        try {
+            this.region = gatewayConfiguration.getConfiguration().get(AWSConstants.AWS_ENVIRONMENT_REGION).toString();
+            this.stage = gatewayConfiguration.getConfiguration().get(AWSConstants.AWS_API_STAGE).toString();
+
+            String accessKey =
+                    gatewayConfiguration.getConfiguration().get(AWSConstants.AWS_ENVIRONMENT_ACCESS_KEY).toString();
+            String secretAccessKey =
+                    gatewayConfiguration.getConfiguration().get(AWSConstants.AWS_ENVIRONMENT_SECRET_KEY).toString();
+
+            this.apiGatewayClient = ApiGatewayClientManager.getClient(region, accessKey, secretAccessKey);
+        } catch (Exception e) {
+            throw new APIManagementException("Error occurred while initializing AWS Gateway Deployer", e);
         }
-    }
-
-    @Override
-    public boolean undeploy(String apiID, String apiName, String apiVersion, String apiContext,
-                            Environment environment, String referenceArtifact) throws DeployerException {
-
-        return AWSAPIUtil.deleteDeployment(environment, referenceArtifact);
-    }
-
-    @Override
-    public boolean undeployWhenRetire(API api, Environment environment, String referenceArtifact) throws DeployerException {
-
-        return AWSAPIUtil.deleteDeployment(environment, referenceArtifact);
-    }
-
-    @Override
-    public List<ConfigurationDto> getConnectionConfigurations() {
-        List<ConfigurationDto> configurationDtoList = new ArrayList<>();
-        configurationDtoList
-                .add(new ConfigurationDto("region", "AWS Region", "input", "AWS Region", "", true, false, Collections.emptyList(), false));
-        configurationDtoList
-                .add(new ConfigurationDto("access_key", "Access Key", "input", "AWS Access Key for Signature Authentication", "", true,
-                        true, Collections.emptyList(), false));
-        configurationDtoList
-                .add(new ConfigurationDto("secret_key", "Secret Key", "input", "AWS Secret Key for Signature Authentication", "",
-                        true, true, Collections.emptyList(), false));
-        configurationDtoList.add(new ConfigurationDto("stage", "Stage Name", "input", "Default stage name", "", true,
-                false,
-                Collections.emptyList(), false));
-
-        return configurationDtoList;
     }
 
     @Override
@@ -99,41 +67,39 @@ public class AWSGatewayDeployer implements ExternalGatewayDeployer {
     }
 
     @Override
-    public JsonObject getGatewayFeatureCatalog() throws DeployerException{
-        try (InputStream inputStream = AWSGatewayDeployer.class.getClassLoader()
-                .getResourceAsStream("GatewayFeatureCatalog.json")) {
-
-            if (inputStream == null) {
-                throw new DeployerException("Gateway Feature Catalog JSON not found");
-            }
-
-            InputStreamReader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
-            return JsonParser.parseReader(reader).getAsJsonObject();
-        } catch (Exception e) {
-            throw new DeployerException("Error while getting Gateway Feature Catalog", e);
+    public String deploy(API api, String externalReference) throws APIManagementException {
+        if (externalReference == null) {
+            return AWSAPIUtil.importRestAPI(api, apiGatewayClient, region, stage);
+        } else {
+            return AWSAPIUtil.reimportRestAPI(externalReference, api, apiGatewayClient, region, stage);
         }
     }
 
     @Override
-    public List<String> validateApi(API api) throws DeployerException {
+    public boolean undeploy(String externalReference) throws APIManagementException {
+        return AWSAPIUtil.deleteDeployment(externalReference, apiGatewayClient, stage);
+
+    }
+
+    @Override
+    public GatewayAPIValidationResult validateApi(API api) throws APIManagementException {
         List<String> errorList = new ArrayList<>();
-        try {
-            // Endpoint validation
-            errorList.add(GatewayUtil.validateAWSAPIEndpoint(GatewayUtil.getEndpointURL(api)));
-            // Check for wildcard in the resources
-            errorList.add(GatewayUtil.validateResourceContexts(api));
+        // Endpoint validation
+        errorList.add(GatewayUtil.validateAWSAPIEndpoint(GatewayUtil.getEndpointURL(api)));
+        // Check for wildcard in the resources
+        errorList.add(GatewayUtil.validateResourceContexts(api));
 
-            return errorList.stream().filter(Objects::nonNull).collect(Collectors.toList());
-        } catch (DeployerException e) {
-            throw new DeployerException("Error while validating API with AWS Gateway", e);
-        }
+        GatewayAPIValidationResult result = new GatewayAPIValidationResult();
+        result.setValid(errorList.stream().allMatch(Objects::isNull));
+        result.setErrors(errorList.stream().filter(Objects::nonNull).collect(Collectors.toList()));
+
+        return result;
     }
 
     @Override
-    public String getAPIExecutionURL(String url, Environment environment, String referenceArtifact)
-            throws DeployerException {
-        StringBuilder resolvedUrl = new StringBuilder(url);
-        String awsAPIId = GatewayUtil.getAWSApiIdFromReferenceArtifact(referenceArtifact);
+    public String getAPIExecutionURL(String externalReference) throws APIManagementException {
+        StringBuilder resolvedUrl = new StringBuilder(AWSConstants.AWS_API_EXECUTION_URL_TEMPLATE);
+        String awsAPIId = GatewayUtil.getAWSApiIdFromReferenceArtifact(externalReference);
 
         //replace {apiId} placeHolder with actual API ID
         int start = resolvedUrl.indexOf("{apiId}");
@@ -142,27 +108,20 @@ public class AWSGatewayDeployer implements ExternalGatewayDeployer {
         }
 
         //replace {region} placeHolder with actual region
-        String region = environment.getAdditionalProperties().get("region");
         start = resolvedUrl.indexOf("{region}");
         if (start != -1) {
             resolvedUrl.replace(start, start + "{region}".length(), region);
         }
-        return resolvedUrl.toString() + "/" + environment.getAdditionalProperties().get("stage");
+        return resolvedUrl.toString() + "/" + stage;
     }
 
     @Override
-    public void transformAPI(API api) throws DeployerException {
+    public void transformAPI(API api) throws APIManagementException {
         // change all /* resources to / in the resources list
         for(URITemplate resource: api.getUriTemplates()) {
             if (resource.getUriTemplate().endsWith("/*")) {
                 resource.setUriTemplate(resource.getUriTemplate().replace("/*", "/"));
             }
         }
-    }
-
-    @Override
-    public String getDefaultHostnameTemplate() {
-
-        return "{apiId}.execute-api.{region}.amazonaws.com";
     }
 }

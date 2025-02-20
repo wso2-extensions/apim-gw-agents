@@ -28,14 +28,16 @@ import org.json.simple.parser.ParseException;
 import org.wso2.aws.client.AWSConstants;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.model.API;
-import org.wso2.carbon.apimgt.impl.deployer.exceptions.DeployerException;
 import software.amazon.awssdk.services.apigateway.ApiGatewayClient;
 import software.amazon.awssdk.services.apigateway.model.AuthorizerType;
 import software.amazon.awssdk.services.apigateway.model.CreateAuthorizerRequest;
 import software.amazon.awssdk.services.apigateway.model.CreateAuthorizerResponse;
 import software.amazon.awssdk.services.apigateway.model.DeleteAuthorizerRequest;
 import software.amazon.awssdk.services.apigateway.model.DeleteRestApiRequest;
+import software.amazon.awssdk.services.apigateway.model.GetMethodRequest;
+import software.amazon.awssdk.services.apigateway.model.GetMethodResponse;
 import software.amazon.awssdk.services.apigateway.model.IntegrationType;
+import software.amazon.awssdk.services.apigateway.model.MethodResponse;
 import software.amazon.awssdk.services.apigateway.model.Op;
 import software.amazon.awssdk.services.apigateway.model.PatchOperation;
 import software.amazon.awssdk.services.apigateway.model.PutIntegrationRequest;
@@ -63,14 +65,14 @@ public class GatewayUtil {
 
     private static final Pattern VALID_PATH_PATTERN = Pattern.compile("^[a-zA-Z0-9-._~%!$&'()*+,;=:@/]*$");
 
-    public static String getAWSApiIdFromReferenceArtifact(String referenceArtifact) throws DeployerException {
+    public static String getAWSApiIdFromReferenceArtifact(String referenceArtifact) throws APIManagementException {
         Pattern pattern = Pattern.compile(AWSConstants.AWS_ID_PATTERN);
         Matcher matcher = pattern.matcher(referenceArtifact);
 
         if (matcher.find()) {
             return matcher.group(1);
         } else {
-            throw new DeployerException("Error while extracting AWS API ID from reference artifact");
+            throw new APIManagementException("Error while extracting AWS API ID from reference artifact");
         }
     }
 
@@ -83,7 +85,7 @@ public class GatewayUtil {
         }
     }
 
-    public static String getEndpointURL(API api) throws DeployerException {
+    public static String getEndpointURL(API api) throws APIManagementException {
 
         try {
             String endpointConfig = api.getEndpointConfig();
@@ -101,7 +103,7 @@ public class GatewayUtil {
             return productionEndpoint.charAt(productionEndpoint.length() - 1) == '/' ?
                     productionEndpoint.substring(0, productionEndpoint.length() - 1) : productionEndpoint;
         } catch (ParseException e) {
-            throw new DeployerException("Error while parsing endpoint configuration", e);
+            throw new APIManagementException("Error while parsing endpoint configuration", e);
         }
     }
 
@@ -216,18 +218,27 @@ public class GatewayUtil {
 
     public static void configureCORSHeadersAtMethodLevel(String apiId, Resource resource, String httpMethod,
                                                           ApiGatewayClient apiGatewayClient) {
-        UpdateMethodResponseRequest updateMethodResponseRequest = UpdateMethodResponseRequest.builder()
-                .restApiId(apiId).resourceId(resource.id()).httpMethod(httpMethod).statusCode("200")
-                .patchOperations(PatchOperation.builder().op(Op.ADD).path("/responseParameters/method" +
-                        ".response.header.Access-Control-Allow-Origin").build()).build();
-        apiGatewayClient.updateMethodResponse(updateMethodResponseRequest);
+        GetMethodRequest getMethodRequest = GetMethodRequest.builder().restApiId(apiId).resourceId(resource.id())
+                .httpMethod(httpMethod).build();
+        GetMethodResponse getMethodResponse = apiGatewayClient.getMethod(getMethodRequest);
 
-        UpdateIntegrationResponseRequest updateIntegrationResponseRequest =
-                UpdateIntegrationResponseRequest.builder()
-                        .restApiId(apiId).resourceId(resource.id()).httpMethod(httpMethod).statusCode("200")
+        if (getMethodResponse.hasMethodResponses()) {
+            Map<String, MethodResponse> responses = getMethodResponse.methodResponses();
+            for (Map.Entry<String, MethodResponse> entry : responses.entrySet()) {
+                UpdateMethodResponseRequest updateMethodResponseRequest = UpdateMethodResponseRequest.builder()
+                        .restApiId(apiId).resourceId(resource.id()).httpMethod(httpMethod).statusCode(entry.getKey())
                         .patchOperations(PatchOperation.builder().op(Op.ADD).path("/responseParameters/method" +
-                                ".response.header.Access-Control-Allow-Origin").value("'*'").build()).build();
-        apiGatewayClient.updateIntegrationResponse(updateIntegrationResponseRequest);
+                                ".response.header.Access-Control-Allow-Origin").build()).build();
+                apiGatewayClient.updateMethodResponse(updateMethodResponseRequest);
+            }
+
+            UpdateIntegrationResponseRequest updateIntegrationResponseRequest =
+                    UpdateIntegrationResponseRequest.builder()
+                            .restApiId(apiId).resourceId(resource.id()).httpMethod(httpMethod).statusCode("200")
+                            .patchOperations(PatchOperation.builder().op(Op.ADD).path("/responseParameters/method" +
+                                    ".response.header.Access-Control-Allow-Origin").value("'*'").build()).build();
+            apiGatewayClient.updateIntegrationResponse(updateIntegrationResponseRequest);
+        }
     }
 
     public static CreateAuthorizerResponse getAuthorizer(String awsApiId, String name, String lambdaArn, String roleArn,
