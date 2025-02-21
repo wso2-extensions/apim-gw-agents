@@ -49,7 +49,9 @@ import software.amazon.awssdk.services.apigateway.model.UpdateMethodResponseRequ
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -254,5 +256,24 @@ public class GatewayUtil {
                 .build();
 
         apiGatewayClient.deleteAuthorizer(deleteAuthorizerRequest);
+    }
+
+    public static List<String> extractPathParams(String path) {
+        List<String> pathParams = new ArrayList<>();
+        int start = path.indexOf("{");
+
+        while(start < path.length()) {
+            int end = path.indexOf("}", start);
+            if (end == -1) {
+                break;
+            }
+
+            pathParams.add(path.substring(start + 1, end));
+            start = path.indexOf("{", end);
+            if (start == -1) {
+                break;
+            }
+        }
+        return pathParams;
     }
 }

@@ -157,12 +157,22 @@ public class AWSAPIUtil {
                     GatewayUtil.configureOptionsCallForCORS(apiId, resource, apiGatewayClient);
 
                     for (Map.Entry entry : resourceMethods.entrySet()) {
+                        Map<String, String> requestParameters = new HashMap<>();
+                        if (resource.path() != null && resource.path().contains("{")) {
+                            List<String> pathParams = GatewayUtil.extractPathParams(resource.path());
+                            for (String pathParam : pathParams) {
+                                requestParameters.put("integration.request.path." + pathParam,
+                                        "method.request.path." + pathParam);
+                            }
+                        }
+
                         PutIntegrationRequest putIntegrationRequest = PutIntegrationRequest.builder()
                                 .httpMethod(entry.getKey().toString())
                                 .integrationHttpMethod(entry.getKey().toString())
                                 .resourceId(resource.id())
                                 .restApiId(apiId)
                                 .type(IntegrationType.HTTP)
+                                .requestParameters(requestParameters)
                                 .uri(productionEndpoint + resource.path())
                                 .build();
                         PutIntegrationResponse putIntegrationResponse =
