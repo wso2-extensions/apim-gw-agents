@@ -39,6 +39,8 @@ import software.amazon.awssdk.services.apigateway.model.Deployment;
 import software.amazon.awssdk.services.apigateway.model.GetAuthorizersRequest;
 import software.amazon.awssdk.services.apigateway.model.GetDeploymentsRequest;
 import software.amazon.awssdk.services.apigateway.model.GetDeploymentsResponse;
+import software.amazon.awssdk.services.apigateway.model.GetMethodRequest;
+import software.amazon.awssdk.services.apigateway.model.GetMethodResponse;
 import software.amazon.awssdk.services.apigateway.model.GetResourcesRequest;
 import software.amazon.awssdk.services.apigateway.model.GetResourcesResponse;
 import software.amazon.awssdk.services.apigateway.model.GetRestApiRequest;
@@ -49,7 +51,6 @@ import software.amazon.awssdk.services.apigateway.model.Method;
 import software.amazon.awssdk.services.apigateway.model.Op;
 import software.amazon.awssdk.services.apigateway.model.PatchOperation;
 import software.amazon.awssdk.services.apigateway.model.PutIntegrationRequest;
-import software.amazon.awssdk.services.apigateway.model.PutIntegrationResponse;
 import software.amazon.awssdk.services.apigateway.model.PutIntegrationResponseRequest;
 import software.amazon.awssdk.services.apigateway.model.PutMode;
 import software.amazon.awssdk.services.apigateway.model.PutRestApiRequest;
@@ -157,13 +158,28 @@ public class AWSAPIUtil {
                     GatewayUtil.configureOptionsCallForCORS(apiId, resource, apiGatewayClient);
 
                     for (Map.Entry entry : resourceMethods.entrySet()) {
-                        Map<String, String> requestParameters = new HashMap<>();
-                        if (resource.path() != null && resource.path().contains("{")) {
-                            List<String> pathParams = GatewayUtil.extractPathParams(resource.path());
-                            for (String pathParam : pathParams) {
-                                requestParameters.put("integration.request.path." + pathParam,
-                                        "method.request.path." + pathParam);
-                            }
+                        GetMethodRequest getMethodRequest = GetMethodRequest.builder()
+                            .restApiId(apiId)
+                            .resourceId(resource.id())
+                            .httpMethod(entry.getKey().toString())
+                            .build();
+                        GetMethodResponse getMethodResponse = apiGatewayClient.getMethod(getMethodRequest);
+                        Map<String, Boolean> requestParamsFromMethod = getMethodResponse.requestParameters();
+
+                        Map<String, String> requestParametersToBeAddedInIntegration = new HashMap<>();
+
+                        //check for request params and add required mapping in integration
+                        for (Map.Entry<String, Boolean> paramEntry : requestParamsFromMethod.entrySet()) {
+                            String key = paramEntry.getKey();
+                            String paramName = key.substring(key.lastIndexOf(".") + 1);
+
+                            String prefix = "method.request.";
+                            int startIndex = key.indexOf(prefix) + prefix.length();
+                            int endIndex = key.indexOf('.', startIndex);
+                            String location = key.substring(startIndex, endIndex != -1 ? endIndex : key.length());
+
+                            requestParametersToBeAddedInIntegration.put("integration.request." + location + "." + paramName,
+                                    "method.request." + location + "." + paramName);
                         }
 
                         PutIntegrationRequest putIntegrationRequest = PutIntegrationRequest.builder()
@@ -172,12 +188,10 @@ public class AWSAPIUtil {
                                 .resourceId(resource.id())
                                 .restApiId(apiId)
                                 .type(IntegrationType.HTTP)
-                                .requestParameters(requestParameters)
+                                .requestParameters(requestParametersToBeAddedInIntegration)
                                 .uri(productionEndpoint + resource.path())
                                 .build();
-                        PutIntegrationResponse putIntegrationResponse =
-                                apiGatewayClient.putIntegration(putIntegrationRequest);
-                        String integrationURI = putIntegrationResponse.uri();
+                        apiGatewayClient.putIntegration(putIntegrationRequest);
 
                         //Configure default output mapping
                         PutIntegrationResponseRequest putIntegrationResponseRequest =
@@ -354,11 +368,36 @@ public class AWSAPIUtil {
                     GatewayUtil.configureOptionsCallForCORS(awsApiId, resource, apiGatewayClient);
 
                     for (Map.Entry entry : resourceMethods.entrySet()) {
+                        GetMethodRequest getMethodRequest = GetMethodRequest.builder()
+                                .restApiId(awsApiId)
+                                .resourceId(resource.id())
+                                .httpMethod(entry.getKey().toString())
+                                .build();
+                        GetMethodResponse getMethodResponse = apiGatewayClient.getMethod(getMethodRequest);
+                        Map<String, Boolean> requestParamsFromMethod = getMethodResponse.requestParameters();
+
+                        Map<String, String> requestParametersToBeAddedInIntegration = new HashMap<>();
+
+                        //check for request params and add required mapping in integration
+                        for (Map.Entry<String, Boolean> paramEntry : requestParamsFromMethod.entrySet()) {
+                            String key = paramEntry.getKey();
+                            String paramName = key.substring(key.lastIndexOf(".") + 1);
+
+                            String prefix = "method.request.";
+                            int startIndex = key.indexOf(prefix) + prefix.length();
+                            int endIndex = key.indexOf('.', startIndex);
+                            String location = key.substring(startIndex, endIndex != -1 ? endIndex : key.length());
+
+                            requestParametersToBeAddedInIntegration.put("integration.request." + location + "." + paramName,
+                                    "method.request." + location + "." + paramName);
+                        }
+
                         PutIntegrationRequest putIntegrationRequest = PutIntegrationRequest.builder()
                                 .httpMethod(entry.getKey().toString())
                                 .integrationHttpMethod(entry.getKey().toString())
                                 .resourceId(resource.id())
                                 .restApiId(awsApiId)
+                                .requestParameters(requestParametersToBeAddedInIntegration)
                                 .type(IntegrationType.HTTP)
                                 .uri(productionEndpoint + resource.path())
                                 .build();
