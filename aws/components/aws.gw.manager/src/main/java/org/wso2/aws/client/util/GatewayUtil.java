@@ -245,6 +245,7 @@ public class GatewayUtil {
                 .authorizerUri("arn:aws:apigateway:" + region + ":lambda:path/2015-03-31/functions/" + lambdaArn +
                         "/invocations")
                 .authorizerCredentials(roleArn)
+                .authorizerResultTtlInSeconds(0)
                 .build();
         return apiGatewayClient.createAuthorizer(createAuthorizerRequest);
     }
