@@ -205,23 +205,32 @@ public class AWSAPIUtil {
                         apiGatewayClient.putIntegrationResponse(putIntegrationResponseRequest);
 
                         String key = resource.path().toLowerCase() + "|" + entry.getKey().toString().toLowerCase();
-                        if (!authorizers.containsKey(pathToArnMapping.get(key))) {
+                        boolean isAuthorizerFound = false;
+                        if (authorizers.containsKey(pathToArnMapping.get(key))) {
+                            isAuthorizerFound = true;
+                        } else {
                             key = "API";
-                            if (!authorizers.containsKey(pathToArnMapping.get(key))) {
-                                throw new APIManagementException("Authorizer not found for the resource: "
-                                        + resource.path());
+                            if (authorizers.containsKey(pathToArnMapping.get(key))) {
+                                isAuthorizerFound = true;
+                            } else {
+                                if (log.isDebugEnabled()) {
+                                    log.debug("Authorizer not found for the resource: " + resource.path() + " at API " +
+                                            "or Resource levels");
+                                }
                             }
                         }
-                        String authorizerId = authorizers.get(pathToArnMapping.get(key));
+                        if (isAuthorizerFound) {
+                            String authorizerId = authorizers.get(pathToArnMapping.get(key));
 
-                        //configure authorizer
-                        UpdateMethodRequest updateMethodRequest = UpdateMethodRequest.builder().restApiId(apiId)
-                                .resourceId(resource.id()).httpMethod(entry.getKey().toString())
-                                .patchOperations(PatchOperation.builder().op(Op.REPLACE).path("/authorizationType")
-                                        .value("CUSTOM").build(),
-                                        PatchOperation.builder().op(Op.REPLACE).path("/authorizerId")
-                                                .value(authorizerId).build()).build();
-                        apiGatewayClient.updateMethod(updateMethodRequest);
+                            //configure authorizer
+                            UpdateMethodRequest updateMethodRequest = UpdateMethodRequest.builder().restApiId(apiId)
+                                    .resourceId(resource.id()).httpMethod(entry.getKey().toString())
+                                    .patchOperations(PatchOperation.builder().op(Op.REPLACE).path("/authorizationType")
+                                                    .value("CUSTOM").build(),
+                                            PatchOperation.builder().op(Op.REPLACE).path("/authorizerId")
+                                                    .value(authorizerId).build()).build();
+                            apiGatewayClient.updateMethod(updateMethodRequest);
+                        }
 
                         //configure CORS Headers at request Method level
                         GatewayUtil.configureCORSHeadersAtMethodLevel(apiId, resource, entry.getKey().toString(),
@@ -415,22 +424,32 @@ public class AWSAPIUtil {
                         apiGatewayClient.putIntegrationResponse(putIntegrationResponseRequest);
 
                         String key = resource.path().toLowerCase() + "|" + entry.getKey().toString().toLowerCase();
-                        if (!authorizers.containsKey(pathToArnMapping.get(key))) {
+                        boolean isAuthorizerFound = false;
+                        if (authorizers.containsKey(pathToArnMapping.get(key))) {
+                            isAuthorizerFound = true;
+                        } else {
                             key = "API";
-                            if (!authorizers.containsKey(pathToArnMapping.get(key))) {
-                                throw new APIManagementException("Authorizer not found for the resource: "
-                                        + resource.path());
+                            if (authorizers.containsKey(pathToArnMapping.get(key))) {
+                                isAuthorizerFound = true;
+                            } else {
+                                if (log.isDebugEnabled()) {
+                                    log.debug("Authorizer not found for the resource: " + resource.path() + " at API " +
+                                            "or Resource levels");
+                                }
                             }
                         }
-                        String authorizerId = authorizers.get(pathToArnMapping.get(key));
 
-                        UpdateMethodRequest updateMethodRequest = UpdateMethodRequest.builder().restApiId(awsApiId)
-                                .resourceId(resource.id()).httpMethod(entry.getKey().toString())
-                                .patchOperations(PatchOperation.builder().op(Op.REPLACE).path("/authorizationType")
-                                                .value("CUSTOM").build(),
-                                        PatchOperation.builder().op(Op.REPLACE).path("/authorizerId")
-                                                .value(authorizerId).build()).build();
-                        apiGatewayClient.updateMethod(updateMethodRequest);
+                        if (isAuthorizerFound) {
+                            String authorizerId = authorizers.get(pathToArnMapping.get(key));
+
+                            UpdateMethodRequest updateMethodRequest = UpdateMethodRequest.builder().restApiId(awsApiId)
+                                    .resourceId(resource.id()).httpMethod(entry.getKey().toString())
+                                    .patchOperations(PatchOperation.builder().op(Op.REPLACE).path("/authorizationType")
+                                                    .value("CUSTOM").build(),
+                                            PatchOperation.builder().op(Op.REPLACE).path("/authorizerId")
+                                                    .value(authorizerId).build()).build();
+                            apiGatewayClient.updateMethod(updateMethodRequest);
+                        }
 
                         //configure CORS Headers at request Method level
                         GatewayUtil.configureCORSHeadersAtMethodLevel(awsApiId, resource, entry.getKey().toString(),
