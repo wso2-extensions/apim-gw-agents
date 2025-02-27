@@ -39,6 +39,8 @@ import software.amazon.awssdk.services.apigateway.model.Deployment;
 import software.amazon.awssdk.services.apigateway.model.GetAuthorizersRequest;
 import software.amazon.awssdk.services.apigateway.model.GetDeploymentsRequest;
 import software.amazon.awssdk.services.apigateway.model.GetDeploymentsResponse;
+import software.amazon.awssdk.services.apigateway.model.GetMethodRequest;
+import software.amazon.awssdk.services.apigateway.model.GetMethodResponse;
 import software.amazon.awssdk.services.apigateway.model.GetResourcesRequest;
 import software.amazon.awssdk.services.apigateway.model.GetResourcesResponse;
 import software.amazon.awssdk.services.apigateway.model.GetRestApiRequest;
@@ -49,7 +51,6 @@ import software.amazon.awssdk.services.apigateway.model.Method;
 import software.amazon.awssdk.services.apigateway.model.Op;
 import software.amazon.awssdk.services.apigateway.model.PatchOperation;
 import software.amazon.awssdk.services.apigateway.model.PutIntegrationRequest;
-import software.amazon.awssdk.services.apigateway.model.PutIntegrationResponse;
 import software.amazon.awssdk.services.apigateway.model.PutIntegrationResponseRequest;
 import software.amazon.awssdk.services.apigateway.model.PutMode;
 import software.amazon.awssdk.services.apigateway.model.PutRestApiRequest;
@@ -157,13 +158,28 @@ public class AWSAPIUtil {
                     GatewayUtil.configureOptionsCallForCORS(apiId, resource, apiGatewayClient);
 
                     for (Map.Entry entry : resourceMethods.entrySet()) {
-                        Map<String, String> requestParameters = new HashMap<>();
-                        if (resource.path() != null && resource.path().contains("{")) {
-                            List<String> pathParams = GatewayUtil.extractPathParams(resource.path());
-                            for (String pathParam : pathParams) {
-                                requestParameters.put("integration.request.path." + pathParam,
-                                        "method.request.path." + pathParam);
-                            }
+                        GetMethodRequest getMethodRequest = GetMethodRequest.builder()
+                            .restApiId(apiId)
+                            .resourceId(resource.id())
+                            .httpMethod(entry.getKey().toString())
+                            .build();
+                        GetMethodResponse getMethodResponse = apiGatewayClient.getMethod(getMethodRequest);
+                        Map<String, Boolean> requestParamsFromMethod = getMethodResponse.requestParameters();
+
+                        Map<String, String> requestParametersToBeAddedInIntegration = new HashMap<>();
+
+                        //check for request params and add required mapping in integration
+                        for (Map.Entry<String, Boolean> paramEntry : requestParamsFromMethod.entrySet()) {
+                            String key = paramEntry.getKey();
+                            String paramName = key.substring(key.lastIndexOf(".") + 1);
+
+                            String prefix = "method.request.";
+                            int startIndex = key.indexOf(prefix) + prefix.length();
+                            int endIndex = key.indexOf('.', startIndex);
+                            String location = key.substring(startIndex, endIndex != -1 ? endIndex : key.length());
+
+                            requestParametersToBeAddedInIntegration.put("integration.request." + location + "." + paramName,
+                                    "method.request." + location + "." + paramName);
                         }
 
                         PutIntegrationRequest putIntegrationRequest = PutIntegrationRequest.builder()
@@ -172,12 +188,10 @@ public class AWSAPIUtil {
                                 .resourceId(resource.id())
                                 .restApiId(apiId)
                                 .type(IntegrationType.HTTP)
-                                .requestParameters(requestParameters)
+                                .requestParameters(requestParametersToBeAddedInIntegration)
                                 .uri(productionEndpoint + resource.path())
                                 .build();
-                        PutIntegrationResponse putIntegrationResponse =
-                                apiGatewayClient.putIntegration(putIntegrationRequest);
-                        String integrationURI = putIntegrationResponse.uri();
+                        apiGatewayClient.putIntegration(putIntegrationRequest);
 
                         //Configure default output mapping
                         PutIntegrationResponseRequest putIntegrationResponseRequest =
@@ -191,23 +205,32 @@ public class AWSAPIUtil {
                         apiGatewayClient.putIntegrationResponse(putIntegrationResponseRequest);
 
                         String key = resource.path().toLowerCase() + "|" + entry.getKey().toString().toLowerCase();
-                        if (!authorizers.containsKey(pathToArnMapping.get(key))) {
+                        boolean isAuthorizerFound = false;
+                        if (authorizers.containsKey(pathToArnMapping.get(key))) {
+                            isAuthorizerFound = true;
+                        } else {
                             key = "API";
-                            if (!authorizers.containsKey(pathToArnMapping.get(key))) {
-                                throw new APIManagementException("Authorizer not found for the resource: "
-                                        + resource.path());
+                            if (authorizers.containsKey(pathToArnMapping.get(key))) {
+                                isAuthorizerFound = true;
+                            } else {
+                                if (log.isDebugEnabled()) {
+                                    log.debug("Authorizer not found for the resource: " + resource.path() + " at API " +
+                                            "or Resource levels");
+                                }
                             }
                         }
-                        String authorizerId = authorizers.get(pathToArnMapping.get(key));
+                        if (isAuthorizerFound) {
+                            String authorizerId = authorizers.get(pathToArnMapping.get(key));
 
-                        //configure authorizer
-                        UpdateMethodRequest updateMethodRequest = UpdateMethodRequest.builder().restApiId(apiId)
-                                .resourceId(resource.id()).httpMethod(entry.getKey().toString())
-                                .patchOperations(PatchOperation.builder().op(Op.REPLACE).path("/authorizationType")
-                                        .value("CUSTOM").build(),
-                                        PatchOperation.builder().op(Op.REPLACE).path("/authorizerId")
-                                                .value(authorizerId).build()).build();
-                        apiGatewayClient.updateMethod(updateMethodRequest);
+                            //configure authorizer
+                            UpdateMethodRequest updateMethodRequest = UpdateMethodRequest.builder().restApiId(apiId)
+                                    .resourceId(resource.id()).httpMethod(entry.getKey().toString())
+                                    .patchOperations(PatchOperation.builder().op(Op.REPLACE).path("/authorizationType")
+                                                    .value("CUSTOM").build(),
+                                            PatchOperation.builder().op(Op.REPLACE).path("/authorizerId")
+                                                    .value(authorizerId).build()).build();
+                            apiGatewayClient.updateMethod(updateMethodRequest);
+                        }
 
                         //configure CORS Headers at request Method level
                         GatewayUtil.configureCORSHeadersAtMethodLevel(apiId, resource, entry.getKey().toString(),
@@ -354,11 +377,36 @@ public class AWSAPIUtil {
                     GatewayUtil.configureOptionsCallForCORS(awsApiId, resource, apiGatewayClient);
 
                     for (Map.Entry entry : resourceMethods.entrySet()) {
+                        GetMethodRequest getMethodRequest = GetMethodRequest.builder()
+                                .restApiId(awsApiId)
+                                .resourceId(resource.id())
+                                .httpMethod(entry.getKey().toString())
+                                .build();
+                        GetMethodResponse getMethodResponse = apiGatewayClient.getMethod(getMethodRequest);
+                        Map<String, Boolean> requestParamsFromMethod = getMethodResponse.requestParameters();
+
+                        Map<String, String> requestParametersToBeAddedInIntegration = new HashMap<>();
+
+                        //check for request params and add required mapping in integration
+                        for (Map.Entry<String, Boolean> paramEntry : requestParamsFromMethod.entrySet()) {
+                            String key = paramEntry.getKey();
+                            String paramName = key.substring(key.lastIndexOf(".") + 1);
+
+                            String prefix = "method.request.";
+                            int startIndex = key.indexOf(prefix) + prefix.length();
+                            int endIndex = key.indexOf('.', startIndex);
+                            String location = key.substring(startIndex, endIndex != -1 ? endIndex : key.length());
+
+                            requestParametersToBeAddedInIntegration.put("integration.request." + location + "." + paramName,
+                                    "method.request." + location + "." + paramName);
+                        }
+
                         PutIntegrationRequest putIntegrationRequest = PutIntegrationRequest.builder()
                                 .httpMethod(entry.getKey().toString())
                                 .integrationHttpMethod(entry.getKey().toString())
                                 .resourceId(resource.id())
                                 .restApiId(awsApiId)
+                                .requestParameters(requestParametersToBeAddedInIntegration)
                                 .type(IntegrationType.HTTP)
                                 .uri(productionEndpoint + resource.path())
                                 .build();
@@ -376,22 +424,32 @@ public class AWSAPIUtil {
                         apiGatewayClient.putIntegrationResponse(putIntegrationResponseRequest);
 
                         String key = resource.path().toLowerCase() + "|" + entry.getKey().toString().toLowerCase();
-                        if (!authorizers.containsKey(pathToArnMapping.get(key))) {
+                        boolean isAuthorizerFound = false;
+                        if (authorizers.containsKey(pathToArnMapping.get(key))) {
+                            isAuthorizerFound = true;
+                        } else {
                             key = "API";
-                            if (!authorizers.containsKey(pathToArnMapping.get(key))) {
-                                throw new APIManagementException("Authorizer not found for the resource: "
-                                        + resource.path());
+                            if (authorizers.containsKey(pathToArnMapping.get(key))) {
+                                isAuthorizerFound = true;
+                            } else {
+                                if (log.isDebugEnabled()) {
+                                    log.debug("Authorizer not found for the resource: " + resource.path() + " at API " +
+                                            "or Resource levels");
+                                }
                             }
                         }
-                        String authorizerId = authorizers.get(pathToArnMapping.get(key));
 
-                        UpdateMethodRequest updateMethodRequest = UpdateMethodRequest.builder().restApiId(awsApiId)
-                                .resourceId(resource.id()).httpMethod(entry.getKey().toString())
-                                .patchOperations(PatchOperation.builder().op(Op.REPLACE).path("/authorizationType")
-                                                .value("CUSTOM").build(),
-                                        PatchOperation.builder().op(Op.REPLACE).path("/authorizerId")
-                                                .value(authorizerId).build()).build();
-                        apiGatewayClient.updateMethod(updateMethodRequest);
+                        if (isAuthorizerFound) {
+                            String authorizerId = authorizers.get(pathToArnMapping.get(key));
+
+                            UpdateMethodRequest updateMethodRequest = UpdateMethodRequest.builder().restApiId(awsApiId)
+                                    .resourceId(resource.id()).httpMethod(entry.getKey().toString())
+                                    .patchOperations(PatchOperation.builder().op(Op.REPLACE).path("/authorizationType")
+                                                    .value("CUSTOM").build(),
+                                            PatchOperation.builder().op(Op.REPLACE).path("/authorizerId")
+                                                    .value(authorizerId).build()).build();
+                            apiGatewayClient.updateMethod(updateMethodRequest);
+                        }
 
                         //configure CORS Headers at request Method level
                         GatewayUtil.configureCORSHeadersAtMethodLevel(awsApiId, resource, entry.getKey().toString(),
