@@ -22,7 +22,7 @@
 
     <groupId>org.wso2.gw.ext</groupId>
     <artifactId>aws.gw.client</artifactId>
-    <version>0.9.2-SNAPSHOT</version>
+    <version>0.9.2</version>
     <packaging>pom</packaging>
 
     <parent>
@@ -110,7 +110,7 @@
         <connection>scm:git:https://github.com/wso2-extensions/apim-gw-agents.git</connection>
         <url>https://github.com/wso2-extensions/apim-gw-agents.git</url>
         <developerConnection>scm:git:https://github.com/wso2-extensions/apim-gw-agents.git</developerConnection>
-        <tag>HEAD</tag>
+        <tag>aws-gw-0.9.2</tag>
     </scm>
 
     <properties>
