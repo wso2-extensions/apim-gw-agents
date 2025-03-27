@@ -1,0 +1,17 @@
+apiVersion: configuration.konghq.com/v1
+config:
+  claims_to_verify:
+  - exp
+  header_names:
+  - authorization
+  key_claim_name: client_id
+  run_on_preflight: true
+kind: KongPlugin
+metadata:
+  labels:
+    apiName: APIResourceEndpoint
+    apiUUID: 780d341c-20f0-44e4-aa42-4cff613b9d50
+    organization: 2e14f1a627e0f7388df2efa85fba6816ac25f094
+  name: api-jwt-553a334beabb750498bd5deeda870753e33042d9-780d341c-20f0-44e4-aa42-4cff613b9d50-api
+  namespace: apk
+plugin: jwt

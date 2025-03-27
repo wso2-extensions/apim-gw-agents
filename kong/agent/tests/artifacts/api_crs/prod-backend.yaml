@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    apiName: APIResourceEndpoint
+    apiUUID: 780d341c-20f0-44e4-aa42-4cff613b9d50
+    environment: production
+    organization: 2e14f1a627e0f7388df2efa85fba6816ac25f094
+  name: backend-ad9296e52f713ad6d4be850f604eb03eafcbae2c
+  namespace: apk
+spec:
+  externalName: httpbin.org
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 80
+  sessionAffinity: None
+  type: ExternalName
+status:
+  loadBalancer: {}
