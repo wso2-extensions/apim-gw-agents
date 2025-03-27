@@ -1,0 +1,36 @@
+# The logging configuration for Adapter
+
+## Adapter root Level configurations
+
+LogFormat = "TEXT" # Values can be "JSON", "TEXT"
+logLevel = "INFO" # LogLevels can be "DEBG", "FATL", "ERRO", "WARN", "INFO", "PANC"
+
+[rotation]
+Compress = true 
+MaxAge = 2 # In days
+MaxBackups = 3 
+MaxSize = 10 # In MegaBytes (MB)
+
+## Adapter package Level configurations
+
+[[pkg]]
+logLevel = "INFO" # LogLevels can be "DEBG", "FATL", "ERRO", "WARN", "INFO", "PANC"
+name = "github.com/wso2/apk/adapter/internal/adapter" 
+
+[[pkg]]
+logLevel = "INFO"
+name = "github.com/wso2/apk/adapter/internal/oasparser"
+
+# The logging configuration for Router
+
+[accessLogs]
+enable = false
+format = "[%START_TIME%] '%REQ(:METHOD)% %DYNAMIC_METADATA(envoy.filters.http.ext_authz:originalPath)% %REQ(:PATH)% %PROTOCOL%' %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED% %BYTES_SENT% %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% '%REQ(X-FORWARDED-FOR)%' '%REQ(USER-AGENT)%' '%REQ(X-REQUEST-ID)%' '%REQ(:AUTHORITY)%' '%UPSTREAM_HOST%'\n"
+
+[wireLogs]
+enable = false
+include = ["Headers", "Body", "Trailers"]
+
+# [[pkg]]
+# name = "github.com/wso2/apk/Adapter/pkg/xds"
+# logLevel = "INFO"
