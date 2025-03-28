@@ -9,5 +9,5 @@ metadata:
     apiUUID: 780d341c-20f0-44e4-aa42-4cff613b9d50
     organization: 2e14f1a627e0f7388df2efa85fba6816ac25f094
   name: api-acl-adaf9bf18ed1c6c07acdc951f3a7449758c084ce-780d341c-20f0-44e4-aa42-4cff613b9d50-api-sandbox
-  namespace: apk
+  namespace: kong
 plugin: acl

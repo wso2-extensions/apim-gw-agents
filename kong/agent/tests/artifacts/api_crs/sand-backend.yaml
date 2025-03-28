@@ -7,7 +7,7 @@ metadata:
     environment: production
     organization: 2e14f1a627e0f7388df2efa85fba6816ac25f094
   name: backend-807288cfe58368ddaad4cf4c79cd7a7c68baef1a
-  namespace: apk
+  namespace: kong
 spec:
   externalName: httpbin.org
   ports:

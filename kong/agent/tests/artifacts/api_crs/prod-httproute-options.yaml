@@ -10,7 +10,7 @@ metadata:
     organization: 2e14f1a627e0f7388df2efa85fba6816ac25f094
     routeType: options
   name: a1bf6720c628f2045fb83ba478eed39dd06dff4a-production-httproute-0-options
-  namespace: apk
+  namespace: kong
 spec:
   hostnames:
   - default.gw.wso2.com
