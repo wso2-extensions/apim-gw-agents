@@ -21,6 +21,8 @@ package org.wso2.kong.client;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.model.*;
 
+import java.util.Collections;
+
 
 /**
  * This class controls the API artifact deployments on the AWS API Gateway
@@ -48,7 +50,10 @@ public class KongGatewayDeployer implements GatewayDeployer {
 
     @Override
     public GatewayAPIValidationResult validateApi(API api) throws APIManagementException {
-        return null;
+        GatewayAPIValidationResult gatewayAPIValidationResult = new GatewayAPIValidationResult();
+        gatewayAPIValidationResult.setValid(true);
+        gatewayAPIValidationResult.setErrors(Collections.<String>emptyList());
+        return gatewayAPIValidationResult;
     }
 
     @Override
