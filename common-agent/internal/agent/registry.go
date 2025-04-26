@@ -20,9 +20,9 @@ package agent
 import (
 	"fmt"
 
-	apkAgent "github.com/wso2-extensions/apim-gw-agents/apk/agent"
+	apkAgent "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector"
 	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/agent"
-	kongAgent "github.com/wso2-extensions/apim-gw-agents/kong/agent"
+	kongAgent "github.com/wso2-extensions/apim-gw-agents/kong/gateway-connector"
 )
 
 // agentRegistry is a registry that holds different gateway agents.
