@@ -64,6 +64,6 @@ COPY resources/conf/config.toml conf/
 COPY resources/check_health.sh .
 COPY resources/conf/log_config.toml conf/
 
-COPY ./${TARGETARCH}/main apim-apk-agent
+COPY ./${TARGETARCH}/main apim-common-agent
 
-CMD ./apim-apk-agent
+CMD ./apim-common-agent
