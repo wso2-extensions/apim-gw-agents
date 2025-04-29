@@ -13,20 +13,28 @@
 # KIND, either express or implied. See the License for the
 # specific language governing permissions and limitations
 # under the License.
-{{- if .Values.serviceAccount.enableServiceAccountCreation }}
-apiVersion: rbac.authorization.k8s.io/v1
-# This cluster role binding allows anyone in the "manager" group to read secrets in any namespace.
-kind: ClusterRoleBinding
+
+# The following manifests contain a self-signed issuer CR and a certificate CR.
+# More document can be found at https://docs.cert-manager.io
+
+apiVersion: cert-manager.io/v1
+kind: Certificate
 metadata:
-  name: agent-cluster-role-binding
+  name: apim-common-agent-server-cert
   namespace: {{ .Release.Namespace }}
-roleRef:
-  kind: ClusterRole
-  name: {{ .Values.serviceAccount.roleName | default "wso2agent-role" }}
-  apiGroup: rbac.authorization.k8s.io
-subjects:
-  # You can specify more than one "subject"
-  - kind: ServiceAccount
-    name: {{ .Values.serviceAccount.serviceAccountName | default "wso2agent-platform" }}
-    namespace: {{ .Release.Namespace }}
-{{- end }}
+spec:
+  commonName: apim-common-agent-service
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS8
+    size: 2048
+  
+  dnsNames:
+  - apim-common-agent-service.{{ .Release.Namespace }}.svc
+  - apim-common-agent-service.{{ .Release.Namespace }}.svc.cluster.local
+  issuerRef:
+    kind: "ClusterIssuer"
+    name: "apk-agent-selfsigned-issuer"
+  secretName: apk-agent-server-cert
+
+
