@@ -1,0 +1,27 @@
+Manifest-Version: 1.0
+Bnd-LastModified: 1743141461301
+Build-Jdk: 11.0.26
+Built-By: terance
+Bundle-Description: WSO2 is an open source application development softw
+ are company focused on providing service-oriented        architecture s
+ olutions for professional developers.
+Bundle-DocURL: http://www.wso2.org/
+Bundle-License: http://www.apache.org/licenses/LICENSE-2.0.txt
+Bundle-ManifestVersion: 2
+Bundle-Name: kong.gw.manager
+Bundle-SymbolicName: kong.gw.manager
+Bundle-Vendor: WSO2
+Bundle-Version: 1.0.0.SNAPSHOT
+Created-By: Apache Maven Bundle Plugin
+Export-Package: org.wso2.kong.client;version="1.0.0.SNAPSHOT";uses:="org
+ .wso2.carbon.apimgt.api,org.wso2.carbon.apimgt.api.model"
+Import-Package: com.google.common.reflect;resolution:=optional;version="
+ [33.0,34)",com.google.gson;resolution:=optional;version="[2.11,3)",org.
+ wso2.carbon.apimgt.api;resolution:=optional;version="[9.31,10)",org.wso
+ 2.carbon.apimgt.api.model;resolution:=optional;version="[9.31,10)"
+Provide-Capability: osgi.service;objectClass:List<String>="org.wso2.carb
+ on.apimgt.api.model.GatewayAgentConfiguration"
+Require-Capability: osgi.ee;filter:="(&(osgi.ee=JavaSE)(version=1.8))"
+Service-Component: OSGI-INF/kong.external.gateway.configuration.componen
+ t.xml
+Tool: Bnd-3.2.0.201605172007
