@@ -6,7 +6,7 @@
       "runtime": ["transportsHTTP", "transportsHTTPS", "oauth2"],
       "resources": [],
       "localScopes": [],
-      "policies": [],
+      "policies": ["policies"],
       "monetization": [],
       "subscriptions": [],
       "endpoints": ["http", "typePRODUCTION"],
