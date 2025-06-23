@@ -1,0 +1,9 @@
+[controlPlane]
+enabled = true
+environmentLabels = ["Default"]
+password = "admin"
+serviceURL = "https://wso2apim:9443/"
+skipSSLVerification = true
+username = "admin"
+[controlPlane.brokerConnectionParameters]
+eventListeningEndpoints = ["amqp://admin:admin@wso2apim:5672?retries='10'&connectdelay='30'"]
