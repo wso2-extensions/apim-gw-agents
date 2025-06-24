@@ -21,6 +21,7 @@ package org.wso2.aws.client;
 import org.wso2.aws.client.util.AWSAPIUtil;
 import org.wso2.aws.client.util.GatewayUtil;
 import org.wso2.carbon.apimgt.api.APIManagementException;
+import org.wso2.carbon.apimgt.api.FederatedGatewayAPI;
 import org.wso2.carbon.apimgt.api.model.API;
 import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.api.model.GatewayAPIValidationResult;
@@ -32,6 +33,9 @@ import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.apigateway.ApiGatewayClient;
+import software.amazon.awssdk.services.apigateway.model.GetRestApiResponse;
+import software.amazon.awssdk.services.apigateway.model.GetRestApisRequest;
+import software.amazon.awssdk.services.apigateway.model.RestApi;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -123,10 +127,28 @@ public class AWSGatewayDeployer implements GatewayDeployer {
     @Override
     public void transformAPI(API api) throws APIManagementException {
         // change all /* resources to / in the resources list
-        for(URITemplate resource: api.getUriTemplates()) {
+        for (URITemplate resource : api.getUriTemplates()) {
             if (resource.getUriTemplate().endsWith("/*")) {
                 resource.setUriTemplate(resource.getUriTemplate().replace("/*", "/"));
             }
+        }
+    }
+
+    @Override
+    public List<API> discoverAPIs() throws APIManagementException {
+        List<API> apiList = new ArrayList<>();
+        List<RestApi> restApis = AWSAPIUtil.getRestApis(apiGatewayClient);
+        restApis.forEach(restApi -> {apiList.add(AWSAPIUtil.restAPItoAPI(restApi));});
+        return apiList;
+    }
+
+    @Override
+    public API discoverAPI(String apiId) throws APIManagementException {
+        GetRestApiResponse restApis = AWSAPIUtil.getRestApi(apiGatewayClient, apiId);
+        if (restApis != null) {
+            return AWSAPIUtil.restApiResponsetoAPI(restApis);
+        } else {
+            throw new APIManagementException("API with ID " + apiId + " not found in AWS API Gateway.");
         }
     }
 }

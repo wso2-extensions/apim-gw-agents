@@ -26,6 +26,7 @@ import org.json.simple.parser.JSONParser;
 import org.wso2.aws.client.AWSConstants;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.model.API;
+import org.wso2.carbon.apimgt.api.model.APIIdentifier;
 import org.wso2.carbon.apimgt.api.model.OperationPolicy;
 import org.wso2.carbon.apimgt.api.model.URITemplate;
 import software.amazon.awssdk.core.SdkBytes;
@@ -44,6 +45,9 @@ import software.amazon.awssdk.services.apigateway.model.GetMethodResponse;
 import software.amazon.awssdk.services.apigateway.model.GetResourcesRequest;
 import software.amazon.awssdk.services.apigateway.model.GetResourcesResponse;
 import software.amazon.awssdk.services.apigateway.model.GetRestApiRequest;
+import software.amazon.awssdk.services.apigateway.model.GetRestApiResponse;
+import software.amazon.awssdk.services.apigateway.model.GetRestApisRequest;
+import software.amazon.awssdk.services.apigateway.model.GetRestApisResponse;
 import software.amazon.awssdk.services.apigateway.model.ImportRestApiRequest;
 import software.amazon.awssdk.services.apigateway.model.ImportRestApiResponse;
 import software.amazon.awssdk.services.apigateway.model.IntegrationType;
@@ -56,6 +60,7 @@ import software.amazon.awssdk.services.apigateway.model.PutMode;
 import software.amazon.awssdk.services.apigateway.model.PutRestApiRequest;
 import software.amazon.awssdk.services.apigateway.model.PutRestApiResponse;
 import software.amazon.awssdk.services.apigateway.model.Resource;
+import software.amazon.awssdk.services.apigateway.model.RestApi;
 import software.amazon.awssdk.services.apigateway.model.UpdateMethodRequest;
 
 import java.util.ArrayList;
@@ -507,5 +512,47 @@ public class AWSAPIUtil {
             apiGatewayClient.deleteDeployment(deleteDeploymentRequest);
         }
         return true;
+    }
+
+    /**
+     * This method is used to get Rest APIs from AWS API Gateway.
+     *
+     * @param client APIGatewayClient object
+     * @return List of RestApi objects
+     */
+    public static List<RestApi> getRestApis(ApiGatewayClient client) {
+
+        GetRestApisRequest restApisRequest = GetRestApisRequest.builder().build();
+        GetRestApisResponse restApisResponse = client.getRestApis(restApisRequest);
+        return restApisResponse.items();
+    }
+
+    /**
+     * This method is used to get a specific Rest API from AWS API Gateway.
+     *
+     * @param client APIGatewayClient object
+     * @param apiId  ID of the Rest API
+     * @return GetRestApiResponse object containing the details of the Rest API
+     */
+    public static GetRestApiResponse getRestApi(ApiGatewayClient client, String apiId) {
+        GetRestApiRequest restApiRequest = GetRestApiRequest.builder().restApiId(apiId).build();
+        return client.getRestApi(restApiRequest);
+    }
+
+    public static API restAPItoAPI(RestApi restApi) {
+        APIIdentifier apiIdentifier = new APIIdentifier(restApi.name(), restApi.id(), restApi.version());
+        API api = new API(apiIdentifier);
+        api.setDescription(restApi.description());
+        api.setContext(restApi.name().toLowerCase().replace(" ", "-"));
+        return api;
+    }
+
+    public static API restApiResponsetoAPI(GetRestApiResponse restApiResponse) {
+        APIIdentifier apiIdentifier = new APIIdentifier(restApiResponse.name(), restApiResponse.id(),
+                restApiResponse.version());
+        API api = new API(apiIdentifier);
+        api.setDescription(restApiResponse.description());
+        api.setContext(restApiResponse.name().toLowerCase().replace(" ", "-"));
+        return api;
     }
 }
