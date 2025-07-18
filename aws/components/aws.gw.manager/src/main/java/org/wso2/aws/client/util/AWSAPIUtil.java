@@ -26,9 +26,11 @@ import org.json.simple.parser.JSONParser;
 import org.wso2.aws.client.AWSConstants;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.model.API;
-import org.wso2.carbon.apimgt.api.model.APIIdentifier;
+import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.api.model.OperationPolicy;
 import org.wso2.carbon.apimgt.api.model.URITemplate;
+import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.APIDTO;
+import org.yaml.snakeyaml.Yaml;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.apigateway.ApiGatewayClient;
 import software.amazon.awssdk.services.apigateway.model.Authorizer;
@@ -40,6 +42,8 @@ import software.amazon.awssdk.services.apigateway.model.Deployment;
 import software.amazon.awssdk.services.apigateway.model.GetAuthorizersRequest;
 import software.amazon.awssdk.services.apigateway.model.GetDeploymentsRequest;
 import software.amazon.awssdk.services.apigateway.model.GetDeploymentsResponse;
+import software.amazon.awssdk.services.apigateway.model.GetExportRequest;
+import software.amazon.awssdk.services.apigateway.model.GetExportResponse;
 import software.amazon.awssdk.services.apigateway.model.GetMethodRequest;
 import software.amazon.awssdk.services.apigateway.model.GetMethodResponse;
 import software.amazon.awssdk.services.apigateway.model.GetResourcesRequest;
@@ -48,6 +52,8 @@ import software.amazon.awssdk.services.apigateway.model.GetRestApiRequest;
 import software.amazon.awssdk.services.apigateway.model.GetRestApiResponse;
 import software.amazon.awssdk.services.apigateway.model.GetRestApisRequest;
 import software.amazon.awssdk.services.apigateway.model.GetRestApisResponse;
+import software.amazon.awssdk.services.apigateway.model.GetStagesRequest;
+import software.amazon.awssdk.services.apigateway.model.GetStagesResponse;
 import software.amazon.awssdk.services.apigateway.model.ImportRestApiRequest;
 import software.amazon.awssdk.services.apigateway.model.ImportRestApiResponse;
 import software.amazon.awssdk.services.apigateway.model.IntegrationType;
@@ -63,13 +69,25 @@ import software.amazon.awssdk.services.apigateway.model.Resource;
 import software.amazon.awssdk.services.apigateway.model.RestApi;
 import software.amazon.awssdk.services.apigateway.model.UpdateMethodRequest;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+
+import static org.wso2.aws.client.AWSConstants.API_YAML_FILE_NAME;
+import static org.wso2.aws.client.AWSConstants.DEPLOYMENT_ENVIRONMENTS_FILE_NAME;
+import static org.wso2.aws.client.AWSConstants.SWAGGER_YAML_FILE_NAME;
 
 /**
  * This class contains utility methods to interact with AWS API Gateway
@@ -77,8 +95,8 @@ import java.util.regex.Pattern;
 public class AWSAPIUtil {
     private static final Log log = LogFactory.getLog(AWSAPIUtil.class);
 
-    public static String importRestAPI (API api, ApiGatewayClient apiGatewayClient, String region,
-                                        String stage) throws APIManagementException {
+    public static String importRestAPI(API api, ApiGatewayClient apiGatewayClient, String region,
+                                       String stage) throws APIManagementException {
 
         String openAPI = api.getSwaggerDefinition();
         String apiId = null;
@@ -115,15 +133,15 @@ public class AWSAPIUtil {
                         String name = lambdaArnAPI.substring(lambdaArnAPI.lastIndexOf(':') + 1) + "-" +
                                 invokeRoleArn.substring(invokeRoleArn.lastIndexOf('/') + 1);
 
-                        authorizers.put(key ,GatewayUtil.getAuthorizer(apiId, name, lambdaArnAPI,
+                        authorizers.put(key, GatewayUtil.getAuthorizer(apiId, name, lambdaArnAPI,
                                 invokeRoleArn, region, apiGatewayClient).id());
                         break;
                     }
                 }
             }
 
-            for (URITemplate resource: api.getUriTemplates()) {
-                for (OperationPolicy policy: resource.getOperationPolicies()) {
+            for (URITemplate resource : api.getUriTemplates()) {
+                for (OperationPolicy policy : resource.getOperationPolicies()) {
                     if (policy.getPolicyName().equals(AWSConstants.AWS_OPERATION_POLICY_NAME)) {
                         String resourceLambdaARN = policy.getParameters()
                                 .get(AWSConstants.OPERATION_POLICY_ARN_PARAMETER).toString();
@@ -149,7 +167,7 @@ public class AWSAPIUtil {
             String endpointConfig = api.getEndpointConfig();
             JSONParser parser = new JSONParser();
             JSONObject endpointConfigJson = (JSONObject) parser.parse(endpointConfig);
-            JSONObject prodEndpoints = (JSONObject)endpointConfigJson.get("production_endpoints");
+            JSONObject prodEndpoints = (JSONObject) endpointConfigJson.get("production_endpoints");
             String productionEndpoint = (String) prodEndpoints.get("url");
 
             productionEndpoint = productionEndpoint.charAt(productionEndpoint.length() - 1) == '/' ?
@@ -164,10 +182,10 @@ public class AWSAPIUtil {
 
                     for (Map.Entry entry : resourceMethods.entrySet()) {
                         GetMethodRequest getMethodRequest = GetMethodRequest.builder()
-                            .restApiId(apiId)
-                            .resourceId(resource.id())
-                            .httpMethod(entry.getKey().toString())
-                            .build();
+                                .restApiId(apiId)
+                                .resourceId(resource.id())
+                                .httpMethod(entry.getKey().toString())
+                                .build();
                         GetMethodResponse getMethodResponse = apiGatewayClient.getMethod(getMethodRequest);
                         Map<String, Boolean> requestParamsFromMethod = getMethodResponse.requestParameters();
 
@@ -201,12 +219,12 @@ public class AWSAPIUtil {
                         //Configure default output mapping
                         PutIntegrationResponseRequest putIntegrationResponseRequest =
                                 PutIntegrationResponseRequest.builder()
-                                .httpMethod(entry.getKey().toString())
-                                .resourceId(resource.id())
-                                .restApiId(apiId)
-                                .statusCode("200")
-                                .responseTemplates(Map.of("application/json", ""))
-                                .build();
+                                        .httpMethod(entry.getKey().toString())
+                                        .resourceId(resource.id())
+                                        .restApiId(apiId)
+                                        .statusCode("200")
+                                        .responseTemplates(Map.of("application/json", ""))
+                                        .build();
                         apiGatewayClient.putIntegrationResponse(putIntegrationResponseRequest);
 
                         String key = resource.path().toLowerCase() + "|" + entry.getKey().toString().toLowerCase();
@@ -323,7 +341,7 @@ public class AWSAPIUtil {
 
             Set<URITemplate> uriTemplates = api.getUriTemplates();
             if (uriTemplates != null) {
-                for (URITemplate resource: uriTemplates) {
+                for (URITemplate resource : uriTemplates) {
                     List<OperationPolicy> resourcePolicies = resource.getOperationPolicies();
                     if (resourcePolicies != null) {
                         for (OperationPolicy policy : resourcePolicies) {
@@ -368,7 +386,7 @@ public class AWSAPIUtil {
             String endpointConfig = api.getEndpointConfig();
             JSONParser parser = new JSONParser();
             JSONObject endpointConfigJson = (JSONObject) parser.parse(endpointConfig);
-            JSONObject prodEndpoints = (JSONObject)endpointConfigJson.get("production_endpoints");
+            JSONObject prodEndpoints = (JSONObject) endpointConfigJson.get("production_endpoints");
             String productionEndpoint = (String) prodEndpoints.get("url");
 
             productionEndpoint = productionEndpoint.charAt(productionEndpoint.length() - 1) == '/' ?
@@ -527,6 +545,34 @@ public class AWSAPIUtil {
         return restApisResponse.items();
     }
 
+
+    /**
+     * This method is used to get the API definition from AWS API Gateway.
+     *
+     * @param client APIGatewayClient object
+     * @param apiId  ID of the Rest API
+     * @return API definition in OpenAPI format
+     */
+    public static String getRestApiDefinition(ApiGatewayClient client, String apiId, String stage) {
+        GetExportRequest getExportRequest = GetExportRequest.builder()
+                .restApiId(apiId)
+                .stageName(stage) // Assuming a default stage or make it configurable
+                .exportType("oas30") // Or "oas30" for OpenAPI 3.0
+                .accepts("application/yaml")
+                .build();
+        GetExportResponse getExportResponse = client.getExport(getExportRequest);
+        return getExportResponse.body().asUtf8String();
+    }
+
+    public static String getStageNames(ApiGatewayClient client, String apiId) {
+        GetStagesRequest request = GetStagesRequest.builder().restApiId(apiId).build();
+        GetStagesResponse result = client.getStages(request);
+        if (result.item().isEmpty()) {
+            return null;
+        }
+        return result.item().get(0).stageName();
+    }
+
     /**
      * This method is used to get a specific Rest API from AWS API Gateway.
      *
@@ -539,20 +585,80 @@ public class AWSAPIUtil {
         return client.getRestApi(restApiRequest);
     }
 
-    public static API restAPItoAPI(RestApi restApi) {
-        APIIdentifier apiIdentifier = new APIIdentifier(restApi.name(), restApi.id(), restApi.version());
-        API api = new API(apiIdentifier);
-        api.setDescription(restApi.description());
-        api.setContext(restApi.name().toLowerCase().replace(" ", "-"));
+    public static APIDTO restAPItoAPI(RestApi restApi, String apiDefinition, String organization, Environment environment) {
+        APIDTO api = new APIDTO();
+        api.name(restApi.id());
+        api.displayName(restApi.name());
+        api.version(restApi.version());
+        api.id(restApi.id());
+        api.description(restApi.description());
+        api.context(restApi.name().toLowerCase().replace(" ", "-"));
+        api.provider("admin");
+        api.isRevision(false);
+        api.lastUpdatedTime(restApi.createdDate().toString());
+        api.lastUpdatedTimestamp(Long.toString(restApi.createdDate().toEpochMilli()));
+        api.isInitiatedFromGateway(true);
+        api.type(APIDTO.TypeEnum.HTTP);
+        api.setGatewayVendor(environment.getGatewayType());
+        api.gatewayType("external");
         return api;
     }
 
-    public static API restApiResponsetoAPI(GetRestApiResponse restApiResponse) {
-        APIIdentifier apiIdentifier = new APIIdentifier(restApiResponse.name(), restApiResponse.id(),
-                restApiResponse.version());
-        API api = new API(apiIdentifier);
-        api.setDescription(restApiResponse.description());
-        api.setContext(restApiResponse.name().toLowerCase().replace(" ", "-"));
-        return api;
+    public static InputStream createZipAsInputStream(String apiYaml, String swaggerYaml, String deploymentYaml,
+                                                     String zipName) throws IOException {
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        try (ZipOutputStream zos = new ZipOutputStream(byteArrayOutputStream)) {
+
+            // Add api.yaml
+            addToZip(zos, zipName + "/" + API_YAML_FILE_NAME, apiYaml);
+
+            // Add Definitions/swagger.yaml
+            addToZip(zos, zipName + "/" + SWAGGER_YAML_FILE_NAME, swaggerYaml);
+
+            // Add deployment_environments.yaml
+            addToZip(zos, zipName + "/" + DEPLOYMENT_ENVIRONMENTS_FILE_NAME, deploymentYaml);
+        }
+
+        return new ByteArrayInputStream(byteArrayOutputStream.toByteArray());
+    }
+
+    private static void addToZip(ZipOutputStream zos, String path, String content) throws IOException {
+        ZipEntry entry = new ZipEntry(path);
+        zos.putNextEntry(entry);
+        byte[] data = content.getBytes();
+        zos.write(data, 0, data.length);
+        zos.closeEntry();
+    }
+
+
+    public static String createDeploymentYaml(Environment environment) {
+        List<Map<String, String>> deploymentEnvData = new ArrayList<>();
+        Map<String, String> envEntry = new LinkedHashMap<>();
+        envEntry.put("displayOnDevportal", "true");
+        envEntry.put("deploymentEnvironment", environment.getName());
+        deploymentEnvData.add(envEntry);
+
+        Map<String, Object> yamlRoot = new LinkedHashMap<>();
+        yamlRoot.put("type", "deployment_environments");
+        yamlRoot.put("version", "v4.3.0");
+        yamlRoot.put("data", deploymentEnvData);
+
+        Yaml yaml = new Yaml();
+        return yaml.dump(yamlRoot);
+    }
+
+    public static boolean isAPIExists(RestApi restApi, List<String> apisDeployedInGatewayEnv, Environment environment) {
+        if (apisDeployedInGatewayEnv == null || apisDeployedInGatewayEnv.isEmpty()) {
+            return false;
+        }
+        for (String api : apisDeployedInGatewayEnv) {
+            if (api.equals(restApi.name() + ":" + restApi.version())) {
+                return true;
+            } else if (api.equals(restApi.name() + "_" + environment.getName() + ":" + restApi.version())) {
+                return true;
+            }
+        }
+        return false;
+
     }
 }
