@@ -26,11 +26,10 @@ import org.json.simple.parser.JSONParser;
 import org.wso2.aws.client.AWSConstants;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.model.API;
+import org.wso2.carbon.apimgt.api.model.APIIdentifier;
 import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.api.model.OperationPolicy;
 import org.wso2.carbon.apimgt.api.model.URITemplate;
-import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.APIDTO;
-import org.yaml.snakeyaml.Yaml;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.apigateway.ApiGatewayClient;
 import software.amazon.awssdk.services.apigateway.model.Authorizer;
@@ -49,7 +48,6 @@ import software.amazon.awssdk.services.apigateway.model.GetMethodResponse;
 import software.amazon.awssdk.services.apigateway.model.GetResourcesRequest;
 import software.amazon.awssdk.services.apigateway.model.GetResourcesResponse;
 import software.amazon.awssdk.services.apigateway.model.GetRestApiRequest;
-import software.amazon.awssdk.services.apigateway.model.GetRestApiResponse;
 import software.amazon.awssdk.services.apigateway.model.GetRestApisRequest;
 import software.amazon.awssdk.services.apigateway.model.GetRestApisResponse;
 import software.amazon.awssdk.services.apigateway.model.GetStagesRequest;
@@ -69,25 +67,18 @@ import software.amazon.awssdk.services.apigateway.model.Resource;
 import software.amazon.awssdk.services.apigateway.model.RestApi;
 import software.amazon.awssdk.services.apigateway.model.UpdateMethodRequest;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
-import static org.wso2.aws.client.AWSConstants.API_YAML_FILE_NAME;
-import static org.wso2.aws.client.AWSConstants.DEPLOYMENT_ENVIRONMENTS_FILE_NAME;
-import static org.wso2.aws.client.AWSConstants.SWAGGER_YAML_FILE_NAME;
+import static org.wso2.aws.client.AWSConstants.JSON_PAYLOAD_TYPE;
+import static org.wso2.aws.client.AWSConstants.OPEN_API_VERSION;
+import static org.wso2.aws.client.AWSConstants.YAML_PAYLOAD_TYPE;
 
 /**
  * This class contains utility methods to interact with AWS API Gateway
@@ -442,7 +433,7 @@ public class AWSAPIUtil {
                                         .resourceId(resource.id())
                                         .restApiId(awsApiId)
                                         .statusCode("200")
-                                        .responseTemplates(Map.of("application/json", ""))
+                                        .responseTemplates(Map.of(JSON_PAYLOAD_TYPE, ""))
                                         .build();
                         apiGatewayClient.putIntegrationResponse(putIntegrationResponseRequest);
 
@@ -557,8 +548,8 @@ public class AWSAPIUtil {
         GetExportRequest getExportRequest = GetExportRequest.builder()
                 .restApiId(apiId)
                 .stageName(stage) // Assuming a default stage or make it configurable
-                .exportType("oas30") // Or "oas30" for OpenAPI 3.0
-                .accepts("application/yaml")
+                .exportType(OPEN_API_VERSION) // Or "oas30" for OpenAPI 3.0
+                .accepts(YAML_PAYLOAD_TYPE)
                 .build();
         GetExportResponse getExportResponse = client.getExport(getExportRequest);
         return getExportResponse.body().asUtf8String();
@@ -573,92 +564,23 @@ public class AWSAPIUtil {
         return result.item().get(0).stageName();
     }
 
-    /**
-     * This method is used to get a specific Rest API from AWS API Gateway.
-     *
-     * @param client APIGatewayClient object
-     * @param apiId  ID of the Rest API
-     * @return GetRestApiResponse object containing the details of the Rest API
-     */
-    public static GetRestApiResponse getRestApi(ApiGatewayClient client, String apiId) {
-        GetRestApiRequest restApiRequest = GetRestApiRequest.builder().restApiId(apiId).build();
-        return client.getRestApi(restApiRequest);
-    }
-
-    public static APIDTO restAPItoAPI(RestApi restApi, String apiDefinition, String organization, Environment environment) {
-        APIDTO api = new APIDTO();
-        api.name(restApi.id());
-        api.displayName(restApi.name());
-        api.version(restApi.version());
-        api.id(restApi.id());
-        api.description(restApi.description());
-        api.context(restApi.name().toLowerCase().replace(" ", "-"));
-        api.provider("admin");
-        api.isRevision(false);
-        api.lastUpdatedTime(restApi.createdDate().toString());
-        api.lastUpdatedTimestamp(Long.toString(restApi.createdDate().toEpochMilli()));
-        api.isInitiatedFromGateway(true);
-        api.type(APIDTO.TypeEnum.HTTP);
+    public static API restAPItoAPI(RestApi restApi, String apiDefinition, String organization, Environment environment) {
+        APIIdentifier apiIdentifier = new APIIdentifier("admin", restApi.name(), restApi.version());
+        API api = new API(apiIdentifier);
+        api.setDisplayName(restApi.name());
+        api.setUuid(restApi.id());
+        api.setDescription(restApi.description());
+        api.setContext(restApi.name().toLowerCase().replace(" ", "-"));
+        api.setContextTemplate(restApi.name().toLowerCase().replace(" ", "-"));
+        api.setOrganization(organization);
+        api.setSwaggerDefinition(apiDefinition);
+        api.setRevision(false);
+        api.setLastUpdated(Date.from(restApi.createdDate()));
+        api.setCreatedTime(Long.toString(restApi.createdDate().toEpochMilli()));
+        api.setInitiatedFromGateway(true);
         api.setGatewayVendor(environment.getGatewayType());
-        api.gatewayType("external");
+        api.setGatewayType("external");
         return api;
     }
 
-    public static InputStream createZipAsInputStream(String apiYaml, String swaggerYaml, String deploymentYaml,
-                                                     String zipName) throws IOException {
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        try (ZipOutputStream zos = new ZipOutputStream(byteArrayOutputStream)) {
-
-            // Add api.yaml
-            addToZip(zos, zipName + "/" + API_YAML_FILE_NAME, apiYaml);
-
-            // Add Definitions/swagger.yaml
-            addToZip(zos, zipName + "/" + SWAGGER_YAML_FILE_NAME, swaggerYaml);
-
-            // Add deployment_environments.yaml
-            addToZip(zos, zipName + "/" + DEPLOYMENT_ENVIRONMENTS_FILE_NAME, deploymentYaml);
-        }
-
-        return new ByteArrayInputStream(byteArrayOutputStream.toByteArray());
-    }
-
-    private static void addToZip(ZipOutputStream zos, String path, String content) throws IOException {
-        ZipEntry entry = new ZipEntry(path);
-        zos.putNextEntry(entry);
-        byte[] data = content.getBytes();
-        zos.write(data, 0, data.length);
-        zos.closeEntry();
-    }
-
-
-    public static String createDeploymentYaml(Environment environment) {
-        List<Map<String, String>> deploymentEnvData = new ArrayList<>();
-        Map<String, String> envEntry = new LinkedHashMap<>();
-        envEntry.put("displayOnDevportal", "true");
-        envEntry.put("deploymentEnvironment", environment.getName());
-        deploymentEnvData.add(envEntry);
-
-        Map<String, Object> yamlRoot = new LinkedHashMap<>();
-        yamlRoot.put("type", "deployment_environments");
-        yamlRoot.put("version", "v4.3.0");
-        yamlRoot.put("data", deploymentEnvData);
-
-        Yaml yaml = new Yaml();
-        return yaml.dump(yamlRoot);
-    }
-
-    public static boolean isAPIExists(RestApi restApi, List<String> apisDeployedInGatewayEnv, Environment environment) {
-        if (apisDeployedInGatewayEnv == null || apisDeployedInGatewayEnv.isEmpty()) {
-            return false;
-        }
-        for (String api : apisDeployedInGatewayEnv) {
-            if (api.equals(restApi.name() + ":" + restApi.version())) {
-                return true;
-            } else if (api.equals(restApi.name() + "_" + environment.getName() + ":" + restApi.version())) {
-                return true;
-            }
-        }
-        return false;
-
-    }
 }
