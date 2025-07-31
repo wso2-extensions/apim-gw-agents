@@ -594,8 +594,8 @@ public class AWSAPIUtil {
         api.setLastUpdated(Date.from(restApi.createdDate()));
         api.setCreatedTime(Long.toString(restApi.createdDate().toEpochMilli()));
         api.setInitiatedFromGateway(true);
-        api.setGatewayVendor(environment.getGatewayType());
-        api.setGatewayType("external");
+        api.setGatewayVendor("external");
+        api.setGatewayType(environment.getGatewayType());
         return api;
     }
 
