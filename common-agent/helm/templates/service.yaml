@@ -17,7 +17,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: "apim-common-agent-service"
+  name: {{ .Values.service.name }}
 spec:
   ports:
     - name: grpc-server

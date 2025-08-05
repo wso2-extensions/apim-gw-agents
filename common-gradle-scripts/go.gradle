@@ -44,13 +44,13 @@ tasks.register('go_tidy', Exec) {
 
 tasks.register('go_build') {
     group 'go'
-    description 'Compiles the packages named by the import paths, along with their dependencies. AMD64 Archtecture'
+    description 'Compiles the packages named by the import paths, along with their dependencies. For both AMD64 and ARM64 Archtecture'
     dependsOn go_mac_os_build
     dependsOn go_linux_build
 }
 tasks.register('go_mac_os_build', Exec) {
     group 'go'
-    description 'Compiles the packages named by the import paths, along with their dependencies. AMD64 Archtecture'
+    description 'Compiles the packages named by the import paths, along with their dependencies. ARM64 Archtecture'
     if (project.hasProperty('file')) {
         commandLine 'env', 'GOOS=linux', 'GOARCH=arm64','CGO_ENABLED=0', 'go', 'build', '-o','arm64/main', file
     } else {

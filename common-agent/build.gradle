@@ -48,15 +48,21 @@ tasks.named('go_revive_run').configure {
     finalizedBy go_test
 }
 
-tasks.named('go_linux_build').configure {
-    dependsOn go_revive_run
-    dependsOn go_vet
-    println("Running go build")
-    finalizedBy docker_build
+// Common dependencies for both Go build tasks
+def goBuildTasks = [tasks.named('go_linux_build'), tasks.named('go_mac_os_build')]
+goBuildTasks.each { task ->
+    task.configure {
+        dependsOn go_revive_run
+        dependsOn go_vet
+    }
+}
+
+// The Docker build should happen after the Go builds are complete
+tasks.named('docker_build').configure {
+    dependsOn go_build
 }
 
 task build{
-    dependsOn go_linux_build
     dependsOn docker_build
 }
 
