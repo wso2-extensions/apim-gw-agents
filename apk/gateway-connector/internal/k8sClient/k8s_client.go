@@ -49,28 +49,6 @@ import (
 )
 
 // == NEED TO MODIFY ===
-// DeployAPICR applies the given API struct to the Kubernetes cluster.
-func DeployAPICR(api *dpv1alpha3.API, k8sClient client.Client) {
-	crAPI := &dpv1alpha3.API{}
-	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: api.ObjectMeta.Namespace, Name: api.Name}, crAPI); err != nil {
-		if !k8error.IsNotFound(err) {
-			loggers.LoggerK8sClient.Error("Unable to get API CR: " + err.Error())
-		}
-		if err := k8sClient.Create(context.Background(), api); err != nil {
-			loggers.LoggerK8sClient.Error("Unable to create API CR: " + err.Error())
-		} else {
-			loggers.LoggerK8sClient.Info("API CR created: " + api.Name)
-		}
-	} else {
-		crAPI.Spec = api.Spec
-		crAPI.ObjectMeta.Labels = api.ObjectMeta.Labels
-		if err := k8sClient.Update(context.Background(), crAPI); err != nil {
-			loggers.LoggerK8sClient.Error("Unable to update API CR: " + err.Error())
-		} else {
-			loggers.LoggerK8sClient.Info("API CR updated: " + api.Name)
-		}
-	}
-}
 
 // UndeployK8sAPICR removes the API Custom Resource from the Kubernetes cluster based on API ID label.
 func UndeployK8sAPICR(k8sClient client.Client, k8sAPI dpv1alpha3.API) error {
@@ -102,6 +80,8 @@ func UndeployAPICR(apiID string, k8sClient client.Client) {
 		loggers.LoggerK8sClient.Infof("Deleted API CR: %s", api.Name)
 	}
 }
+
+// func UndeployK8sRouteMetadataCRs
 // == NEED TO MODIFY ===
 
 // !!! ======== NEW ========

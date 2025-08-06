@@ -19,8 +19,8 @@ wso2:
     imagePullSecrets: ""
 replicaCount: 1
 image:
-  repository: apim-common-agent
-  tag: 1.3.0
+  repository: apim-agent
+  tag: 1.3.0-SNAPSHOT
   pullPolicy: IfNotPresent
 service:
   name: apim-agent-service
@@ -33,13 +33,13 @@ resources:
     cpu: "200m"
 controlPlane:
   enabled: true
-  serviceURL: https://apim-wso2am-cp-1-service.apk.svc.cluster.local:9443/
+  serviceURL: https://apim-wso2am-acp-1-service.apk.svc.cluster.local:9443/
   username: admin
   password: admin
   environmentLabels: Default
   skipSSLVerification: true
-  eventListeningEndpoints: amqp://admin:admin@apim-wso2am-cp-1-service.apk.svc.cluster.local:5672?retries='10'&connectdelay='30'
-  # internalKeyIssuer: http://am.wso2.com:443/token
+  eventListeningEndpoints: amqp://admin:admin@apim-wso2am-acp-1-service.apk.svc.cluster.local:5672?retries='10'&connectdelay='30'
+  # internalKeyIssuer: https://am.wso2.com:443/oauth2/token
 dataPlane:
   enabled: true
   namespace: apk
