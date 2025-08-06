@@ -18,9 +18,6 @@
 
 package org.wso2.azure.gw.client.util;
 
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.regex.Pattern;
 import org.apache.commons.lang3.StringUtils;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -28,10 +25,24 @@ import org.json.simple.parser.ParseException;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.model.API;
 
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.regex.Pattern;
+
+/**
+ * Utility class for Azure Gateway operations.
+ */
 public class GatewayUtil {
 
     private static final Pattern VALID_PATH_PATTERN = Pattern.compile("^[a-zA-Z0-9-._~%!$&'()*+,;=:@/]*$");
 
+    /**
+     * Extracts the endpoint URL from the API's endpoint configuration.
+     *
+     * @param api The API object containing the endpoint configuration.
+     * @return The production endpoint URL.
+     * @throws APIManagementException If there is an error while parsing the endpoint configuration.
+     */
     public static String getEndpointURL(API api) throws APIManagementException {
 
         try {
@@ -40,20 +51,30 @@ public class GatewayUtil {
                 return endpointConfig;
             }
             JSONParser parser = new JSONParser();
-            JSONObject endpointConfigJson = null;
+            JSONObject endpointConfigJson = (JSONObject) parser.parse(endpointConfig);
 
-            endpointConfigJson = (JSONObject) parser.parse(endpointConfig);
-
-            JSONObject prodEndpoints = (JSONObject)endpointConfigJson.get("production_endpoints");
+            JSONObject prodEndpoints = (JSONObject) endpointConfigJson.get("production_endpoints");
+            if (prodEndpoints == null) {
+                throw new APIManagementException("Production endpoints not found in endpoint configuration");
+            }
             String productionEndpoint = (String) prodEndpoints.get("url");
+            if (productionEndpoint == null || StringUtils.isEmpty(productionEndpoint)) {
+                throw new APIManagementException("Production endpoint URL is null or empty");
+            }
 
-            return productionEndpoint.charAt(productionEndpoint.length() - 1) == '/' ?
+            return productionEndpoint.endsWith("/") ?
                     productionEndpoint.substring(0, productionEndpoint.length() - 1) : productionEndpoint;
         } catch (ParseException e) {
             throw new APIManagementException("Error while parsing endpoint configuration", e);
         }
     }
 
+    /**
+     * Validates the Azure API endpoint URL.
+     *
+     * @param urlString The URL string to validate.
+     * @return null if the URL is valid, otherwise an error message.
+     */
     public static String validateAzureAPIEndpoint(String urlString) {
         try {
             if (StringUtils.isEmpty(urlString)) {
