@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package org.wso2.azure.client.util;
+package org.wso2.azure.gw.client.util;
 
 import java.net.MalformedURLException;
 import java.net.URL;

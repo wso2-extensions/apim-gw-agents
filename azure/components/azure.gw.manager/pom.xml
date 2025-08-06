@@ -22,7 +22,7 @@
     <parent>
         <groupId>org.wso2.gw.ext</groupId>
         <artifactId>azure.gw.client</artifactId>
-        <version>2.0.0</version>
+        <version>0.0.1</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
@@ -42,15 +42,12 @@
                     <instructions>
                         <Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
                         <Bundle-Name>${project.artifactId}</Bundle-Name>
-                        <_removeheaders>Require-Capability</_removeheaders>
                         <Import-Package>
-
                         </Import-Package>
                         <Export-Package>
-                            org.wso2.azure.client.*;version="${project.version}"
+                            org.wso2.azure.gw.client.*;version="${project.version}"
                         </Export-Package>
                         <DynamicImport-Package>*</DynamicImport-Package>
-                        <Embed-Transitive>true</Embed-Transitive>
                     </instructions>
                 </configuration>
             </plugin>

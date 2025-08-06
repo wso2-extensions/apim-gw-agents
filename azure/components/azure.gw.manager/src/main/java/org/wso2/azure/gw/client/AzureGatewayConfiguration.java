@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package org.wso2.azure.client;
+package org.wso2.azure.gw.client;
 
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
@@ -25,7 +25,7 @@ import com.google.gson.JsonParser;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.osgi.service.component.annotations.Component;
-import org.wso2.azure.client.util.AzureAPIUtil;
+import org.wso2.azure.gw.client.util.AzureAPIUtil;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.model.ConfigurationDto;
 import org.wso2.carbon.apimgt.api.model.GatewayAgentConfiguration;

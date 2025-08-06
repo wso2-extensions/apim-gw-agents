@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package org.wso2.azure.client.util;
+package org.wso2.azure.gw.client.util;
 
 import com.azure.core.util.Context;
 import com.azure.resourcemanager.apimanagement.ApiManagementManager;
@@ -29,7 +29,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
-import org.wso2.azure.client.AzureConstants;
+import org.wso2.azure.gw.client.AzureConstants;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.model.API;
 
