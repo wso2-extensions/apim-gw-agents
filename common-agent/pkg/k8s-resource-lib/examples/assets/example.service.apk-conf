@@ -1,0 +1,36 @@
+---
+name: "EmployeeServiceAPI"
+basePath: "/employees-info"
+version: "3.14"
+type: "REST"
+defaultVersion: false
+subscriptionValidation: false
+endpointConfigurations:
+  production:
+    endpoint: 
+      name: "employee-service"
+      port: 9000
+      protocol: http
+rateLimit:
+  unit: Minute
+  requestsPerUnit: 5
+authentication:
+  - authType: "APIKey"
+    enabled: true
+operations:
+- target: "/employees"
+  verb: "GET"
+  secured: true
+  scopes: []
+- target: "/employee"
+  verb: "POST"
+  secured: true
+  scopes: []
+- target: "/employee/{employeeId}"
+  verb: "PUT"
+  secured: true
+  scopes: []
+- target: "/employee/{employeeId}"
+  verb: "DELETE"
+  secured: true
+  scopes: []

@@ -1,0 +1,1 @@
+This repo contains the Kong Gateway Agent implementation for Gateway Federation.
