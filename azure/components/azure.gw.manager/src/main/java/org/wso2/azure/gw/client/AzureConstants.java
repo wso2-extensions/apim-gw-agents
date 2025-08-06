@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package org.wso2.azure.client;
+package org.wso2.azure.gw.client;
 
 /**
  * This class contains the constants used in AWS client.

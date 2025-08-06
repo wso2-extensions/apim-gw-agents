@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package org.wso2.azure.client;
+package org.wso2.azure.gw.client;
 
 import com.azure.core.credential.TokenCredential;
 import com.azure.core.http.HttpClient;
@@ -31,8 +31,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import org.wso2.azure.client.util.AzureAPIUtil;
-import org.wso2.azure.client.util.GatewayUtil;
+import org.wso2.azure.gw.client.util.AzureAPIUtil;
+import org.wso2.azure.gw.client.util.GatewayUtil;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.model.API;
 import org.wso2.carbon.apimgt.api.model.Environment;
