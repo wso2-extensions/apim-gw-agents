@@ -34,6 +34,9 @@ import (
 	dpv1alpha2 "github.com/wso2/apk/common-go-libs/apis/dp/v1alpha2"
 	dpv1alpha3 "github.com/wso2/apk/common-go-libs/apis/dp/v1alpha3"
 	dpv1alpha4 "github.com/wso2/apk/common-go-libs/apis/dp/v1alpha4"
+	dpv2alpha1 "github.com/wso2/apk/common-go-libs/apis/dp/v2alpha1"
+	gwapiv1a2  "sigs.k8s.io/gateway-api/apis/v1alpha2"
+	gwapiv1a3  "sigs.k8s.io/gateway-api/apis/v1alpha3"
 	corev1 "k8s.io/api/core/v1"
 	k8error "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,8 +45,10 @@ import (
 	gwapiv1 "sigs.k8s.io/gateway-api/apis/v1"
 	"sigs.k8s.io/gateway-api/apis/v1alpha2"
 	gwapiv1b1 "sigs.k8s.io/gateway-api/apis/v1alpha2"
+	gatewayv1alpha1 "github.com/envoyproxy/gateway/api/v1alpha1"
 )
 
+// == NEED TO MODIFY ===
 // DeployAPICR applies the given API struct to the Kubernetes cluster.
 func DeployAPICR(api *dpv1alpha3.API, k8sClient client.Client) {
 	crAPI := &dpv1alpha3.API{}
@@ -97,6 +102,31 @@ func UndeployAPICR(apiID string, k8sClient client.Client) {
 		loggers.LoggerK8sClient.Infof("Deleted API CR: %s", api.Name)
 	}
 }
+// == NEED TO MODIFY ===
+
+// !!! ======== NEW ========
+
+// DeployRouteMetadataCR applies the given RouteMetadata struct to the Kubernetes cluster.
+func DeployRouteMetadataCR(routeMetadata *dpv2alpha1.RouteMetadata, k8sClient client.Client)  {
+	crRouteMetadata := &dpv2alpha1.RouteMetadata{}
+	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: routeMetadata.ObjectMeta.Namespace, Name: routeMetadata.Name}, crRouteMetadata); err != nil {
+		if !k8error.IsNotFound(err) {
+			loggers.LoggerK8sClient.Error("Unable to get RouteMetadata CR: " + err.Error())
+		}
+		if err := k8sClient.Create(context.Background(), routeMetadata); err != nil {
+			loggers.LoggerK8sClient.Error("Unable to create RouteMetadata CR: " + err.Error())
+		} else {
+			loggers.LoggerK8sClient.Info("RouteMetadata CR created: " + routeMetadata.Name)
+		}
+	} else {
+		crRouteMetadata.Spec = routeMetadata.Spec
+		if err := k8sClient.Update(context.Background(), crRouteMetadata); err != nil {
+			loggers.LoggerK8sClient.Error("Unable to update RouteMetadata CR: " + err.Error())
+		} else {
+			loggers.LoggerK8sClient.Info("RouteMetadata CR updated: " + routeMetadata.Name)
+		}
+	}
+}
 
 // DeployConfigMapCR applies the given ConfigMap struct to the Kubernetes cluster.
 func DeployConfigMapCR(configMap *corev1.ConfigMap, k8sClient client.Client) {
@@ -142,28 +172,6 @@ func DeployHTTPRouteCR(httpRoute *gwapiv1.HTTPRoute, k8sClient client.Client) {
 	}
 }
 
-// DeployGQLRouteCR applies the given GqlRoute struct to the Kubernetes cluster.
-func DeployGQLRouteCR(gqlRoute *dpv1alpha2.GQLRoute, k8sClient client.Client) {
-	crGQLRoute := &dpv1alpha2.GQLRoute{}
-	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: gqlRoute.ObjectMeta.Namespace, Name: gqlRoute.Name}, crGQLRoute); err != nil {
-		if !k8error.IsNotFound(err) {
-			loggers.LoggerK8sClient.Error("Unable to get GQLRoute CR: " + err.Error())
-		}
-		if err := k8sClient.Create(context.Background(), gqlRoute); err != nil {
-			loggers.LoggerK8sClient.Error("Unable to create GQLRoute CR: " + err.Error())
-		} else {
-			loggers.LoggerK8sClient.Info("GQLRoute CR created: " + gqlRoute.Name)
-		}
-	} else {
-		crGQLRoute.Spec = gqlRoute.Spec
-		if err := k8sClient.Update(context.Background(), crGQLRoute); err != nil {
-			loggers.LoggerK8sClient.Error("Unable to update GQLRoute CR: " + err.Error())
-		} else {
-			loggers.LoggerK8sClient.Info("GQLRoute CR updated: " + gqlRoute.Name)
-		}
-	}
-}
-
 // DeploySecretCR applies the given Secret struct to the Kubernetes cluster.
 func DeploySecretCR(secret *corev1.Secret, k8sClient client.Client) {
 	crSecret := &corev1.Secret{}
@@ -186,115 +194,161 @@ func DeploySecretCR(secret *corev1.Secret, k8sClient client.Client) {
 	}
 }
 
-// DeployAuthenticationCR applies the given Authentication struct to the Kubernetes cluster.
-func DeployAuthenticationCR(authPolicy *dpv1alpha2.Authentication, k8sClient client.Client) {
-	crAuthPolicy := &dpv1alpha2.Authentication{}
-	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: authPolicy.ObjectMeta.Namespace, Name: authPolicy.Name}, crAuthPolicy); err != nil {
+// DeployBackendCR applies the given Backend struct to the Kubernetes cluster.
+func DeployBackendCR(backends *gatewayv1alpha1.Backend, k8sClient client.Client) {
+	crBackends := &gatewayv1alpha1.Backend{}
+	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: backends.ObjectMeta.Namespace, Name: backends.Name}, crBackends); err != nil {
 		if !k8error.IsNotFound(err) {
-			loggers.LoggerK8sClient.Error("Unable to get Authentication CR: " + err.Error())
+			loggers.LoggerK8sClient.Error("Unable to get Backends CR: " + err.Error())
 		}
-		if err := k8sClient.Create(context.Background(), authPolicy); err != nil {
-			loggers.LoggerK8sClient.Error("Unable to create Authentication CR: " + err.Error())
+		if err := k8sClient.Create(context.Background(), backends); err != nil {
+			loggers.LoggerK8sClient.Error("Unable to create Backends CR: " + err.Error())
 		} else {
-			loggers.LoggerK8sClient.Info("Authentication CR created: " + authPolicy.Name)
+			loggers.LoggerK8sClient.Info("Backends CR created: " + backends.Name)
 		}
 	} else {
-		crAuthPolicy.Spec = authPolicy.Spec
-		if err := k8sClient.Update(context.Background(), crAuthPolicy); err != nil {
-			loggers.LoggerK8sClient.Error("Unable to update Authentication CR: " + err.Error())
+		crBackends.Spec = backends.Spec
+		if err := k8sClient.Update(context.Background(), crBackends); err != nil {
+			loggers.LoggerK8sClient.Error("Unable to update Backends CR: " + err.Error())
 		} else {
-			loggers.LoggerK8sClient.Info("Authentication CR updated: " + authPolicy.Name)
+			loggers.LoggerK8sClient.Info("Backends CR updated: " + backends.Name)
 		}
 	}
 }
 
-// DeployBackendJWTCR applies the given BackendJWT struct to the Kubernetes cluster.
-func DeployBackendJWTCR(backendJWT *dpv1alpha1.BackendJWT, k8sClient client.Client) {
-	crBackendJWT := &dpv1alpha1.BackendJWT{}
-	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: backendJWT.ObjectMeta.Namespace, Name: backendJWT.Name}, crBackendJWT); err != nil {
+// DeploySecurityPolicyCR applies the given SecurityPolicy struct to the Kubernetes cluster.
+func DeploySecurityPolicyCR(securityPolicy *gatewayv1alpha1.SecurityPolicy, k8sClient client.Client) {
+	crSecurityPolicy := &gatewayv1alpha1.SecurityPolicy{}
+	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: securityPolicy.ObjectMeta.Namespace, Name: securityPolicy.Name}, crSecurityPolicy); err != nil {
 		if !k8error.IsNotFound(err) {
-			loggers.LoggerK8sClient.Error("Unable to get BackendJWT CR: " + err.Error())
+			loggers.LoggerK8sClient.Error("Unable to get SecurityPolicy CR: " + err.Error())
 		}
-		if err := k8sClient.Create(context.Background(), backendJWT); err != nil {
-			loggers.LoggerK8sClient.Error("Unable to create BackendJWT CR: " + err.Error())
+		if err := k8sClient.Create(context.Background(), securityPolicy); err != nil {
+			loggers.LoggerK8sClient.Error("Unable to create SecurityPolicy CR: " + err.Error())
 		} else {
-			loggers.LoggerK8sClient.Info("BackendJWT CR created: " + backendJWT.Name)
+			loggers.LoggerK8sClient.Info("SecurityPolicy CR created: " + securityPolicy.Name)
 		}
 	} else {
-		crBackendJWT.Spec = backendJWT.Spec
-		if err := k8sClient.Update(context.Background(), crBackendJWT); err != nil {
-			loggers.LoggerK8sClient.Error("Unable to update BackendJWT CR: " + err.Error())
+		crSecurityPolicy.Spec = securityPolicy.Spec
+		if err := k8sClient.Update(context.Background(), crSecurityPolicy); err != nil {
+			loggers.LoggerK8sClient.Error("Unable to update SecurityPolicy CR: " + err.Error())
 		} else {
-			loggers.LoggerK8sClient.Info("BackendJWT CR updated: " + backendJWT.Name)
+			loggers.LoggerK8sClient.Info("SecurityPolicy CR updated: " + securityPolicy.Name)
 		}
 	}
 }
 
-// DeployAPIPolicyCR applies the given APIPolicies struct to the Kubernetes cluster.
-func DeployAPIPolicyCR(apiPolicies *dpv1alpha4.APIPolicy, k8sClient client.Client) {
-	crAPIPolicies := &dpv1alpha4.APIPolicy{}
-	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: apiPolicies.ObjectMeta.Namespace, Name: apiPolicies.Name}, crAPIPolicies); err != nil {
+// DeployBackendTLSPolicyCR applies the given BackendTLSPolicy struct to the Kubernetes cluster.
+func DeployBackendTLSPolicyCR(backendTLSPolicy *gwapiv1a3.BackendTLSPolicy, k8sClient client.Client) {
+	crBackendTLSPolicy := &gwapiv1a3.BackendTLSPolicy{}
+	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: backendTLSPolicy.ObjectMeta.Namespace, Name: backendTLSPolicy.Name}, crBackendTLSPolicy); err != nil {
 		if !k8error.IsNotFound(err) {
-			loggers.LoggerK8sClient.Error("Unable to get APIPolicies CR: " + err.Error())
+			loggers.LoggerK8sClient.Error("Unable to get BackendTLSPolicy CR: " + err.Error())
 		}
-		if err := k8sClient.Create(context.Background(), apiPolicies); err != nil {
-			loggers.LoggerK8sClient.Error("Unable to create APIPolicies CR: " + err.Error())
+		if err := k8sClient.Create(context.Background(), backendTLSPolicy); err != nil {
+			loggers.LoggerK8sClient.Error("Unable to create BackendTLSPolicy CR: " + err.Error())
 		} else {
-			loggers.LoggerK8sClient.Info("APIPolicies CR created: " + apiPolicies.Name)
+			loggers.LoggerK8sClient.Info("BackendTLSPolicy CR created: " + backendTLSPolicy.Name)
 		}
 	} else {
-		crAPIPolicies.Spec = apiPolicies.Spec
-		if err := k8sClient.Update(context.Background(), crAPIPolicies); err != nil {
-			loggers.LoggerK8sClient.Error("Unable to update APIPolicies CR: " + err.Error())
+		crBackendTLSPolicy.Spec = backendTLSPolicy.Spec
+		if err := k8sClient.Update(context.Background(), crBackendTLSPolicy); err != nil {
+			loggers.LoggerK8sClient.Error("Unable to update BackendTLSPolicy CR: " + err.Error())
 		} else {
-			loggers.LoggerK8sClient.Info("APIPolicies CR updated: " + apiPolicies.Name)
+			loggers.LoggerK8sClient.Info("BackendTLSPolicy CR updated: " + backendTLSPolicy.Name)
 		}
 	}
 }
 
-// DeployInterceptorServicesCR applies the given InterceptorServices struct to the Kubernetes cluster.
-func DeployInterceptorServicesCR(interceptorServices *dpv1alpha1.InterceptorService, k8sClient client.Client) {
-	crInterceptorServices := &dpv1alpha1.InterceptorService{}
-	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: interceptorServices.ObjectMeta.Namespace, Name: interceptorServices.Name}, crInterceptorServices); err != nil {
+// DeployRoutePolicyCR applies the given RoutePolicy struct to the Kubernetes cluster.
+func DeployRoutePolicyCR(routePolicy *dpv2alpha1.RoutePolicy, k8sClient client.Client) {
+	crRoutePolicy := &dpv2alpha1.RoutePolicy{}
+	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: routePolicy.ObjectMeta.Namespace, Name: routePolicy.Name}, crRoutePolicy); err != nil {
 		if !k8error.IsNotFound(err) {
-			loggers.LoggerK8sClient.Error("Unable to get InterceptorServices CR: " + err.Error())
+			loggers.LoggerK8sClient.Error("Unable to get RoutePolicy CR: " + err.Error())
 		}
-		if err := k8sClient.Create(context.Background(), interceptorServices); err != nil {
-			loggers.LoggerK8sClient.Error("Unable to create InterceptorServices CR: " + err.Error())
+		if err := k8sClient.Create(context.Background(), routePolicy); err != nil {
+			loggers.LoggerK8sClient.Error("Unable to create RoutePolicy CR: " + err.Error())
 		} else {
-			loggers.LoggerK8sClient.Info("InterceptorServices CR created: " + interceptorServices.Name)
+			loggers.LoggerK8sClient.Info("RoutePolicy CR created: " + routePolicy.Name)
 		}
 	} else {
-		crInterceptorServices.Spec = interceptorServices.Spec
-		if err := k8sClient.Update(context.Background(), crInterceptorServices); err != nil {
-			loggers.LoggerK8sClient.Error("Unable to update InterceptorServices CR: " + err.Error())
+		crRoutePolicy.Spec = routePolicy.Spec
+		if err := k8sClient.Update(context.Background(), crRoutePolicy); err != nil {
+			loggers.LoggerK8sClient.Error("Unable to update RoutePolicy CR: " + err.Error())
 		} else {
-			loggers.LoggerK8sClient.Info("InterceptorServices CR updated: " + interceptorServices.Name)
+			loggers.LoggerK8sClient.Info("RoutePolicy CR updated: " + routePolicy.Name)
 		}
 	}
 }
 
-// DeployScopeCR applies the given Scope struct to the Kubernetes cluster.
-func DeployScopeCR(scope *dpv1alpha1.Scope, k8sClient client.Client) {
-	crScope := &dpv1alpha1.Scope{}
-	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: scope.ObjectMeta.Namespace, Name: scope.Name}, crScope); err != nil {
+// DeployEnvoyExtensionPolicyCR applies the given EnvoyExtensionPolicy struct to the Kubernetes cluster.
+func DeployEnvoyExtensionPolicyCR(extensionPolicy *gatewayv1alpha1.EnvoyExtensionPolicy, k8sClient client.Client) {
+	crExtensionPolicy := &gatewayv1alpha1.EnvoyExtensionPolicy{}
+	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: extensionPolicy.ObjectMeta.Namespace, Name: extensionPolicy.Name}, crExtensionPolicy); err != nil {
 		if !k8error.IsNotFound(err) {
-			loggers.LoggerK8sClient.Error("Unable to get Scope CR: " + err.Error())
+			loggers.LoggerK8sClient.Error("Unable to get EnvoyExtensionPolicy CR: " + err.Error())
 		}
-		if err := k8sClient.Create(context.Background(), scope); err != nil {
-			loggers.LoggerK8sClient.Error("Unable to create Scope CR: " + err.Error())
+		if err := k8sClient.Create(context.Background(), extensionPolicy); err != nil {
+			loggers.LoggerK8sClient.Error("Unable to create EnvoyExtensionPolicy CR: " + err.Error())
 		} else {
-			loggers.LoggerK8sClient.Info("Scope CR created: " + scope.Name)
+			loggers.LoggerK8sClient.Info("EnvoyExtensionPolicy CR created: " + extensionPolicy.Name)
 		}
 	} else {
-		crScope.Spec = scope.Spec
-		if err := k8sClient.Update(context.Background(), crScope); err != nil {
-			loggers.LoggerK8sClient.Error("Unable to update Scope CR: " + err.Error())
+		crExtensionPolicy.Spec = extensionPolicy.Spec
+		if err := k8sClient.Update(context.Background(), crExtensionPolicy); err != nil {
+			loggers.LoggerK8sClient.Error("Unable to update EnvoyExtensionPolicy CR: " + err.Error())
 		} else {
-			loggers.LoggerK8sClient.Info("Scope CR updated: " + scope.Name)
+			loggers.LoggerK8sClient.Info("EnvoyExtensionPolicy CR updated: " + extensionPolicy.Name)
 		}
 	}
 }
+
+// DeployBakcendTrafficPolicyCR applies the given BakcendTrafficPolicy struct to the Kubernetes cluster.
+func DeployBakcendTrafficPolicyCR(backendTrafficPolicy *gatewayv1alpha1.BackendTrafficPolicy, k8sClient client.Client) {
+	crBackendTrafficPolicy := &gatewayv1alpha1.BackendTrafficPolicy{}
+	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: backendTrafficPolicy.ObjectMeta.Namespace, Name: backendTrafficPolicy.Name}, crBackendTrafficPolicy); err != nil {
+		if !k8error.IsNotFound(err) {
+			loggers.LoggerK8sClient.Error("Unable to get BakcendTrafficPolicy CR: " + err.Error())
+		}
+		if err := k8sClient.Create(context.Background(), backendTrafficPolicy); err != nil {
+			loggers.LoggerK8sClient.Error("Unable to create BakcendTrafficPolicy CR: " + err.Error())
+		} else {
+			loggers.LoggerK8sClient.Info("BakcendTrafficPolicy CR created: " + backendTrafficPolicy.Name)
+		}
+	} else {
+		crBackendTrafficPolicy.Spec = backendTrafficPolicy.Spec
+		if err := k8sClient.Update(context.Background(), crBackendTrafficPolicy); err != nil {
+			loggers.LoggerK8sClient.Error("Unable to update BakcendTrafficPolicy CR: " + err.Error())
+		} else {
+			loggers.LoggerK8sClient.Info("BakcendTrafficPolicy CR updated: " + backendTrafficPolicy.Name)
+		}
+	}
+}
+
+// DeployGRPCRouteCR applies the given GRPCRoute struct to the Kubernetes cluster.
+func DeployGRPCRouteCR(grpcRoute *gwapiv1a2.GRPCRoute, k8sClient client.Client) {
+	crGRPCRoute := &gwapiv1.GRPCRoute{}
+	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: grpcRoute.ObjectMeta.Namespace, Name: grpcRoute.Name}, crGRPCRoute); err != nil {
+		if !k8error.IsNotFound(err) {
+			loggers.LoggerK8sClient.Error("Unable to get GRPCRoute CR: " + err.Error())
+		}
+		if err := k8sClient.Create(context.Background(), grpcRoute); err != nil {
+			loggers.LoggerK8sClient.Error("Unable to create GRPCRoute CR: " + err.Error())
+		} else {
+			loggers.LoggerK8sClient.Info("GRPCRoute CR created: " + grpcRoute.Name)
+		}
+	} else {
+		crGRPCRoute.Spec = grpcRoute.Spec
+		if err := k8sClient.Update(context.Background(), crGRPCRoute); err != nil {
+			loggers.LoggerK8sClient.Error("Unable to update GRPCRoute CR: " + err.Error())
+		} else {
+			loggers.LoggerK8sClient.Info("GRPCRoute CR updated: " + grpcRoute.Name)
+		}
+	}
+}
+
+// !!! ======== NEW ========
 
 // DeployAIProviderCR applies the given AIProvider struct to the Kubernetes cluster.
 func DeployAIProviderCR(aiProvider *dpv1alpha4.AIProvider, k8sClient client.Client) {
@@ -592,28 +646,6 @@ func UndeploySubscriptionAIRateLimitPolicyCR(crName string, k8sClient client.Cli
 		loggers.LoggerK8sClient.Error("Unable to delete AIRateLimitPolicies CR: " + err.Error())
 	}
 	loggers.LoggerK8sClient.Debug("AIRateLimitPolicies CR deleted: " + crAIRateLimitPolicies.Name)
-}
-
-// DeployBackendCR applies the given Backends struct to the Kubernetes cluster.
-func DeployBackendCR(backends *dpv1alpha2.Backend, k8sClient client.Client) {
-	crBackends := &dpv1alpha2.Backend{}
-	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: backends.ObjectMeta.Namespace, Name: backends.Name}, crBackends); err != nil {
-		if !k8error.IsNotFound(err) {
-			loggers.LoggerK8sClient.Error("Unable to get Backends CR: " + err.Error())
-		}
-		if err := k8sClient.Create(context.Background(), backends); err != nil {
-			loggers.LoggerK8sClient.Error("Unable to create Backends CR: " + err.Error())
-		} else {
-			loggers.LoggerK8sClient.Info("Backends CR created: " + backends.Name)
-		}
-	} else {
-		crBackends.Spec = backends.Spec
-		if err := k8sClient.Update(context.Background(), crBackends); err != nil {
-			loggers.LoggerK8sClient.Error("Unable to update Backends CR: " + err.Error())
-		} else {
-			loggers.LoggerK8sClient.Info("Backends CR updated: " + backends.Name)
-		}
-	}
 }
 
 // CreateAndUpdateTokenIssuersCR applies the given TokenIssuers struct to the Kubernetes cluster.

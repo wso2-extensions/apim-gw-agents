@@ -35,60 +35,54 @@ import (
 // data and sends to the K8-Client for creating the respective CR inside the cluster
 func MapAndCreateCR(k8sArtifact transformer.K8sArtifacts, k8sClient client.Client) *error {
 	namespace, err := getDeploymentNamespace(k8sArtifact)
+	logger.LoggerMapper.Infof("Namespace: %s", namespace)
 	if err != nil {
 		return &err
 	}
-	k8sArtifact.API.Namespace = namespace
-
+	for _, routeMetadata := range k8sArtifact.RouteMetadata {
+		routeMetadata.Namespace = namespace
+		internalk8sClient.DeployRouteMetadataCR(routeMetadata, k8sClient)
+	}
 	for _, configMaps := range k8sArtifact.ConfigMaps {
 		configMaps.Namespace = namespace
 		internalk8sClient.DeployConfigMapCR(configMaps, k8sClient)
-	}
-	for _, authPolicies := range k8sArtifact.Authentication {
-		authPolicies.Namespace = namespace
-		internalk8sClient.DeployAuthenticationCR(authPolicies, k8sClient)
-	}
-	for _, interceptorServices := range k8sArtifact.InterceptorServices {
-		interceptorServices.Namespace = namespace
-		internalk8sClient.DeployInterceptorServicesCR(interceptorServices, k8sClient)
-	}
-	if k8sArtifact.BackendJWT != nil {
-		k8sArtifact.BackendJWT.Namespace = namespace
-		internalk8sClient.DeployBackendJWTCR(k8sArtifact.BackendJWT, k8sClient)
-	}
-	for _, scopes := range k8sArtifact.Scopes {
-		scopes.Namespace = namespace
-		internalk8sClient.DeployScopeCR(scopes, k8sClient)
-	}
-	for _, rateLimitPolicy := range k8sArtifact.RateLimitPolicies {
-		rateLimitPolicy.Namespace = namespace
-		internalk8sClient.DeployRateLimitPolicyCR(rateLimitPolicy, k8sClient)
-	}
-	for _, aiRateLimitPolicy := range k8sArtifact.AIRateLimitPolicies {
-		aiRateLimitPolicy.Namespace = namespace
-		internalk8sClient.DeployAIRateLimitPolicyCR(aiRateLimitPolicy, k8sClient)
 	}
 	for _, secrets := range k8sArtifact.Secrets {
 		secrets.Namespace = namespace
 		internalk8sClient.DeploySecretCR(secrets, k8sClient)
 	}
-	for _, apiPolicies := range k8sArtifact.APIPolicies {
-		apiPolicies.Namespace = namespace
-		internalk8sClient.DeployAPIPolicyCR(apiPolicies, k8sClient)
-	}
 	for _, httpRoutes := range k8sArtifact.HTTPRoutes {
 		httpRoutes.Namespace = namespace
 		internalk8sClient.DeployHTTPRouteCR(httpRoutes, k8sClient)
-	}
-	for _, gqlRoutes := range k8sArtifact.GQLRoutes {
-		gqlRoutes.Namespace = namespace
-		internalk8sClient.DeployGQLRouteCR(gqlRoutes, k8sClient)
 	}
 	for _, backends := range k8sArtifact.Backends {
 		backends.Namespace = namespace
 		internalk8sClient.DeployBackendCR(backends, k8sClient)
 	}
-	internalk8sClient.DeployAPICR(&k8sArtifact.API, k8sClient)
+	for _, securityPolicy := range k8sArtifact.SecurityPolicies {
+		securityPolicy.Namespace = namespace
+		internalk8sClient.DeploySecurityPolicyCR(securityPolicy, k8sClient)
+	}
+	for _, backendTLSPolicies := range k8sArtifact.BackendTLSPolicies {
+		backendTLSPolicies.Namespace = namespace
+		internalk8sClient.DeployBackendTLSPolicyCR(backendTLSPolicies, k8sClient)
+	}
+	for _, routePolicies := range k8sArtifact.RoutePolicies {
+		routePolicies.Namespace = namespace
+		internalk8sClient.DeployRoutePolicyCR(routePolicies, k8sClient)
+	}
+	for _, envoyExtensionPolicies := range k8sArtifact.EnvoyExtensionPolicies {
+		envoyExtensionPolicies.Namespace = namespace
+		internalk8sClient.DeployEnvoyExtensionPolicyCR(envoyExtensionPolicies, k8sClient)
+	}
+	for _, backendTrafficPolicy := range k8sArtifact.BackendTrafficPolicies {
+		backendTrafficPolicy.Namespace = namespace
+		internalk8sClient.DeployBakcendTrafficPolicyCR(backendTrafficPolicy, k8sClient)
+	}
+	for _, grpcRoute := range k8sArtifact.GRPCRoutes {
+		grpcRoute.Namespace = namespace
+		internalk8sClient.DeployGRPCRouteCR(grpcRoute, k8sClient)
+	}
 	return nil
 }
 func getDeploymentNamespace(k8sArtifact transformer.K8sArtifacts) (string, error) {

@@ -38,15 +38,19 @@ import (
 	"mime/multipart"
 	"net/http"
 
+	gatewayv1alpha1 "github.com/envoyproxy/gateway/api/v1alpha1"
 	eventHub "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/eventhub/types"
 	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/transformer"
-	dpv1alpha1 "github.com/wso2/apk/common-go-libs/apis/dp/v1alpha1"
-	dpv1alpha2 "github.com/wso2/apk/common-go-libs/apis/dp/v1alpha2"
-	dpv1alpha3 "github.com/wso2/apk/common-go-libs/apis/dp/v1alpha3"
-	dpv1alpha4 "github.com/wso2/apk/common-go-libs/apis/dp/v1alpha4"
+	// dpv1alpha1 "github.com/wso2/apk/common-go-libs/apis/dp/v1alpha1"
+	// dpv1alpha2 "github.com/wso2/apk/common-go-libs/apis/dp/v1alpha2"
+	// dpv1alpha3 "github.com/wso2/apk/common-go-libs/apis/dp/v1alpha3"
+	// dpv1alpha4 "github.com/wso2/apk/common-go-libs/apis/dp/v1alpha4"
+	dpv2alpha1 "github.com/wso2/apk/common-go-libs/apis/dp/v2alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	gwapiv1 "sigs.k8s.io/gateway-api/apis/v1"
+	gwapiv1a2 "sigs.k8s.io/gateway-api/apis/v1alpha2"
+	gwapiv1a3 "sigs.k8s.io/gateway-api/apis/v1alpha3"
 
 	logger "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/pkg/loggers"
 	k8Yaml "sigs.k8s.io/yaml"
@@ -57,7 +61,7 @@ import (
 // GenerateCRs takes the .apk-conf, api definition, vHost and the organization for a particular API and then generate and returns
 // the relavant CRD set as a zip
 func GenerateCRs(apkConf string, apiDefinition string, certContainer transformer.CertContainer, k8ResourceGenEndpoint string, organizationID string) (*K8sArtifacts, error) {
-	k8sArtifact := K8sArtifacts{HTTPRoutes: make(map[string]*gwapiv1.HTTPRoute), GQLRoutes: make(map[string]*dpv1alpha2.GQLRoute), Backends: make(map[string]*dpv1alpha2.Backend), Scopes: make(map[string]*dpv1alpha1.Scope), Authentication: make(map[string]*dpv1alpha2.Authentication), APIPolicies: make(map[string]*dpv1alpha4.APIPolicy), InterceptorServices: make(map[string]*dpv1alpha1.InterceptorService), ConfigMaps: make(map[string]*corev1.ConfigMap), Secrets: make(map[string]*corev1.Secret), RateLimitPolicies: make(map[string]*dpv1alpha1.RateLimitPolicy), AIRateLimitPolicies: make(map[string]*dpv1alpha3.AIRateLimitPolicy)}
+	k8sArtifact := K8sArtifacts{HTTPRoutes: make(map[string]*gwapiv1.HTTPRoute), Backends: make(map[string]*gatewayv1alpha1.Backend), ConfigMaps: make(map[string]*corev1.ConfigMap), Secrets: make(map[string]*corev1.Secret), RouteMetadata: make(map[string]*dpv2alpha1.RouteMetadata), SecurityPolicies: make(map[string]*gatewayv1alpha1.SecurityPolicy), BackendTLSPolicies: make(map[string]*gwapiv1a3.BackendTLSPolicy), RoutePolicies: make(map[string]*dpv2alpha1.RoutePolicy), EnvoyExtensionPolicies: make(map[string]*gatewayv1alpha1.EnvoyExtensionPolicy), BackendTrafficPolicies: make(map[string]*gatewayv1alpha1.BackendTrafficPolicy), GRPCRoutes: make(map[string]*gwapiv1a2.GRPCRoute)}
 	if apkConf == "" {
 		logger.LoggerTransformer.Error("Empty apk-conf parameter provided. Unable to generate CRDs.")
 		return nil, errors.New("Error: APK-Conf can't be empty")
@@ -159,14 +163,6 @@ func GenerateCRs(apkConf string, apiDefinition string, certContainer transformer
 		}
 
 		switch kind {
-		case "APIPolicy":
-			var apiPolicy dpv1alpha4.APIPolicy
-			err = k8Yaml.Unmarshal(yamlData, &apiPolicy)
-			if err != nil {
-				logger.LoggerSync.Errorf("Error unmarshaling APIPolicy YAML: %v", err)
-				continue
-			}
-			k8sArtifact.APIPolicies[apiPolicy.ObjectMeta.Name] = &apiPolicy
 		case "HTTPRoute":
 			var httpRoute gwapiv1.HTTPRoute
 			err = k8Yaml.Unmarshal(yamlData, &httpRoute)
@@ -177,7 +173,7 @@ func GenerateCRs(apkConf string, apiDefinition string, certContainer transformer
 			k8sArtifact.HTTPRoutes[httpRoute.ObjectMeta.Name] = &httpRoute
 
 		case "Backend":
-			var backend dpv1alpha2.Backend
+			var backend gatewayv1alpha1.Backend
 			err = k8Yaml.Unmarshal(yamlData, &backend)
 			if err != nil {
 				logger.LoggerSync.Errorf("Error unmarshaling Backend YAML: %v", err)
@@ -193,63 +189,7 @@ func GenerateCRs(apkConf string, apiDefinition string, certContainer transformer
 				continue
 			}
 			k8sArtifact.ConfigMaps[configMap.ObjectMeta.Name] = &configMap
-		case "Authentication":
-			var authPolicy dpv1alpha2.Authentication
-			err = k8Yaml.Unmarshal(yamlData, &authPolicy)
-			if err != nil {
-				logger.LoggerSync.Errorf("Error unmarshaling Authentication YAML: %v", err)
-				continue
-			}
-			k8sArtifact.Authentication[authPolicy.ObjectMeta.Name] = &authPolicy
 
-		case "API":
-			var api dpv1alpha3.API
-			err = k8Yaml.Unmarshal(yamlData, &api)
-			if err != nil {
-				logger.LoggerSync.Errorf("Error unmarshaling API YAML: %v", err)
-				continue
-			}
-			k8sArtifact.API = api
-		case "InterceptorService":
-			var interceptorService dpv1alpha1.InterceptorService
-			err = k8Yaml.Unmarshal(yamlData, &interceptorService)
-			if err != nil {
-				logger.LoggerSync.Errorf("Error unmarshaling InterceptorService YAML: %v", err)
-				continue
-			}
-			k8sArtifact.InterceptorServices[interceptorService.Name] = &interceptorService
-		case "BackendJWT":
-			var backendJWT *dpv1alpha1.BackendJWT
-			err = k8Yaml.Unmarshal(yamlData, &backendJWT)
-			if err != nil {
-				logger.LoggerSync.Errorf("Error unmarshaling BackendJWT YAML: %v", err)
-				continue
-			}
-			k8sArtifact.BackendJWT = backendJWT
-		case "Scope":
-			var scope dpv1alpha1.Scope
-			err = k8Yaml.Unmarshal(yamlData, &scope)
-			if err != nil {
-				logger.LoggerSync.Errorf("Error unmarshaling Scope YAML: %v", err)
-				continue
-			}
-			k8sArtifact.Scopes[scope.Name] = &scope
-		case "RateLimitPolicy":
-			var rateLimitPolicy dpv1alpha1.RateLimitPolicy
-			err = k8Yaml.Unmarshal(yamlData, &rateLimitPolicy)
-			if err != nil {
-				logger.LoggerSync.Errorf("Error unmarshaling RateLimitPolicy YAML: %v", err)
-				continue
-			}
-			k8sArtifact.RateLimitPolicies[rateLimitPolicy.Name] = &rateLimitPolicy
-		case "AIRateLimitPolicy":
-			var aiRateLimitPolicy dpv1alpha3.AIRateLimitPolicy
-			err = k8Yaml.Unmarshal(yamlData, &aiRateLimitPolicy)
-			if err != nil {
-				logger.LoggerSync.Errorf("Error unmarshaling AIRateLimitPolicy YAML: %v", err)
-				continue
-			}
-			k8sArtifact.AIRateLimitPolicies[aiRateLimitPolicy.Name] = &aiRateLimitPolicy
 		case "Secret":
 			var secret corev1.Secret
 			err = k8Yaml.Unmarshal(yamlData, &secret)
@@ -258,14 +198,69 @@ func GenerateCRs(apkConf string, apiDefinition string, certContainer transformer
 				continue
 			}
 			k8sArtifact.Secrets[secret.Name] = &secret
-		case "GQLRoute":
-			var gqlRoute dpv1alpha2.GQLRoute
-			err = k8Yaml.Unmarshal(yamlData, &gqlRoute)
+
+		case "SecurityPolicy":
+			var securityPolicy gatewayv1alpha1.SecurityPolicy
+			err = k8Yaml.Unmarshal(yamlData, &securityPolicy)
 			if err != nil {
-				logger.LoggerSync.Errorf("Error unmarshaling GQLRoute YAML: %v", err)
+				logger.LoggerSync.Errorf("Error unmarshaling SecurityPolicy YAML: %v", err)
 				continue
 			}
-			k8sArtifact.GQLRoutes[gqlRoute.Name] = &gqlRoute
+			k8sArtifact.SecurityPolicies[securityPolicy.Name] = &securityPolicy
+
+		case "BackendTrafficPolicy":
+			var backendTrafficPolicy gatewayv1alpha1.BackendTrafficPolicy
+			err = k8Yaml.Unmarshal(yamlData, &backendTrafficPolicy)
+			if err != nil {
+				logger.LoggerSync.Errorf("Error unmarshaling BackendTrafficPolicy YAML: %v", err)
+				continue
+			}
+			k8sArtifact.BackendTrafficPolicies[backendTrafficPolicy.Name] = &backendTrafficPolicy
+
+		case "BackendTLSPolicy":
+			var backendTLSPolicy gwapiv1a3.BackendTLSPolicy
+			err = k8Yaml.Unmarshal(yamlData, &backendTLSPolicy)
+			if err != nil {
+				logger.LoggerSync.Errorf("Error unmarshaling BackendTLSPolicy YAML: %v", err)
+				continue
+			}
+			k8sArtifact.BackendTLSPolicies[backendTLSPolicy.Name] = &backendTLSPolicy
+
+		case "RoutePolicy":
+			var routePolicy dpv2alpha1.RoutePolicy
+			err = k8Yaml.Unmarshal(yamlData, &routePolicy)
+			if err != nil {
+				logger.LoggerSync.Errorf("Error unmarshaling RoutePolicy YAML: %v", err)
+				continue
+			}
+			k8sArtifact.RoutePolicies[routePolicy.Name] = &routePolicy
+
+		case "EnvoyExtensionPolicy":
+			var envoyExtensionPolicy gatewayv1alpha1.EnvoyExtensionPolicy
+			err = k8Yaml.Unmarshal(yamlData, &envoyExtensionPolicy)
+			if err != nil {
+				logger.LoggerSync.Errorf("Error unmarshaling EnvoyExtensionPolicy YAML: %v", err)
+				continue
+			}
+			k8sArtifact.EnvoyExtensionPolicies[envoyExtensionPolicy.Name] = &envoyExtensionPolicy
+
+		case "RouteMetadata":
+			var routeMetadata dpv2alpha1.RouteMetadata
+			err = k8Yaml.Unmarshal(yamlData, &routeMetadata)
+			if err != nil {
+				logger.LoggerSync.Errorf("Error unmarshaling RouteMetadata YAML: %v", err)
+				continue
+			}
+			k8sArtifact.RouteMetadata[routeMetadata.Name] = &routeMetadata
+
+		case "GRPCRoute":
+			var grpcRoute gwapiv1a2.GRPCRoute
+			err = k8Yaml.Unmarshal(yamlData, &grpcRoute)
+			if err != nil {
+				logger.LoggerSync.Errorf("Error unmarshaling GRPCRoute YAML: %v", err)
+				continue
+			}
+			k8sArtifact.GRPCRoutes[grpcRoute.Name] = &grpcRoute
 		default:
 			logger.LoggerSync.Errorf("[!]Unknown Kind parsed from the YAML File: %v", kind)
 		}
@@ -289,116 +284,77 @@ func GenerateCRs(apkConf string, apiDefinition string, certContainer transformer
 func UpdateCRS(k8sArtifact *K8sArtifacts, environments *[]transformer.Environment, organizationID string, apiUUID string, revisionID string, namespace string, configuredRateLimitPoliciesMap map[string]eventHub.RateLimitPolicy) {
 	addOrganization(k8sArtifact, organizationID)
 	addRevisionAndAPIUUID(k8sArtifact, apiUUID, revisionID)
+	// Create a in-memory map to store routemeta names and their associated deployemnt envs
+	deploymentTypeMap := make(map[string]string)
+	for _, routemetadata := range k8sArtifact.RouteMetadata {
+		routemetaName := routemetadata.Name
+		if deploymentTypeMap[routemetaName] == "" {
+			deploymentTypeMap[routemetaName] = routemetadata.Spec.API.Environment
+			logger.LoggerTransformer.Infof("RouteMetadata Name: %s | Deployment Type: %s", routemetadata.Name, routemetadata.Spec.API.Environment)
+		} else {
+			if deploymentTypeMap[routemetaName] != routemetadata.Spec.API.Environment {
+				logger.LoggerTransformer.Errorf("Environment mismatch for RouteMetadata: %s", routemetaName)
+			}
+		}
+	}
+
 	for _, environment := range *environments {
 		replaceVhost(k8sArtifact, environment.Vhost, environment.Type)
 	}
-	addRateLimitPolicyNames(k8sArtifact, configuredRateLimitPoliciesMap)
+	// addRateLimitPolicyNames(k8sArtifact, configuredRateLimitPoliciesMap)
 }
 
-// replaceVhost will take the httpRoute CR and replace the default vHost with the one passed inside
-// the deploymemt descriptor
 func replaceVhost(k8sArtifact *K8sArtifacts, vhost string, deploymentType string) {
-	if deploymentType == "hybrid" {
-		// append sandbox. part to available vhost to generate sandbox vhost
-		if k8sArtifact.API.Spec.Production != nil {
-			for _, routeName := range k8sArtifact.API.Spec.Production {
-				for _, routes := range routeName.RouteRefs {
-					httprouteRef, foundHTTPRoute := k8sArtifact.HTTPRoutes[routes]
-					if foundHTTPRoute {
-						httprouteRef.Spec.Hostnames = []gwapiv1.Hostname{gwapiv1.Hostname(vhost)}
-					}
-					gqlRouteRef, foundGQLRoute := k8sArtifact.GQLRoutes[routes]
-					if foundGQLRoute {
-						gqlRouteRef.Spec.Hostnames = []gwapiv1.Hostname{gwapiv1.Hostname(vhost)}
+	// Append sandbox. part to available vhost to generate sandbox vhost
+	// Need to check whether the httproute refer to sandbox routemeta or production routemeta
+	for _, httproute := range k8sArtifact.HTTPRoutes {
+		for _, rule := range httproute.Spec.Rules {
+			for _, filter := range rule.Filters {
+				if filter.Type == "ExtensionRef" && filter.ExtensionRef != nil && filter.ExtensionRef.Kind == "RouteMetadata" {
+					if filter.ExtensionRef.Name == "sandbox" {
+						httproute.Spec.Hostnames = []gwapiv1.Hostname{gwapiv1.Hostname("sandbox." + vhost)}
+					} else {
+						httproute.Spec.Hostnames = []gwapiv1.Hostname{gwapiv1.Hostname(vhost)}
 					}
 				}
 			}
-		}
-		if k8sArtifact.API.Spec.Sandbox != nil {
-			for _, routeName := range k8sArtifact.API.Spec.Sandbox {
-				for _, routes := range routeName.RouteRefs {
-					httprouteRef, foundHTTPRoute := k8sArtifact.HTTPRoutes[routes]
-					if foundHTTPRoute {
-						httprouteRef.Spec.Hostnames = []gwapiv1.Hostname{gwapiv1.Hostname("sandbox." + vhost)}
-					}
-					gqlRouteRef, foundGQLRoute := k8sArtifact.GQLRoutes[routes]
-					if foundGQLRoute {
-						gqlRouteRef.Spec.Hostnames = []gwapiv1.Hostname{gwapiv1.Hostname("sandbox." + vhost)}
-					}
-				}
-			}
-		}
-	} else if deploymentType == "sandbox" {
-		if k8sArtifact.API.Spec.Sandbox != nil {
-			for _, routeName := range k8sArtifact.API.Spec.Sandbox {
-				for _, routes := range routeName.RouteRefs {
-					httprouteRef, foundHTTPRoute := k8sArtifact.HTTPRoutes[routes]
-					if foundHTTPRoute {
-						httprouteRef.Spec.Hostnames = []gwapiv1.Hostname{gwapiv1.Hostname(vhost)}
-					}
-					gqlRouteRef, foundGQLRoute := k8sArtifact.GQLRoutes[routes]
-					if foundGQLRoute {
-						gqlRouteRef.Spec.Hostnames = []gwapiv1.Hostname{gwapiv1.Hostname(vhost)}
-					}
-				}
-			}
-		}
-		if k8sArtifact.API.Spec.Production != nil {
-			for _, routeName := range k8sArtifact.API.Spec.Production {
-				for _, routes := range routeName.RouteRefs {
-					delete(k8sArtifact.HTTPRoutes, routes)
-					delete(k8sArtifact.GQLRoutes, routes)
-				}
-			}
-			k8sArtifact.API.Spec.Production = []dpv1alpha3.EnvConfig{}
-		}
-	} else {
-		if k8sArtifact.API.Spec.Sandbox != nil {
-			for _, routeName := range k8sArtifact.API.Spec.Sandbox {
-				for _, routes := range routeName.RouteRefs {
-					httprouteRef, foundHTTPRoute := k8sArtifact.HTTPRoutes[routes]
-					if foundHTTPRoute {
-						httprouteRef.Spec.Hostnames = []gwapiv1.Hostname{gwapiv1.Hostname(vhost)}
-					}
-					gqlRouteRef, foundGQLRoute := k8sArtifact.GQLRoutes[routes]
-					if foundGQLRoute {
-						gqlRouteRef.Spec.Hostnames = []gwapiv1.Hostname{gwapiv1.Hostname(vhost)}
-					}
-				}
-			}
-		}
-		if k8sArtifact.API.Spec.Sandbox != nil {
-			for _, routeName := range k8sArtifact.API.Spec.Sandbox {
-				for _, routes := range routeName.RouteRefs {
-					delete(k8sArtifact.HTTPRoutes, routes)
-					delete(k8sArtifact.GQLRoutes, routes)
-				}
-			}
-			k8sArtifact.API.Spec.Sandbox = []dpv1alpha3.EnvConfig{}
 		}
 	}
+	// TODO: GQLRoutes are not supported in the new envoy config. Check if there any additional 
+	// modifications are needed for that
 }
 
 // addOrganization will take the API CR and change the organization to the one passed inside
 // the deploymemt descriptor
 func addOrganization(k8sArtifact *K8sArtifacts, organization string) {
-	k8sArtifact.API.Spec.Organization = organization
 	organizationHash := generateSHA1Hash(organization)
-	k8sArtifact.API.ObjectMeta.Labels[k8sOrganizationField] = organizationHash
-	for _, apiPolicies := range k8sArtifact.APIPolicies {
-		apiPolicies.ObjectMeta.Labels[k8sOrganizationField] = organizationHash
+	for _,routemetadata := range k8sArtifact.RouteMetadata {
+		routemetadata.Spec.API.Organization = organization
+		routemetadata.ObjectMeta.Labels[k8sOrganizationField] = organizationHash
 	}
 	for _, httproutes := range k8sArtifact.HTTPRoutes {
 		httproutes.ObjectMeta.Labels[k8sOrganizationField] = organizationHash
 	}
-	for _, gqlroutes := range k8sArtifact.GQLRoutes {
-		gqlroutes.ObjectMeta.Labels[k8sOrganizationField] = organizationHash
-	}
-	for _, authentication := range k8sArtifact.Authentication {
-		authentication.ObjectMeta.Labels[k8sOrganizationField] = organizationHash
+	for _, securitypolicy := range k8sArtifact.SecurityPolicies {
+		securitypolicy.ObjectMeta.Labels[k8sOrganizationField] = organizationHash
 	}
 	for _, backend := range k8sArtifact.Backends {
 		backend.ObjectMeta.Labels[k8sOrganizationField] = organizationHash
+	}
+	for _, backendTLSPolicy := range k8sArtifact.BackendTLSPolicies {
+		backendTLSPolicy.ObjectMeta.Labels[k8sOrganizationField] = organizationHash
+	}
+	for _, routePolicy := range k8sArtifact.RoutePolicies {
+		routePolicy.ObjectMeta.Labels[k8sOrganizationField] = organizationHash
+	}
+	for _, envoyExtensionPolicy := range k8sArtifact.EnvoyExtensionPolicies {
+		envoyExtensionPolicy.ObjectMeta.Labels[k8sOrganizationField] = organizationHash
+	}
+	for _, backendTrafficPolicy := range k8sArtifact.BackendTrafficPolicies {
+		backendTrafficPolicy.ObjectMeta.Labels[k8sOrganizationField] = organizationHash
+	}
+	for _, grpcRoute := range k8sArtifact.GRPCRoutes {
+		grpcRoute.ObjectMeta.Labels[k8sOrganizationField] = organizationHash
 	}
 	for _, configMap := range k8sArtifact.ConfigMaps {
 		configMap.ObjectMeta.Labels[k8sOrganizationField] = organizationHash
@@ -406,30 +362,29 @@ func addOrganization(k8sArtifact *K8sArtifacts, organization string) {
 	for _, secret := range k8sArtifact.Secrets {
 		secret.ObjectMeta.Labels[k8sOrganizationField] = organizationHash
 	}
-	for _, scope := range k8sArtifact.Scopes {
-		scope.ObjectMeta.Labels[k8sOrganizationField] = organizationHash
-	}
 }
 
 // addRevisionAndAPIUUID will add the API ID and the revision field attributes to the API CR
 func addRevisionAndAPIUUID(k8sArtifact *K8sArtifacts, apiID string, revisionID string) {
-	k8sArtifact.API.ObjectMeta.Labels[k8APIUuidField] = apiID
-	k8sArtifact.API.ObjectMeta.Labels[k8RevisionField] = revisionID
+	for _, routemetadata := range k8sArtifact.RouteMetadata {
+		routemetadata.ObjectMeta.Labels[k8APIUuidField] = apiID
+		routemetadata.ObjectMeta.Labels[k8RevisionField] = revisionID
+	}
 }
 
 // addRateLimitPolicyNames will add the rate limit policy names to the respective CRs
-func addRateLimitPolicyNames(k8sArtifact *K8sArtifacts, configuredRateLimitPoliciesMap map[string]eventHub.RateLimitPolicy) {
-	logger.LoggerTransformer.Infof("Rate Limit Policies: %v", configuredRateLimitPoliciesMap)
-	for _, rateLimitPolicy := range k8sArtifact.RateLimitPolicies {
-		if strings.Contains(rateLimitPolicy.Name, "api-") {
-			rateLimitPolicy.ObjectMeta.Labels[k8sRateLimitPolicyNameField] = generateSHA1Hash(configuredRateLimitPoliciesMap["API"].Name)
-			logger.LoggerTransformer.Infof("Rate Limit Policy Name: %v", rateLimitPolicy.ObjectMeta.Labels[k8sRateLimitPolicyNameField])
-		} else if strings.Contains(rateLimitPolicy.Name, "resource-") {
-			rateLimitPolicy.ObjectMeta.Labels[k8sRateLimitPolicyNameField] = generateSHA1Hash(configuredRateLimitPoliciesMap["Resource"].Name)
-			logger.LoggerTransformer.Infof("Rate Limit Policy Name: %v", rateLimitPolicy.ObjectMeta.Labels[k8sRateLimitPolicyNameField])
-		}
-	}
-}
+// func addRateLimitPolicyNames(k8sArtifact *K8sArtifacts, configuredRateLimitPoliciesMap map[string]eventHub.RateLimitPolicy) {
+// 	logger.LoggerTransformer.Infof("Rate Limit Policies: %v", configuredRateLimitPoliciesMap)
+// 	for _, rateLimitPolicy := range k8sArtifact.RateLimitPolicies {
+// 		if strings.Contains(rateLimitPolicy.Name, "api-") {
+// 			rateLimitPolicy.ObjectMeta.Labels[k8sRateLimitPolicyNameField] = generateSHA1Hash(configuredRateLimitPoliciesMap["API"].Name)
+// 			logger.LoggerTransformer.Infof("Rate Limit Policy Name: %v", rateLimitPolicy.ObjectMeta.Labels[k8sRateLimitPolicyNameField])
+// 		} else if strings.Contains(rateLimitPolicy.Name, "resource-") {
+// 			rateLimitPolicy.ObjectMeta.Labels[k8sRateLimitPolicyNameField] = generateSHA1Hash(configuredRateLimitPoliciesMap["Resource"].Name)
+// 			logger.LoggerTransformer.Infof("Rate Limit Policy Name: %v", rateLimitPolicy.ObjectMeta.Labels[k8sRateLimitPolicyNameField])
+// 		}
+// 	}
+// }
 
 // generateSHA1Hash returns the SHA1 hash for the given string
 func generateSHA1Hash(input string) string {
@@ -440,6 +395,7 @@ func generateSHA1Hash(input string) string {
 
 // createConfigMaps returns a marshalled yaml of ConfigMap kind after adding the given values
 func createConfigMaps(certFiles map[string]string, k8sArtifact *K8sArtifacts) {
+	apiName := getAPINameFromRouteMetadata(k8sArtifact)
 	for confKey, confValue := range certFiles {
 		pathSegments := strings.Split(confKey, ".")
 		configName := pathSegments[0]
@@ -448,7 +404,7 @@ func createConfigMaps(certFiles map[string]string, k8sArtifact *K8sArtifacts) {
 		cm := corev1.ConfigMap{}
 		cm.APIVersion = "v1"
 		cm.Kind = "ConfigMap"
-		cm.ObjectMeta.Name = k8sArtifact.API.Name + "-" + configName
+		cm.ObjectMeta.Name = apiName + "-" + configName
 
 		if cm.ObjectMeta.Labels == nil {
 			cm.ObjectMeta.Labels = make(map[string]string)
@@ -478,6 +434,7 @@ func createConfigMaps(certFiles map[string]string, k8sArtifact *K8sArtifacts) {
 
 // createEndpointSecrets creates and links the secret CRs need to be created for handling the endpoint security
 func createEndpointSecrets(secretDataList []transformer.EndpointSecurityConfig, k8sArtifact *K8sArtifacts) {
+	apiName := getAPINameFromRouteMetadata(k8sArtifact)
 	createSecret := func(environment string, username, password string, apiKeyValue string, securityType string, endpointUUID string) {
 		var secret corev1.Secret
 		if securityType == "apikey" {
@@ -487,8 +444,8 @@ func createEndpointSecrets(secretDataList []transformer.EndpointSecurityConfig, 
 					APIVersion: "v1",
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      strings.Join([]string{k8sArtifact.API.Name, generateSHA1Hash(endpointUUID), environment, "secret"}, "-"),
-					Namespace: k8sArtifact.API.Namespace,
+					Name:      strings.Join([]string{apiName, generateSHA1Hash(endpointUUID), environment, "secret"}, "-"),
+					Namespace: "default", //This shouold be changed to get it from configs ->Ex: k8sArtifact.API.Namespace
 					Labels:    make(map[string]string),
 				},
 				Data: map[string][]byte{
@@ -502,8 +459,8 @@ func createEndpointSecrets(secretDataList []transformer.EndpointSecurityConfig, 
 					APIVersion: "v1",
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      strings.Join([]string{k8sArtifact.API.Name, generateSHA1Hash(endpointUUID), environment, "secret"}, "-"),
-					Namespace: k8sArtifact.API.Namespace,
+					Name:      strings.Join([]string{apiName, generateSHA1Hash(endpointUUID), environment, "secret"}, "-"),
+					Namespace: "default", //This shouold be changed to get it from configs ->Ex: k8sArtifact.API.Namespace
 					Labels:    make(map[string]string),
 				},
 				Data: map[string][]byte{
@@ -524,4 +481,14 @@ func createEndpointSecrets(secretDataList []transformer.EndpointSecurityConfig, 
 			createSecret("sandbox", secretData.Sandbox.Username, secretData.Sandbox.Password, secretData.Sandbox.APIKeyValue, secretData.Sandbox.Type, secretData.Sandbox.EndpointUUID)
 		}
 	}
+}
+
+// Get API name from any RouteMetadata in the map
+func getAPINameFromRouteMetadata(k8sArtifact *K8sArtifacts) string {
+    for _, routeMetadata := range k8sArtifact.RouteMetadata {
+        if routeMetadata != nil && routeMetadata.Spec.API.Name != "" {
+            return routeMetadata.Spec.API.Name
+        }
+    }
+    return "" // fallback if no RouteMetadata found
 }

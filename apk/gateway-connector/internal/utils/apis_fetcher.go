@@ -74,7 +74,7 @@ func FetchAPIsOnEvent(conf *config.Config, apiUUID *string, k8sClient client.Cli
 						k8sclientUtil.DeleteAIRatelimitPolicy(generateSHA1HexHash(api.Name, api.Version, "production"), k8sClient)
 					}
 					if sandAIRL == nil {
-						// Try to delete production AI ratelimit for this api
+						// Try to delete sandbox AI ratelimit for this api
 						k8sclientUtil.DeleteAIRatelimitPolicy(generateSHA1HexHash(api.Name, api.Version, "sandbox"), k8sClient)
 					}
 					if apkErr != nil {
