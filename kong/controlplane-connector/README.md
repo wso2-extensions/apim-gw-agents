@@ -1,0 +1,1 @@
+This contains the Kong Gateway ControlPlane Connector implementation for Gateway Federation.
