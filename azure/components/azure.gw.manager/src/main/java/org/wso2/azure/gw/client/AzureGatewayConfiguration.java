@@ -40,7 +40,7 @@ import java.util.List;
 
 
 /**
- * This class contains the configurations related to Azure Gateway
+ * This class contains the configurations related to Azure Gateway.
  */
 @Component(
         name = "azure.external.gateway.configuration.component",
@@ -50,11 +50,17 @@ import java.util.List;
 public class AzureGatewayConfiguration implements GatewayAgentConfiguration {
     private static final Log log = LogFactory.getLog(AzureAPIUtil.class);
 
+    /**
+     * Returns the Deployer classname.
+     */
     @Override
     public String getImplementation() {
         return AzureGatewayDeployer.class.getName();
     }
 
+    /**
+     * Returns the configuration values required to connect to Azure API Management.
+     */
     @Override
     public List<ConfigurationDto> getConnectionConfigurations() {
         List<ConfigurationDto> configurationDtoList = new ArrayList<>();
@@ -80,11 +86,19 @@ public class AzureGatewayConfiguration implements GatewayAgentConfiguration {
         return configurationDtoList;
     }
 
+    /**
+     * Returns the type of the gateway.
+     */
     @Override
     public String getType() {
         return AzureConstants.AZURE_TYPE;
     }
 
+    /**
+     * Returns Azure Gateway feature catalog.
+     *
+     * @throws APIManagementException If there is an error reading the feature catalog JSON.
+     */
     @Override
     public GatewayPortalConfiguration getGatewayFeatureCatalog() throws APIManagementException {
         try (InputStream inputStream = AzureGatewayConfiguration.class.getClassLoader()
@@ -103,7 +117,7 @@ public class AzureGatewayConfiguration implements GatewayAgentConfiguration {
             JsonObject gatewayObject = jsonObject.getAsJsonObject(AzureConstants.AZURE_TYPE);
 
             List<String> apiTypes = gson.fromJson(gatewayObject.get("apiTypes"),
-                    new TypeToken<List<String>>() {}.getType());
+                    new TypeToken<List<String>>() { }.getType());
             JsonObject gatewayFeatures = gatewayObject.get("gatewayFeatures").getAsJsonObject();
 
             GatewayPortalConfiguration config = new GatewayPortalConfiguration();
@@ -117,6 +131,11 @@ public class AzureGatewayConfiguration implements GatewayAgentConfiguration {
         }
     }
 
+    /**
+     * Returns the hostname template for Azure API Management.
+     *
+     * @return The default hostname template.
+     */
     @Override
     public String getDefaultHostnameTemplate() {
         return AzureConstants.AZURE_API_EXECUTION_URL_TEMPLATE;

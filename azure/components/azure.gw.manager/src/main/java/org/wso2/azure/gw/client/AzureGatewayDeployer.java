@@ -27,10 +27,7 @@ import com.azure.identity.ClientSecretCredentialBuilder;
 import com.azure.resourcemanager.apimanagement.ApiManagementManager;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
+
 import org.wso2.azure.gw.client.util.AzureAPIUtil;
 import org.wso2.azure.gw.client.util.GatewayUtil;
 import org.wso2.carbon.apimgt.api.APIManagementException;
@@ -39,18 +36,33 @@ import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.api.model.GatewayAPIValidationResult;
 import org.wso2.carbon.apimgt.api.model.GatewayDeployer;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
+/**
+ * This class controls the API artifact deployments on the Azure API Management Gateway.
+ */
 public class AzureGatewayDeployer implements GatewayDeployer {
 
     private String resourceGroup;
     private String serviceName;
     private ApiManagementManager manager;
 
+    /**
+     * Initializes the Azure Gateway Deployer with the necessary credentials and configurations.
+     *
+     * @param environment The gateway environment containing Azure configurations.
+     * @throws APIManagementException If there is an error during initialization.
+     */
     @Override
     public void init(Environment environment) throws APIManagementException {
         String tenantId = environment.getAdditionalProperties().get(AzureConstants.AZURE_ENVIRONMENT_TENANT_ID);
         String clientId = environment.getAdditionalProperties().get(AzureConstants.AZURE_ENVIRONMENT_CLIENT_ID);
         String clientSecret = environment.getAdditionalProperties().get(AzureConstants.AZURE_ENVIRONMENT_CLIENT_SECRET);
-        String subscriptionId = environment.getAdditionalProperties().get(AzureConstants.AZURE_ENVIRONMENT_SUBSCRIPTION_ID);
+        String subscriptionId = environment.getAdditionalProperties()
+                .get(AzureConstants.AZURE_ENVIRONMENT_SUBSCRIPTION_ID);
 
         HttpClient httpClient = new NettyAsyncHttpClientBuilder().build();
 
@@ -69,22 +81,49 @@ public class AzureGatewayDeployer implements GatewayDeployer {
         serviceName = environment.getAdditionalProperties().get(AzureConstants.AZURE_ENVIRONMENT_SERVICE_NAME);
     }
 
+    /**
+     * Returns the gateway type.
+     *
+     * @return The gateway type.
+     */
     @Override
     public String getType() {
         return AzureConstants.AZURE_TYPE;
     }
 
+    /**
+     * Deploys the API to the Azure API Management service.
+     *
+     * @param api                The API to be deployed.
+     * @param externalReference  The external reference from the API External API Mapping.
+     * @return The external reference that should be stored.
+     * @throws APIManagementException If there is an error during deployment.
+     */
     @Override
     public String deploy(API api, String externalReference) throws APIManagementException {
         return AzureAPIUtil.deployRestAPI(api, manager, resourceGroup, serviceName);
     }
 
+    /**
+     * Undeploys the API from the Azure API Management service.
+     *
+     * @param externalReference  The external reference from the API External API Mapping.
+     * @return true
+     * @throws APIManagementException If there is an error during undeployment.
+     */
     @Override
-    public boolean undeploy(String s) throws APIManagementException {
-        AzureAPIUtil.deleteDeployment(s, manager, resourceGroup, serviceName);
+    public boolean undeploy(String externalReference) throws APIManagementException {
+        AzureAPIUtil.deleteDeployment(externalReference, manager, resourceGroup, serviceName);
         return true;
     }
 
+    /**
+     * Validates the API endpoint for Azure API Management.
+     *
+     * @param api The API to be validated.
+     * @return The validation result containing any errors found.
+     * @throws APIManagementException If there is an error during validation.
+     */
     @Override
     public GatewayAPIValidationResult validateApi(API api) throws APIManagementException {
         GatewayAPIValidationResult result = new GatewayAPIValidationResult();
@@ -97,6 +136,13 @@ public class AzureGatewayDeployer implements GatewayDeployer {
         return result;
     }
 
+    /**
+     * Returns the API execution URL for the Azure API Management service.
+     *
+     * @param externalReference The external reference from the API External API Mapping.
+     * @return The API execution URL.
+     * @throws APIManagementException If there is an error while constructing the URL.
+     */
     @Override
     public String getAPIExecutionURL(String externalReference) throws APIManagementException {
         StringBuilder resolvedUrl = new StringBuilder(AzureConstants.AZURE_API_EXECUTION_URL_TEMPLATE);
@@ -118,6 +164,12 @@ public class AzureGatewayDeployer implements GatewayDeployer {
         return resolvedUrl.toString();
     }
 
+    /**
+     * Transforms the API for Azure API Management.
+     *
+     * @param api The API to be transformed.
+     * @throws APIManagementException If there is an error during transformation.
+     */
     @Override
     public void transformAPI(API api) throws APIManagementException {
 
