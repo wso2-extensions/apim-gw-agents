@@ -48,6 +48,7 @@ public class AzureGatewayDeployer implements GatewayDeployer {
 
     private String resourceGroup;
     private String serviceName;
+    private String hostName;
     private ApiManagementManager manager;
 
     /**
@@ -79,6 +80,7 @@ public class AzureGatewayDeployer implements GatewayDeployer {
 
         resourceGroup = environment.getAdditionalProperties().get(AzureConstants.AZURE_ENVIRONMENT_RESOURCE_GROUP);
         serviceName = environment.getAdditionalProperties().get(AzureConstants.AZURE_ENVIRONMENT_SERVICE_NAME);
+        hostName = environment.getAdditionalProperties().get(AzureConstants.AZURE_ENVIRONMENT_HOSTNAME);
     }
 
     /**
@@ -161,6 +163,14 @@ public class AzureGatewayDeployer implements GatewayDeployer {
             resolvedUrl.replace(start, start +
                     AzureConstants.AZURE_API_EXECUTION_URL_TEMPLATE_CONTEXT_PLACEHOLDER.length(), context);
         }
+
+        //replace {host_name} placeHolder with actual hostname
+        start = resolvedUrl.indexOf(AzureConstants.AZURE_API_EXECUTION_URL_TEMPLATE_HOSTNAME_PLACEHOLDER);
+        if (start != -1) {
+            resolvedUrl.replace(start, start +
+                    AzureConstants.AZURE_API_EXECUTION_URL_TEMPLATE_HOSTNAME_PLACEHOLDER.length(), hostName);
+        }
+
         return resolvedUrl.toString();
     }
 
