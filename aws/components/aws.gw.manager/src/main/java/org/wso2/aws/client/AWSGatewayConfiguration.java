@@ -55,6 +55,12 @@ public class AWSGatewayConfiguration implements GatewayAgentConfiguration {
         return AWSGatewayDeployer.class.getName();
     }
 
+    @Override
+    public String getImplementation() {
+        // Deprecated method, kept for backward compatibility
+        return getGatewayDeployerImplementation();
+    }
+
     public String getDiscoveryImplementation() {
         return AWSFederatedAPIDiscovery.class.getName();
     }
