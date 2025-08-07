@@ -555,6 +555,13 @@ public class AWSAPIUtil {
         return getExportResponse.body().asUtf8String();
     }
 
+    /**
+     * This method retrieves the stage names for a given API ID.
+     *
+     * @param client APIGatewayClient object
+     * @param apiId  ID of the Rest API
+     * @return Stage name or null if no stages are found
+     */
     public static String getStageNames(ApiGatewayClient client, String apiId) {
         GetStagesRequest request = GetStagesRequest.builder().restApiId(apiId).build();
         GetStagesResponse result = client.getStages(request);
@@ -564,6 +571,15 @@ public class AWSAPIUtil {
         return result.item().get(0).stageName();
     }
 
+    /**
+     * Converts a RestApi object to an API object.
+     *
+     * @param restApi         The RestApi object to convert.
+     * @param apiDefinition   The OpenAPI definition of the API.
+     * @param organization    The organization name.
+     * @param environment     The environment in which the API is deployed.
+     * @return An API object representing the RestApi.
+     */
     public static API restAPItoAPI(RestApi restApi, String apiDefinition, String organization, Environment environment) {
         APIIdentifier apiIdentifier = new APIIdentifier("admin", restApi.name(), restApi.version());
         API api = new API(apiIdentifier);
