@@ -26,8 +26,10 @@ public class AzureConstants {
 
     public static final String AZURE_API_EXECUTION_URL_TEMPLATE_SERVICE_NAME_PLACEHOLDER = "{service_name}";
     public static final String AZURE_API_EXECUTION_URL_TEMPLATE_CONTEXT_PLACEHOLDER = "{context_version}";
+    public static final String AZURE_API_EXECUTION_URL_TEMPLATE_HOSTNAME_PLACEHOLDER = "{host_name}";
     public static final String AZURE_API_EXECUTION_URL_TEMPLATE =
-            AZURE_API_EXECUTION_URL_TEMPLATE_SERVICE_NAME_PLACEHOLDER + ".azure-api.net" +
+            AZURE_API_EXECUTION_URL_TEMPLATE_SERVICE_NAME_PLACEHOLDER + "." +
+            AZURE_API_EXECUTION_URL_TEMPLATE_HOSTNAME_PLACEHOLDER +
             AZURE_API_EXECUTION_URL_TEMPLATE_CONTEXT_PLACEHOLDER;
     public static final String AZURE_EXTERNAL_REFERENCE_PATH = "path";
     public static final String AZURE_EXTERNAL_REFERENCE_UUID = "uuid";
@@ -41,4 +43,5 @@ public class AzureConstants {
     public static final String AZURE_ENVIRONMENT_CLIENT_SECRET = "client_secret";
     public static final String AZURE_ENVIRONMENT_RESOURCE_GROUP = "resource_group";
     public static final String AZURE_ENVIRONMENT_SERVICE_NAME = "service_name";
+    public static final String AZURE_ENVIRONMENT_HOSTNAME = "host_name";
 }
