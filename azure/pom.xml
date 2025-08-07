@@ -22,7 +22,7 @@
 
     <groupId>org.wso2.gw.ext</groupId>
     <artifactId>azure.gw.client</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <parent>
@@ -151,8 +151,6 @@
     </scm>
 
     <properties>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.scm.id>scm-server</project.scm.id>
         <carbon.p2.plugin.version>1.5.3</carbon.p2.plugin.version>

@@ -25,7 +25,6 @@ import com.google.gson.JsonParser;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.osgi.service.component.annotations.Component;
-import org.wso2.azure.gw.client.util.AzureAPIUtil;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.model.ConfigurationDto;
 import org.wso2.carbon.apimgt.api.model.GatewayAgentConfiguration;
@@ -48,7 +47,7 @@ import java.util.List;
         service = GatewayAgentConfiguration.class
 )
 public class AzureGatewayConfiguration implements GatewayAgentConfiguration {
-    private static final Log log = LogFactory.getLog(AzureAPIUtil.class);
+    private static final Log log = LogFactory.getLog(AzureGatewayConfiguration.class);
 
     /**
      * Returns the Deployer classname.

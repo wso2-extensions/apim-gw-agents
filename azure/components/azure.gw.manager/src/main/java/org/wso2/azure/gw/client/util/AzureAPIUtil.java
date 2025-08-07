@@ -25,10 +25,9 @@ import com.azure.resourcemanager.apimanagement.models.ContentFormat;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
 import org.wso2.azure.gw.client.AzureConstants;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.model.API;
@@ -49,15 +48,28 @@ public class AzureAPIUtil {
      * @return A JSON string containing the reference artifact with UUID and path, or null if deployment fails.
      */
     public static String deployRestAPI(API api, ApiManagementManager manager, String resourceGroup,
-                                       String serviceName) {
+                                       String serviceName) throws APIManagementException {
         try {
             String openAPI = api.getSwaggerDefinition();
 
             String endpointConfig = api.getEndpointConfig();
-            JSONParser parser = new JSONParser();
-            JSONObject endpointConfigJson = (JSONObject) parser.parse(endpointConfig);
-            JSONObject prodEndpoints = (JSONObject) endpointConfigJson.get("production_endpoints");
-            String productionEndpoint = (String) prodEndpoints.get("url");
+            if (StringUtils.isEmpty(endpointConfig)) {
+                throw new APIManagementException("Endpoint configuration is empty for API: " + api.getId());
+            }
+            JsonObject endpointConfigJson = JsonParser.parseString(endpointConfig).getAsJsonObject();
+            JsonObject prodEndpoints = endpointConfigJson.has("production_endpoints") &&
+                      endpointConfigJson.get("production_endpoints").isJsonObject()
+                    ? endpointConfigJson.getAsJsonObject("production_endpoints")
+                    : null;
+            String productionEndpoint = (prodEndpoints != null
+                    && prodEndpoints.has("url")
+                    && !prodEndpoints.get("url").isJsonNull())
+                    ? prodEndpoints.get("url").getAsString()
+                    : null;
+            if (productionEndpoint == null) {
+                log.error("Production endpoint URL is null for API: " + api.getId());
+                throw new APIManagementException("Production endpoint URL is null for API: " + api.getId());
+            }
             productionEndpoint = productionEndpoint.endsWith("/") ?
                     productionEndpoint.substring(0, productionEndpoint.length() - 1) : productionEndpoint;
 
@@ -77,8 +89,7 @@ public class AzureAPIUtil {
             Gson gson = new Gson();
             return gson.toJson(referenceArtifact);
         } catch (Exception e) {
-            log.error("Error while deploying API to Azure Gateway: " + api.getId(), e);
-            return null;
+            throw new APIManagementException("Error while deploying API to Azure Gateway: " + api.getId(), e);
         }
     }
 
@@ -96,7 +107,7 @@ public class AzureAPIUtil {
                                            String serviceName) throws APIManagementException {
         JsonObject root = JsonParser.parseString(externalReference).getAsJsonObject();
         String uuid = root.get(AzureConstants.AZURE_EXTERNAL_REFERENCE_UUID).getAsString();
-        manager.apis().delete(resourceGroup, serviceName, uuid, "*", true , Context.NONE);
+        manager.apis().delete(resourceGroup, serviceName, uuid, "*", true, Context.NONE);
         return true;
     }
 }
