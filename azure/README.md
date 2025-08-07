@@ -1,1 +1,1 @@
-This repo contains the AWS Gateway Agent implementation for Gateway Federation.
+This repo contains the Azure Gateway Agent implementation for Gateway Federation.
