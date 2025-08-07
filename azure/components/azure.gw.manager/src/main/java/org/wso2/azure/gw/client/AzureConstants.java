@@ -19,7 +19,7 @@
 package org.wso2.azure.gw.client;
 
 /**
- * This class contains the constants used in AWS client.
+ * This class contains the constants used in Azure client.
  */
 public class AzureConstants {
     public static final String AZURE_TYPE = "Azure";

@@ -22,7 +22,7 @@
 
     <groupId>org.wso2.gw.ext</groupId>
     <artifactId>azure.gw.client</artifactId>
-    <version>0.0.1</version>
+    <version>0.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <parent>
