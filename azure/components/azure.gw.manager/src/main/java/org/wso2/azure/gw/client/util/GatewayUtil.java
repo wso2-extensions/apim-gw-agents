@@ -18,10 +18,10 @@
 
 package org.wso2.azure.gw.client.util;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
 import org.apache.commons.lang3.StringUtils;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.model.API;
 
@@ -48,24 +48,38 @@ public class GatewayUtil {
         try {
             String endpointConfig = api.getEndpointConfig();
             if (StringUtils.isEmpty(endpointConfig)) {
-                return endpointConfig;
+                return "";
             }
-            JSONParser parser = new JSONParser();
-            JSONObject endpointConfigJson = (JSONObject) parser.parse(endpointConfig);
 
-            JSONObject prodEndpoints = (JSONObject) endpointConfigJson.get("production_endpoints");
+            JsonObject endpointConfigJson =
+                    JsonParser.parseString(endpointConfig).getAsJsonObject();
+
+            JsonObject prodEndpoints = endpointConfigJson.has("production_endpoints")
+                    && endpointConfigJson.get("production_endpoints").isJsonObject()
+                    ? endpointConfigJson.getAsJsonObject("production_endpoints")
+                    : null;
+
             if (prodEndpoints == null) {
-                throw new APIManagementException("Production endpoints not found in endpoint configuration");
-            }
-            String productionEndpoint = (String) prodEndpoints.get("url");
-            if (productionEndpoint == null || StringUtils.isEmpty(productionEndpoint)) {
-                throw new APIManagementException("Production endpoint URL is null or empty");
+                return "";
             }
 
-            return productionEndpoint.endsWith("/") ?
-                    productionEndpoint.substring(0, productionEndpoint.length() - 1) : productionEndpoint;
-        } catch (ParseException e) {
-            throw new APIManagementException("Error while parsing endpoint configuration", e);
+            String productionEndpoint = prodEndpoints.has("url")
+                    && prodEndpoints.get("url").isJsonPrimitive()
+                    && !prodEndpoints.get("url").isJsonNull()
+                    ? prodEndpoints.get("url").getAsString()
+                    : null;
+
+            if (StringUtils.isEmpty(productionEndpoint)) {
+                return "";
+            }
+
+            return productionEndpoint.endsWith("/")
+                    ? productionEndpoint.substring(0, productionEndpoint.length() - 1)
+                    : productionEndpoint;
+
+        } catch (JsonSyntaxException e) {
+            throw new APIManagementException(
+                    "Error while parsing endpoint configuration", e);
         }
     }
 
