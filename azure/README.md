@@ -1,0 +1,1 @@
+This repo contains the Azure Gateway Agent implementation for Gateway Federation.
