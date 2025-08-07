@@ -65,25 +65,24 @@ public class AzureGatewayConfiguration implements GatewayAgentConfiguration {
     public List<ConfigurationDto> getConnectionConfigurations() {
         List<ConfigurationDto> configurationDtoList = new ArrayList<>();
         configurationDtoList.add(new ConfigurationDto(AzureConstants.AZURE_ENVIRONMENT_TENANT_ID, "Tenant ID", "input",
-                "Directory (tenant) ID of your Microsoft Entra ID.", "", true, false,
-                Collections.emptyList(), false));
-        configurationDtoList.add(new ConfigurationDto(AzureConstants.AZURE_ENVIRONMENT_SUBSCRIPTION_ID, "Subscription ID", "input",
-                "Azure subscription GUID that owns the APIM instance.", "", true, false,
+                "Directory (tenant) ID of your Microsoft Entra ID.", "", true, false, Collections.emptyList(), false));
+        configurationDtoList.add(new ConfigurationDto(AzureConstants.AZURE_ENVIRONMENT_SUBSCRIPTION_ID,
+                "Subscription ID", "input", "Azure subscription GUID that owns the APIM instance.", "", true, false,
                 Collections.emptyList(), false));
         configurationDtoList.add(new ConfigurationDto(AzureConstants.AZURE_ENVIRONMENT_CLIENT_ID, "Client ID", "input",
-                "Application (client) ID of the service principal used for Azure authentication.", "", true,
-                false, Collections.emptyList(), false));
-        configurationDtoList.add(new ConfigurationDto(AzureConstants.AZURE_ENVIRONMENT_CLIENT_SECRET, "Client Secret", "input",
-                "Password/secret created for the service principal.", "", true, true,
+                "Application (client) ID of the service principal used for Azure authentication.", "", true, false,
                 Collections.emptyList(), false));
-        configurationDtoList.add(new ConfigurationDto(AzureConstants.AZURE_ENVIRONMENT_RESOURCE_GROUP, "Resource Group", "input",
-                "The Azure resource group name containing the API Management service.", "", true, false,
+        configurationDtoList.add(new ConfigurationDto(AzureConstants.AZURE_ENVIRONMENT_CLIENT_SECRET, "Client Secret",
+                "input", "Password/secret created for the service principal.", "", true, true, Collections.emptyList(),
+                false));
+        configurationDtoList.add(new ConfigurationDto(AzureConstants.AZURE_ENVIRONMENT_RESOURCE_GROUP, "Resource Group",
+                "input", "The Azure resource group name containing the API Management service.", "", true, false,
                 Collections.emptyList(), false));
-        configurationDtoList.add(new ConfigurationDto(AzureConstants.AZURE_ENVIRONMENT_SERVICE_NAME, "APIM Service Name", "input",
-                "The name of the Azure API Management service resource.", "", true, false,
+        configurationDtoList.add(new ConfigurationDto(AzureConstants.AZURE_ENVIRONMENT_SERVICE_NAME,
+                "APIM Service Name", "input", "The name of the Azure API Management service resource.", "", true, false,
                 Collections.emptyList(), false));
-        configurationDtoList.add(new ConfigurationDto(AzureConstants.AZURE_ENVIRONMENT_HOSTNAME, "APIM Host Name", "input",
-                "The host name of the Azure API Management service resource.", "azure-api.net", true, false,
+        configurationDtoList.add(new ConfigurationDto(AzureConstants.AZURE_ENVIRONMENT_HOSTNAME, "APIM Host Name",
+                "input", "The host name of the Azure API Management service resource.", "azure-api.net", true, false,
                 Collections.emptyList(), false));
 
         return configurationDtoList;
