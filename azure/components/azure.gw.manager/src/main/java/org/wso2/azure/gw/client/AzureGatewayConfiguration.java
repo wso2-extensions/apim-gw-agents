@@ -59,6 +59,19 @@ public class AzureGatewayConfiguration implements GatewayAgentConfiguration {
     }
 
     /**
+     * Returns the Gateway Deployer implementation.
+     */
+    @Override
+    public String getGatewayDeployerImplementation() {
+        return AzureGatewayDeployer.class.getName();
+    }
+
+    @Override
+    public String getDiscoveryImplementation() {
+        return AzureGatewayDiscovery.class.getName();
+    }
+
+    /**
      * Returns the configuration values required to connect to Azure API Management.
      */
     @Override
