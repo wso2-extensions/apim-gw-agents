@@ -37,4 +37,7 @@ public class AWSConstants {
     public static final String OPERATION_POLICY_ARN_PARAMETER = "lambdaARN";
     public static final String OPERATION_POLICY_ROLE_PARAMETER = "invokeRoleArn";
     public static final String OPERATION_POLICY_API = "API";
+    public static final String OPEN_API_VERSION = "oas30";
+    public static final String YAML_PAYLOAD_TYPE = "application/yaml";
+    public static final String JSON_PAYLOAD_TYPE = "application/json";
 }

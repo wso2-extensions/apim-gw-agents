@@ -123,10 +123,11 @@ public class AWSGatewayDeployer implements GatewayDeployer {
     @Override
     public void transformAPI(API api) throws APIManagementException {
         // change all /* resources to / in the resources list
-        for(URITemplate resource: api.getUriTemplates()) {
+        for (URITemplate resource : api.getUriTemplates()) {
             if (resource.getUriTemplate().endsWith("/*")) {
                 resource.setUriTemplate(resource.getUriTemplate().replace("/*", "/"));
             }
         }
     }
+
 }

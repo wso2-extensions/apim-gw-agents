@@ -51,8 +51,18 @@ public class AWSGatewayConfiguration implements GatewayAgentConfiguration {
     private static final Log log = LogFactory.getLog(AWSAPIUtil.class);
 
     @Override
-    public String getImplementation() {
+    public String getGatewayDeployerImplementation() {
         return AWSGatewayDeployer.class.getName();
+    }
+
+    @Override
+    public String getImplementation() {
+        // Deprecated method, kept for backward compatibility
+        return getGatewayDeployerImplementation();
+    }
+
+    public String getDiscoveryImplementation() {
+        return AWSFederatedAPIDiscovery.class.getName();
     }
 
     @Override
