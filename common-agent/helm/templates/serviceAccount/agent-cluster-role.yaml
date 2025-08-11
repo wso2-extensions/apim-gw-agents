@@ -13,6 +13,7 @@
 # KIND, either express or implied. See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# !!!TODO: Remove the old CRD permissions from the cluster role.
 
 {{- if .Values.serviceAccount.enableServiceAccountCreation }}
 apiVersion: rbac.authorization.k8s.io/v1
@@ -139,6 +140,15 @@ rules:
     verbs: ["update"]
   - apiGroups: ["dp.wso2.com"]
     resources: ["airatelimitpolicies/status"]
+    verbs: ["get","patch","update"]
+  - apiGroups: ["dp.wso2.com"]
+    resources: ["routemetadata"]
+    verbs: ["get","list","watch","update","delete","create"]
+  - apiGroups: ["dp.wso2.com"]
+    resources: ["routemetadata/finalizers"]
+    verbs: ["update"]
+  - apiGroups: ["dp.wso2.com"]
+    resources: ["routemetadata/status"]
     verbs: ["get","patch","update"]
   - apiGroups: ["configuration.konghq.com"]
     resources: ["kongplugins", "kongconsumers", "kongconsumergroups"]

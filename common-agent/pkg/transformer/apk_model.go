@@ -141,6 +141,13 @@ type AIProvider struct {
 	APIVersion string `yaml:"apiVersion,omitempty"`
 }
 
+// KeyManager represents the properties of a particular key manager.
+type KeyManager struct {
+    Name        string `json:"name" yaml:"name"`
+    Issuer      string `json:"issuer" yaml:"issuer"`
+    JWKSEndpoint string `json:"JWKSEndpoint" yaml:"JWKSEndpoint"`
+}
+
 // API represents an main API type definition
 type API struct {
 	Name                   string                  `yaml:"name,omitempty"`
@@ -159,4 +166,5 @@ type API struct {
 	RateLimit              *RateLimit              `yaml:"rateLimit,omitempty"`
 	APIPolicies            *OperationPolicies      `yaml:"apiPolicies,omitempty"`
 	AIProvider             *AIProvider             `yaml:"aiProvider,omitempty"`
+	KeyManagers            *[]KeyManager           `json:"keyManagers,omitempty" yaml:"keyManagers,omitempty"`
 }

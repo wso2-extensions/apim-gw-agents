@@ -32,6 +32,7 @@ import (
 	"strings"
 
 	"github.com/wso2-extensions/apim-gw-agents/common-agent/internal/constants"
+	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/cache"
 	eventHub "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/eventhub/types"
 	logger "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/loggers"
 	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/managementserver"
@@ -269,6 +270,13 @@ func GenerateConf(APIJson string, certArtifact CertificateArtifact, endpoints st
 	}
 
 	apk.AdditionalProperties = &aditionalProperties
+
+	//!!!TODO: Add KeyManagers to the conf
+	// Since we only get the KM name, need to get the rest of the details from the internal map we keep
+	// after fetching the key managers from the control plane.
+	kmData := mapKeyManagers(apiYamlData.KeyManagers)
+	logger.LoggerTransformer.Debugf("KeyManagers: %+v", kmData)
+	apk.KeyManagers = &kmData
 
 	c, marshalError := yaml.Marshal(apk)
 
@@ -953,4 +961,38 @@ func mapAuthConfigs(apiUUID string, authHeader string, configuredAPIKeyHeader st
 		authConfigs = append(authConfigs, apiKeyAuthConfig)
 	}
 	return authConfigs
+}
+
+func mapKeyManagers(keyManagers []string) []KeyManager {
+	// Get the key manager cache instance and fetch all configured key managers
+	kmCache := cache.GetKeyManagerCacheInstance()
+	kmList := kmCache.GetAllKeyManagers()
+	kmListForAPI := []KeyManager{}
+	for _, keyManager := range keyManagers {
+		if keyManager == "all" {
+			// Add all the key manager settings to the km details
+			for _, km := range kmList {
+				newkmConfig := KeyManager{
+					Name: km.Name,
+					Issuer: km.KeyManagerConfig.Issuer,
+					JWKSEndpoint: km.KeyManagerConfig.CertificateValue,
+				}
+				kmListForAPI = append(kmListForAPI, newkmConfig)
+			}
+			break
+		} 
+		// Otherwise add only the specific key manager settings to the km details
+		for _, km := range kmList {
+			if keyManager == km.Name {
+				newkmConfig := KeyManager{
+					Name: km.Name,
+					Issuer: km.KeyManagerConfig.Issuer,
+					JWKSEndpoint: km.KeyManagerConfig.CertificateValue,
+				}
+				kmListForAPI = append(kmListForAPI, newkmConfig)
+			}
+		}
+		
+	}
+	return kmListForAPI
 }

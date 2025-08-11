@@ -34,7 +34,7 @@ import (
 	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/eventhub/types"
 	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/tlsutils"
 	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/utils"
-	dpv1alpha3 "github.com/wso2/apk/common-go-libs/apis/dp/v1alpha3"
+	dpv2alpha1 "github.com/wso2/apk/common-go-libs/apis/dp/v2alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -202,6 +202,7 @@ func InvokeService(endpoint string, responseType interface{}, queryParamMap map[
 	}
 }
 
+// retrieveDataFromResponseChannel retrieves data from the response channel and marshals it into the appropriate type.
 func retrieveDataFromResponseChannel(response response) {
 	responseType := reflect.TypeOf(response.Type).Elem()
 	newResponse := reflect.New(responseType).Interface()
@@ -232,20 +233,20 @@ func retrieveDataFromResponseChannel(response response) {
 // FetchAPIsOnStartUp APIs from control plane during the server start up and push them
 // to the router and enforcer components.
 func FetchAPIsOnStartUp(conf *config.Config, k8sClient client.Client) {
-	k8sAPIS, _, err := internalk8sClient.RetrieveAllAPISFromK8s(k8sClient, "")
+	k8sRouteMetas, _, err := internalk8sClient.RetrieveAllRouteMetasFromK8s(k8sClient, "")
 	if err != nil {
-		logger.LoggerEventhub.Errorf("Error occurred while fetching APIs from K8s %v", err)
+		logger.LoggerEventhub.Errorf("Error occurred while fetching RouteMetadata from K8s %v", err)
 	}
 	apis, err := internalutils.FetchAPIsOnEvent(conf, nil, k8sClient)
 	if err != nil {
 		logger.LoggerEventhub.Errorf("Error occurred while fetching APIs from control plane %v", err)
 	}
-	removeApis := make([]dpv1alpha3.API, 0)
-	for _, k8sAPI := range k8sAPIS {
+	removeRouteMetas := make([]dpv2alpha1.RouteMetadata, 0)
+	for _, k8sRouteMeta := range k8sRouteMetas {
 		found := false
 		if apis != nil {
 			for _, api := range *apis {
-				apiUUID, exist := k8sAPI.ObjectMeta.Labels["apiUUID"]
+				apiUUID, exist := k8sRouteMeta.ObjectMeta.Labels["apiUUID"]
 				if exist {
 					if apiUUID == api {
 						found = true
@@ -255,14 +256,15 @@ func FetchAPIsOnStartUp(conf *config.Config, k8sClient client.Client) {
 			}
 		}
 		if !found {
-			logger.LoggerEventhub.Infof("API %s is not found in the control plane. Hence removing it from the K8s", k8sAPI.Name)
-			removeApis = append(removeApis, k8sAPI)
+			logger.LoggerEventhub.Infof("API %s is not found in the control plane. Hence removing the RouteMetadata from the K8s", k8sRouteMeta.Name)
+			removeRouteMetas = append(removeRouteMetas, k8sRouteMeta)
 		}
 	}
-	for _, removeAPI := range removeApis {
-		if !removeAPI.Spec.SystemAPI {
-			logger.LoggerEventhub.Infof("Undeploying API %s from K8s", removeAPI.Name)
-			internalk8sClient.UndeployK8sAPICR(k8sClient, removeAPI)
+	// !!!TODO: Need to refine this logic based on how we detect system APIs
+	for _, removeRouteMeta := range removeRouteMetas {
+		if removeRouteMeta.ObjectMeta.Labels["systemAPI"] == "" {
+			logger.LoggerEventhub.Infof("Undeploying API %s from K8s", removeRouteMeta.Name)
+			internalk8sClient.UndeployK8sRouteMetadataCRs(k8sClient, removeRouteMeta)
 		}
 	}
 }

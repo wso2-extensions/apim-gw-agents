@@ -35,7 +35,6 @@ import (
 	transformer "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/transformer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	k8sclientUtil "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/k8sClient"
 	mapperUtil "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/mapper"
 )
 
@@ -51,6 +50,8 @@ func init() {
 func FetchAPIsOnEvent(conf *config.Config, apiUUID *string, k8sClient client.Client) (*[]string, error) {
 	// Populate data from config.
 	apis := make([]string, 0)
+	// Common agent logic for control plane communication and artifact fetching
+	// including Handles HTTP requests, ZIP processing, and retry logic
 	apiResult, err := sync.FetchAPIsOnEvent(conf, apiUUID, k8sClient)
 	if err != nil {
 		return nil, err
@@ -71,11 +72,15 @@ func FetchAPIsOnEvent(conf *config.Config, apiUUID *string, k8sClient client.Cli
 					apkConf, apiUUID, revisionID, configuredRateLimitPoliciesMap, endpointSecurityData, api, prodAIRL, sandAIRL, apkErr := transformer.GenerateConf(artifact.APIJson, artifact.CertArtifact, artifact.Endpoints, apiDeployment.OrganizationID)
 					if prodAIRL == nil {
 						// Try to delete production AI ratelimit for this api
-						k8sclientUtil.DeleteAIRatelimitPolicy(generateSHA1HexHash(api.Name, api.Version, "production"), k8sClient)
+						// !!!TODO: Might hava to change the implementation becuase now we use BackendTrafficPolicy + RoutePolicy
+						// k8sclientUtil.DeleteAIRatelimitPolicy(generateSHA1HexHash(api.Name, api.Version, "production"), k8sClient)
+						logger.LoggerUtils.Debugf("Trying to delete production AI ratelimit for API: %v", api.Name)
 					}
 					if sandAIRL == nil {
 						// Try to delete sandbox AI ratelimit for this api
-						k8sclientUtil.DeleteAIRatelimitPolicy(generateSHA1HexHash(api.Name, api.Version, "sandbox"), k8sClient)
+						// !!!TODO: Might hava to change the implementation becuase now we use BackendTrafficPolicy + RoutePolicy
+						// k8sclientUtil.DeleteAIRatelimitPolicy(generateSHA1HexHash(api.Name, api.Version, "sandbox"), k8sClient)
+						logger.LoggerUtils.Debugf("Trying to delete sandbox AI ratelimit for API: %v", api.Name)
 					}
 					if apkErr != nil {
 						logger.LoggerUtils.Errorf("Error while generating APK-Conf: %v", apkErr)

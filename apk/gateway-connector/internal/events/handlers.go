@@ -70,7 +70,7 @@ func HandleLifeCycleEvents(data []byte) {
 	apiEventObj := types.API{UUID: apiEvent.UUID, APIID: apiEvent.APIID, Name: apiEvent.APIName,
 		Context: apiEvent.APIContext, Version: apiEvent.APIVersion, Provider: apiEvent.APIProvider}
 
-	logger.LoggerMessaging.Infof("API event data %v", apiEventObj)
+	logger.LoggerMessaging.Infof("API event data %+v", apiEventObj)
 
 	conf, _ := config.ReadConfigs()
 	configuredEnvs := conf.ControlPlane.EnvironmentLabels
@@ -81,6 +81,7 @@ func HandleLifeCycleEvents(data []byte) {
 }
 
 // HandleAPIEvents to process api related data
+// !!!TODO: Need to change this becuase now we use RouteMetadata CRs instead of API CRs
 func HandleAPIEvents(data []byte, eventType string, conf *config.Config, c client.Client) {
 	var (
 		apiEvent         msg.APIEvent
@@ -114,7 +115,7 @@ func HandleAPIEvents(data []byte, eventType string, conf *config.Config, c clien
 	apiEventObj := types.API{UUID: apiEvent.UUID, APIID: apiEvent.APIID, Name: apiEvent.APIName,
 		Context: apiEvent.APIContext, Version: apiEvent.APIVersion, Provider: apiEvent.APIProvider}
 
-	logger.LoggerMessaging.Infof("API event data %v", apiEventObj)
+	logger.LoggerMessaging.Infof("API event data %+v", apiEventObj)
 
 	//Per each revision, synchronization should happen.
 	if strings.EqualFold(eventConstants.DeployAPIToGateway, apiEvent.Event.Type) {
@@ -128,7 +129,7 @@ func HandleAPIEvents(data []byte, eventType string, conf *config.Config, c clien
 		// removeFromGateway event with multiple labels could only appear when the API is subjected
 		// to delete. Hence we could simply delete after checking against just one iteration.
 		if strings.EqualFold(eventConstants.RemoveAPIFromGateway, apiEvent.Event.Type) {
-			internalk8sClient.UndeployAPICR(apiEvent.UUID, c)
+			internalk8sClient.UndeployRouteMetadataCRs(apiEvent.UUID, c)
 			break
 		}
 		if strings.EqualFold(eventConstants.DeployAPIToGateway, apiEvent.Event.Type) {
@@ -303,6 +304,8 @@ func HandlePolicyEvents(data []byte, eventType string, c client.Client) {
 		return
 	}
 	// TODO: Handle policy events
+	// !!! Subscription -> Resource Level
+	// !!! API -> API Level
 	if strings.EqualFold(eventType, eventConstants.PolicyCreate) {
 		if strings.EqualFold(policyEvent.PolicyType, "API") {
 			logger.LoggerMessaging.Infof("Policy: %s for policy type: %s for tenant: %s", policyEvent.PolicyName, policyEvent.PolicyType, policyEvent.TenantDomain)
@@ -337,8 +340,10 @@ func HandlePolicyEvents(data []byte, eventType string, c client.Client) {
 			logger.LoggerMessaging.Infof("Policy: %s for policy type: %s", policyEvent.PolicyName, policyEvent.PolicyType)
 			mgtServer.DeleteSubscriptionPolicy(policyEvent.PolicyName, policyEvent.TenantDomain)
 			crName := k8sclient.PrepareSubscritionPolicyCRName(policyEvent.PolicyName, policyEvent.TenantDomain)
-			k8sclient.UnDeploySubscriptionRateLimitPolicyCR(crName, c)
-			k8sclient.UndeploySubscriptionAIRateLimitPolicyCR(crName, c)
+			// !!!TODO: NEED TO ADD THE LOGIC
+			logger.LoggerMessaging.Debugf("Deleting Subscription Rate Limit Policy: %s", crName)
+			// k8sclient.UnDeploySubscriptionRateLimitPolicyCR(crName, c)
+			// k8sclient.UndeploySubscriptionAIRateLimitPolicyCR(crName, c)
 			ratelimitPolicies := mgtServer.GetAllRateLimitPolicies()
 			logger.LoggerMessaging.Infof("Rate Limit Policies Internal Map: %v", ratelimitPolicies)
 		}
@@ -397,6 +402,7 @@ func HandlePolicyEvents(data []byte, eventType string, c client.Client) {
 }
 
 // HandleAIProviderEvents to process AI Provider related events
+// !!!TODO: Need to change this becuase now we use RoutePolicy instead of AIProvider CR
 func HandleAIProviderEvents(data []byte, eventType string, c client.Client) {
 	var aiProviderEvent msg.AIProviderEvent
 	aiProviderEventErr := json.Unmarshal([]byte(string(data)), &aiProviderEvent)
@@ -405,23 +411,25 @@ func HandleAIProviderEvents(data []byte, eventType string, c client.Client) {
 		return
 	}
 
-	if strings.EqualFold(eventConstants.AIProviderCreate, eventType) {
+	if strings.EqualFold(eventConstants.AIProviderCreate, eventType) { // Creating AI Provider CR
 		logger.LoggerMessaging.Infof("Create for AI Provider: %s for tenant: %s", aiProviderEvent.Name, aiProviderEvent.Event.TenantDomain)
 		synchronizer.FetchAIProvidersOnEvent(aiProviderEvent.Name, aiProviderEvent.APIVersion, aiProviderEvent.Event.TenantDomain, c, false)
 		aiProviders := mgtServer.GetAllAIProviders()
-		logger.LoggerMessaging.Debugf("AI Providers Internal Map: %v", aiProviders)
-	} else if strings.EqualFold(eventConstants.AIProviderUpdate, eventType) {
+		logger.LoggerMessaging.Infof("AI Providers Internal Map: %v", aiProviders)
+	} else if strings.EqualFold(eventConstants.AIProviderUpdate, eventType) { // Updating AI Provider CR
 		logger.LoggerMessaging.Infof("Update for AI Provider: %s for tenant: %s", aiProviderEvent.Name, aiProviderEvent.Event.TenantDomain)
 		synchronizer.FetchAIProvidersOnEvent(aiProviderEvent.Name, aiProviderEvent.APIVersion, aiProviderEvent.Event.TenantDomain, c, false)
 		aiProviders := mgtServer.GetAllAIProviders()
-		logger.LoggerMessaging.Debugf("AI Providers Internal Map: %v", aiProviders)
-	} else if strings.EqualFold(eventConstants.AIProviderDelete, eventType) {
+		logger.LoggerMessaging.Infof("AI Providers Internal Map: %v", aiProviders)
+	} else if strings.EqualFold(eventConstants.AIProviderDelete, eventType) { // Deleting AI Provider CR
 		logger.LoggerMessaging.Infof("Deletion for AI Provider: %s for tenant: %s", aiProviderEvent.Name, aiProviderEvent.Event.TenantDomain)
 		aiProvider := mgtServer.GetAIProvider(aiProviderEvent.ID)
+		// !!!TODO: NEED TO ADD THE LOGIC
+		logger.LoggerMessaging.Debugf("Deleting AI Provider: %s", aiProvider.Name)
 		k8sclient.DeleteAIProviderCR(aiProvider.ID, c)
 		mgtServer.DeleteAIProvider(aiProviderEvent.ID)
 		aiProviders := mgtServer.GetAllAIProviders()
-		logger.LoggerMessaging.Debugf("AI Providers Internal Map: %v", aiProviders)
+		logger.LoggerMessaging.Infof("AI Providers Internal Map: %v", aiProviders)
 	}
 }
 

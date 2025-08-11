@@ -32,7 +32,6 @@ import (
 	"strconv"
 	"strings"
 
-	k8sclient "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/k8sClient"
 	logger "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/loggers"
 	"github.com/wso2-extensions/apim-gw-agents/common-agent/config"
 	pkgAuth "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/auth"
@@ -40,8 +39,11 @@ import (
 	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/managementserver"
 	sync "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/synchronizer"
 	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/tlsutils"
-	dpv1alpha4 "github.com/wso2/apk/common-go-libs/apis/dp/v1alpha4"
+	k8sclient "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/k8sClient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	dpv2alpha1 "github.com/wso2/apk/common-go-libs/apis/dp/v2alpha1"
+
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -139,10 +141,12 @@ func FetchAIProvidersOnEvent(aiProviderName string, aiProviderVersion string, or
 			logger.LoggerSynchronizer.Errorf("Error occurred while unmarshelling AI Provider event data %v", err)
 			return
 		}
-		logger.LoggerSynchronizer.Debugf("AI Providers received: %v", aiProviderList.AIProviders)
+		logger.LoggerSynchronizer.Infof("AI Providers received: %+v", aiProviderList.AIProviders)
 		var aiProviders []eventhubTypes.AIProvider = aiProviderList.AIProviders
 
 		if cleanupDeletedProviders {
+			logger.LoggerSynchronizer.Infof("Cleaning up deleted AI Providers")
+			// !!!TODO: NEED TO ADD THE LOGIC
 			aiProvidersFromK8, _, errK8 := k8sclient.RetrieveAllAIProvidersFromK8s(c, "")
 			if errK8 == nil {
 				for _, aiP := range aiProvidersFromK8 {
@@ -155,7 +159,7 @@ func FetchAIProvidersOnEvent(aiProviderName string, aiProviderVersion string, or
 							}
 						}
 						if !found {
-							// Delete the airatelimitpolicy
+							// Delete the ai provider
 							k8sclient.DeleteAIProviderCR(aiP.Name, c)
 						}
 					}
@@ -168,10 +172,11 @@ func FetchAIProvidersOnEvent(aiProviderName string, aiProviderVersion string, or
 			managementserver.AddAIProvider(aiProvider)
 			logger.LoggerSynchronizer.Debugf("AI Provider added to internal map: %v", aiProvider)
 			// Generate the AI Provider CR
-			crAIProvider := createAIProvider(&aiProvider)
+			crAIProviderRP := createAIProviderRoutePolicy(&aiProvider)
 			// Deploy the AI Provider CR
-			k8sclient.DeployAIProviderCR(&crAIProvider, c)
-			logger.LoggerSynchronizer.Infof("AI Provider CR Deployed Successfully: %v", crAIProvider)
+			// !!!TODO: NEED TO ADD THE LOGIC
+			k8sclient.DeployRoutePolicyCR(&crAIProviderRP, c)
+			logger.LoggerSynchronizer.Info("AI Provider RoutePolicy CR Deployed Successfully")
 		}
 	} else {
 		errorMsg = "Failed to fetch data! " + aiProviderEndpoint + " responded with " +
@@ -182,88 +187,217 @@ func FetchAIProvidersOnEvent(aiProviderName string, aiProviderVersion string, or
 }
 
 // createAIProvider creates the AI provider CR
-func createAIProvider(aiProvider *eventhubTypes.AIProvider) dpv1alpha4.AIProvider {
+func createAIProviderRoutePolicy(aiProvider *eventhubTypes.AIProvider) dpv2alpha1.RoutePolicy {
+	logger.LoggerSynchronizer.Infof("AI Provider event data: %+v", aiProvider)
 	conf, _ := config.ReadConfigs()
 	sha1ValueofAIProviderName := GetSha1Value(aiProvider.Name)
 	sha1ValueOfOrganization := GetSha1Value(aiProvider.Organization)
-	labelMap := map[string]string{"name": sha1ValueofAIProviderName,
+	labelMap := map[string]string{
+		"name": sha1ValueofAIProviderName,
 		"organization": sha1ValueOfOrganization,
 		"InitiateFrom": "CP",
 		"CPName":       aiProvider.Name,
 	}
-	var requestModelInputSource string
+	// var requestModelInputSource string
 	var requestModelAttributeIdentifier string
-	var responseModelInputSource string
+	// var responseModelInputSource string
 	var responseModelAttributeIdentifier string
-	var promptTokenCountInputSource string
+	// var promptTokenCountInputSource string
 	var promptTokenCountAttributeIdentifier string
-	var completionTokenCountInputSource string
+	// var completionTokenCountInputSource string
 	var completionTokenCountAttributeIdentifier string
-	var totalTokenCountInputSource string
+	// var totalTokenCountInputSource string
 	var totalTokenCountAttributeIdentifier string
+	// var remainingTokenCountInputSource string
+	var remainingTokenCountAttributeIdentifier string
 
 	var config eventhubTypes.Config
 	err := json.Unmarshal([]byte(aiProvider.Configurations), &config)
 	if err != nil {
-		logger.LoggerSynchronizer.Errorf("Error unmarshalling configurations metadata in AI Provider: %v", err)
+		logger.LoggerSynchronizer.Errorf("Error unmarshalling configurations metadata in AI Provider Event Data: %v", err)
 	}
 
 	for _, field := range config.Metadata {
 		if field.AttributeName == "requestModel" {
-			requestModelInputSource = field.InputSource
+			// requestModelInputSource = field.InputSource
 			requestModelAttributeIdentifier = field.AttributeIdentifier
 		} else if field.AttributeName == "responseModel" {
-			responseModelInputSource = field.InputSource
+			// responseModelInputSource = field.InputSource
 			responseModelAttributeIdentifier = field.AttributeIdentifier
 		} else if field.AttributeName == "promptTokenCount" {
-			promptTokenCountInputSource = field.InputSource
+			// promptTokenCountInputSource = field.InputSource
 			promptTokenCountAttributeIdentifier = field.AttributeIdentifier
 		} else if field.AttributeName == "completionTokenCount" {
-			completionTokenCountInputSource = field.InputSource
+			// completionTokenCountInputSource = field.InputSource
 			completionTokenCountAttributeIdentifier = field.AttributeIdentifier
 		} else if field.AttributeName == "totalTokenCount" {
-			totalTokenCountInputSource = field.InputSource
+			// totalTokenCountInputSource = field.InputSource
 			totalTokenCountAttributeIdentifier = field.AttributeIdentifier
+		} else if field.AttributeName == "remainingTokenCount" {
+			// remainingTokenCountInputSource = field.InputSourc
+			remainingTokenCountAttributeIdentifier = field.AttributeIdentifier
 		}
 	}
 
-	crAIProvider := dpv1alpha4.AIProvider{
+	crAIProviderRP := dpv2alpha1.RoutePolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      aiProvider.ID,
 			Namespace: conf.DataPlane.Namespace,
 			Labels:    labelMap,
 		},
-		Spec: dpv1alpha4.AIProviderSpec{
-			ProviderName:       aiProvider.Name,
-			ProviderAPIVersion: aiProvider.APIVersion,
-			Organization:       aiProvider.Organization,
-			RequestModel: dpv1alpha4.ValueDetails{
-				In:    requestModelInputSource,
-				Value: requestModelAttributeIdentifier,
-			},
-			ResponseModel: dpv1alpha4.ValueDetails{
-				In:    responseModelInputSource,
-				Value: responseModelAttributeIdentifier,
-			},
-			SupportedModels: []string{"gpt-4o", "gpt-3.5", "gpt-4o-mini"},
-			RateLimitFields: dpv1alpha4.RateLimitFields{
-				PromptTokens: dpv1alpha4.ValueDetails{
-					In:    promptTokenCountInputSource,
-					Value: promptTokenCountAttributeIdentifier,
-				},
-				CompletionToken: dpv1alpha4.ValueDetails{
-					In:    completionTokenCountInputSource,
-					Value: completionTokenCountAttributeIdentifier,
-				},
-				TotalToken: dpv1alpha4.ValueDetails{
-					In:    totalTokenCountInputSource,
-					Value: totalTokenCountAttributeIdentifier,
+		Spec: dpv2alpha1.RoutePolicySpec{
+			RequestMediation: []*dpv2alpha1.Mediation{
+				{
+					PolicyName:    "AIProvider",
+					PolicyID:      "policy-uuid-1", //!!! Need to add the logic for dynamic UUID generation
+					PolicyVersion: aiProvider.APIVersion,
+					Parameters: []*dpv2alpha1.Parameter{
+						{
+							Key:   "Enabled",
+							Value: "true",
+						},
+						{
+							Key:   "ProviderName",
+							Value: aiProvider.Name,
+						},
+						{
+							Key:   "requestModel",
+							Value: requestModelAttributeIdentifier,
+							// AdditionalProperties: map[string]string{
+							// 	"inputSource": requestModelInputSource,
+							// },
+						},
+						{
+							Key:   "responseModel",
+							Value: responseModelAttributeIdentifier,
+							// AdditionalProperties: map[string]string{
+							// 	"inputSource": responseModelInputSource,
+							// },
+						},
+						{
+							Key:   "promptTokenCount",
+							Value: promptTokenCountAttributeIdentifier,
+							// AdditionalProperties: map[string]string{
+							// 	"inputSource": promptTokenCountInputSource,
+							// },
+						},
+						{
+							Key:   "completionTokenCount",
+							Value: completionTokenCountAttributeIdentifier,
+							// AdditionalProperties: map[string]string{
+							// 	"inputSource": completionTokenCountInputSource,
+							// },
+						},
+						{
+							Key:   "totalTokenCount",
+							Value: totalTokenCountAttributeIdentifier,
+							// AdditionalProperties: map[string]string{
+							// 	"inputSource": totalTokenCountInputSource,
+							// },
+						},
+						{
+							Key:   "remainingTokenCount",
+							Value: remainingTokenCountAttributeIdentifier,
+							// AdditionalProperties: map[string]string{
+							// 	"inputSource": remainingTokenCountInputSource,
+							// },
+						},
+						{
+							Key:   "SupportedModels",
+							Value: "{\"gpt-4o\", \"gpt-3.5\", \"gpt-4o-mini\"}", //!!! Need to add the logic for dynamic supported models
+						},
+					},
 				},
 			},
 		},
 	}
-	return crAIProvider
+	return crAIProviderRP
 }
+
+// createAIProvider creates the AI provider CR
+// func createAIProvider(aiProvider *eventhubTypes.AIProvider) dpv1alpha4.AIProvider {
+// 	conf, _ := config.ReadConfigs()
+// 	logger.LoggerSynchronizer.Infof("AI Provider event data: %+v", aiProvider)
+// 	sha1ValueofAIProviderName := GetSha1Value(aiProvider.Name)
+// 	sha1ValueOfOrganization := GetSha1Value(aiProvider.Organization)
+// 	labelMap := map[string]string{"name": sha1ValueofAIProviderName,
+// 		"organization": sha1ValueOfOrganization,
+// 		"InitiateFrom": "CP",
+// 		"CPName":       aiProvider.Name,
+// 	}
+// 	var requestModelInputSource string
+// 	var requestModelAttributeIdentifier string
+// 	var responseModelInputSource string
+// 	var responseModelAttributeIdentifier string
+// 	var promptTokenCountInputSource string
+// 	var promptTokenCountAttributeIdentifier string
+// 	var completionTokenCountInputSource string
+// 	var completionTokenCountAttributeIdentifier string
+// 	var totalTokenCountInputSource string
+// 	var totalTokenCountAttributeIdentifier string
+
+// 	var config eventhubTypes.Config
+// 	err := json.Unmarshal([]byte(aiProvider.Configurations), &config)
+// 	if err != nil {
+// 		logger.LoggerSynchronizer.Errorf("Error unmarshalling configurations metadata in AI Provider: %v", err)
+// 	}
+
+// 	for _, field := range config.Metadata {
+// 		if field.AttributeName == "requestModel" {
+// 			requestModelInputSource = field.InputSource
+// 			requestModelAttributeIdentifier = field.AttributeIdentifier
+// 		} else if field.AttributeName == "responseModel" {
+// 			responseModelInputSource = field.InputSource
+// 			responseModelAttributeIdentifier = field.AttributeIdentifier
+// 		} else if field.AttributeName == "promptTokenCount" {
+// 			promptTokenCountInputSource = field.InputSource
+// 			promptTokenCountAttributeIdentifier = field.AttributeIdentifier
+// 		} else if field.AttributeName == "completionTokenCount" {
+// 			completionTokenCountInputSource = field.InputSource
+// 			completionTokenCountAttributeIdentifier = field.AttributeIdentifier
+// 		} else if field.AttributeName == "totalTokenCount" {
+// 			totalTokenCountInputSource = field.InputSource
+// 			totalTokenCountAttributeIdentifier = field.AttributeIdentifier
+// 		}
+// 	}
+
+// 	crAIProvider := dpv1alpha4.AIProvider{
+// 		ObjectMeta: metav1.ObjectMeta{
+// 			Name:      aiProvider.ID,
+// 			Namespace: conf.DataPlane.Namespace,
+// 			Labels:    labelMap,
+// 		},
+// 		Spec: dpv1alpha4.AIProviderSpec{
+// 			ProviderName:       aiProvider.Name,
+// 			ProviderAPIVersion: aiProvider.APIVersion,
+// 			Organization:       aiProvider.Organization,
+// 			RequestModel: dpv1alpha4.ValueDetails{
+// 				In:    requestModelInputSource,
+// 				Value: requestModelAttributeIdentifier,
+// 			},
+// 			ResponseModel: dpv1alpha4.ValueDetails{
+// 				In:    responseModelInputSource,
+// 				Value: responseModelAttributeIdentifier,
+// 			},
+// 			SupportedModels: []string{"gpt-4o", "gpt-3.5", "gpt-4o-mini"},
+// 			RateLimitFields: dpv1alpha4.RateLimitFields{
+// 				PromptTokens: dpv1alpha4.ValueDetails{
+// 					In:    promptTokenCountInputSource,
+// 					Value: promptTokenCountAttributeIdentifier,
+// 				},
+// 				CompletionToken: dpv1alpha4.ValueDetails{
+// 					In:    completionTokenCountInputSource,
+// 					Value: completionTokenCountAttributeIdentifier,
+// 				},
+// 				TotalToken: dpv1alpha4.ValueDetails{
+// 					In:    totalTokenCountInputSource,
+// 					Value: totalTokenCountAttributeIdentifier,
+// 				},
+// 			},
+// 		},
+// 	}
+// 	return crAIProvider
+// }
 
 // GetSha1Value returns the SHA1 value of the input string
 func GetSha1Value(input string) string {

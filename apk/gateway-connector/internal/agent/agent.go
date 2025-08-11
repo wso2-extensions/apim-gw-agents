@@ -22,14 +22,12 @@ import (
 	"flag"
 
 	"github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/eventhub"
+	"github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/loggers"
 	"github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/synchronizer"
 	"github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/pkg/managementserver"
 	"github.com/wso2-extensions/apim-gw-agents/common-agent/config"
 	cpv1alpha2 "github.com/wso2/apk/common-go-libs/apis/cp/v1alpha2"
-	dpv1alpha1 "github.com/wso2/apk/common-go-libs/apis/dp/v1alpha1"
-	dpv1alpha2 "github.com/wso2/apk/common-go-libs/apis/dp/v1alpha2"
-	dpv1alpha3 "github.com/wso2/apk/common-go-libs/apis/dp/v1alpha3"
-	dpv1alpha4 "github.com/wso2/apk/common-go-libs/apis/dp/v1alpha4"
+	dpv2alpha1 "github.com/wso2/apk/common-go-libs/apis/dp/v2alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -45,18 +43,16 @@ func init() {
 
 // PreRun prepares the agent environment and runs before Run.
 func PreRun(conf *config.Config, scheme *runtime.Scheme) {
-	utilruntime.Must(dpv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(dpv1alpha2.AddToScheme(scheme))
-	utilruntime.Must(dpv1alpha3.AddToScheme(scheme))
 	utilruntime.Must(cpv1alpha2.AddToScheme(scheme))
 	utilruntime.Must(cpv1alpha2.AddToScheme(scheme))
-	utilruntime.Must(dpv1alpha3.AddToScheme(scheme))
-	utilruntime.Must(dpv1alpha4.AddToScheme(scheme))
+	utilruntime.Must(dpv2alpha1.AddToScheme(scheme))
 }
 
 // Run starts the GRPC server and Rest API server.
 func Run(conf *config.Config, mgr manager.Manager) {
+	loggers.LoggerAgent.Info("Starting APK Gateway Connector Agent...")
 	AgentMode := conf.Agent.Mode
+	loggers.LoggerAgent.Infof("Agent Mode: %s", AgentMode)
 
 	go managementserver.StartInternalServer(restPort)
 

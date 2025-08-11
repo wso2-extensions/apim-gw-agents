@@ -132,7 +132,7 @@ func FetchRateLimitPoliciesOnEvent(ratelimitName string, organization string) ([
 			logger.LoggerSync.Errorf("Error occurred while unmarshelling RateLimit Policies event data %v", err)
 			return nil, ""
 		}
-		logger.LoggerSync.Debugf("Policies received: %v", rateLimitPolicyList.List)
+		logger.LoggerSync.Debugf("Policies received: %+v", rateLimitPolicyList.List)
 		var rateLimitPolicies []eventhub.RateLimitPolicy = rateLimitPolicyList.List
 		for _, policy := range rateLimitPolicies {
 			if policy.DefaultLimit.RequestCount.TimeUnit == "min" {
@@ -228,7 +228,7 @@ func FetchSubscriptionRateLimitPoliciesOnEvent(ratelimitName string, organizatio
 			logger.LoggerSync.Errorf("Error occurred while unmarshelling Subscription RateLimit Policies event data %v", err)
 			return nil, ""
 		}
-		logger.LoggerSync.Infof("Policies received: %v", rateLimitPolicyList.List)
+		logger.LoggerSync.Infof("Policies received: %+v", rateLimitPolicyList.List)
 		var rateLimitPolicies []eventhub.SubscriptionPolicy = rateLimitPolicyList.List
 		for _, policy := range rateLimitPolicies {
 			if policy.QuotaType == "aiApiQuota" {
