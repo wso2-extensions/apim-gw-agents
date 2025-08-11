@@ -51,20 +51,16 @@ public class AWSFederatedAPIDiscovery implements FederatedAPIDiscovery {
     private Environment environment;
     private ApiGatewayClient apiGatewayClient;
     private String organization;
-    private String region;
     private String stage;
-    private JsonObject deploymentConfigObject;
-    private List<String> apisDeployedInGatewayEnv;
 
     @Override
     public void init(Environment environment, String organization)
             throws APIManagementException {
-        log.debug("Initializing AWS Gateway Deployer for environment: " + environment.getName());
+        log.debug("Initializing AWS Gateway for API Discovery in environment " + environment.getName());
         try {
             this.environment = environment;
             this.organization = organization;
-            this.apisDeployedInGatewayEnv = apisDeployedInGatewayEnv;
-            this.region = environment.getAdditionalProperties().get(AWSConstants.AWS_ENVIRONMENT_REGION);
+            String region = environment.getAdditionalProperties().get(AWSConstants.AWS_ENVIRONMENT_REGION);
             this.stage = environment.getAdditionalProperties().get(AWSConstants.AWS_API_STAGE);
 
             String accessKey = environment.getAdditionalProperties().get(AWSConstants.AWS_ENVIRONMENT_ACCESS_KEY);
@@ -81,15 +77,10 @@ public class AWSFederatedAPIDiscovery implements FederatedAPIDiscovery {
                     .credentialsProvider(StaticCredentialsProvider.create(
                             AwsBasicCredentials.create(accessKey, secretKey)))
                     .build();
-
-            this.deploymentConfigObject = new JsonObject();
-            deploymentConfigObject.addProperty(DEPLOYMENT_NAME, environment.getName());
-            deploymentConfigObject.addProperty(DEPLOYMENT_VHOST, environment.getVhosts().get(0).getHost());
-            deploymentConfigObject.addProperty(DISPLAY_ON_DEVPORTAL_OPTION, true);
-            log.debug("Initialization completed AWS Gateway Deployer for environment: " + environment.getName());
+            log.debug("AWS Gateway API Discovery environment initialization completed: " + environment.getName());
 
         } catch (Exception e) {
-            throw new APIManagementException("Error occurred while initializing AWS Gateway Deployer", e);
+            throw new APIManagementException("Error occurred during AWS Gateway Discovery initialization: ", e);
         }
     }
 
