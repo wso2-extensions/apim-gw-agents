@@ -56,7 +56,9 @@ public class AWSFederatedAPIDiscovery implements FederatedAPIDiscovery {
     @Override
     public void init(Environment environment, String organization)
             throws APIManagementException {
-        log.debug("Initializing AWS Gateway for API Discovery in environment " + environment.getName());
+        if (log.isDebugEnabled()) {
+            log.debug("Initializing AWS Gateway for API Discovery in environment " + environment.getName());
+        }
         try {
             this.environment = environment;
             this.organization = organization;
@@ -71,13 +73,15 @@ public class AWSFederatedAPIDiscovery implements FederatedAPIDiscovery {
             }
 
             SdkHttpClient httpClient = ApacheHttpClient.builder().build();
-            this.apiGatewayClient = ApiGatewayClient.builder()
-                    .region(Region.of(region))
-                    .httpClient(httpClient)
+            this.apiGatewayClient = ApiGatewayClient.builder().region(Region.of(region)).httpClient(httpClient)
                     .credentialsProvider(StaticCredentialsProvider.create(
-                            AwsBasicCredentials.create(accessKey, secretKey)))
-                    .build();
-            log.debug("AWS Gateway API Discovery environment initialization completed: " + environment.getName());
+                            AwsBasicCredentials.create(accessKey, secretKey))).build();
+            if (log.isDebugEnabled()) {
+                log.debug("AWS Gateway API Discovery environment initialization completed: "
+                        + environment.getName());
+            }
+            log.info("AWS Gateway API Discovery environment " + environment.getName() + " " +
+                    "initialized successfully for organization: " + organization);
 
         } catch (Exception e) {
             throw new APIManagementException("Error occurred during AWS Gateway Discovery initialization: ", e);
