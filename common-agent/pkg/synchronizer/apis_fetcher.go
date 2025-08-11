@@ -99,7 +99,7 @@ func FetchAPIsOnEvent(conf *config.Config, apiUUID *string, k8sClient client.Cli
 			// Read the .zip files within the root apis.zip and add apis to apiFiles array.
 			for _, file := range zipReader.File {
 				apiFiles[file.Name] = file
-				logger.LoggerUtils.Debugf("API file found: " + file.Name)
+				logger.LoggerUtils.Debug("API file found: " + file.Name)
 				// Todo: Read the apis.zip and extract the api.zip,deployments.json
 			}
 			if err != nil {

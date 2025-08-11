@@ -41,10 +41,7 @@ import (
 	gatewayv1alpha1 "github.com/envoyproxy/gateway/api/v1alpha1"
 	eventHub "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/eventhub/types"
 	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/transformer"
-	// dpv1alpha1 "github.com/wso2/apk/common-go-libs/apis/dp/v1alpha1"
-	// dpv1alpha2 "github.com/wso2/apk/common-go-libs/apis/dp/v1alpha2"
-	// dpv1alpha3 "github.com/wso2/apk/common-go-libs/apis/dp/v1alpha3"
-	// dpv1alpha4 "github.com/wso2/apk/common-go-libs/apis/dp/v1alpha4"
+
 	dpv2alpha1 "github.com/wso2/apk/common-go-libs/apis/dp/v2alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -320,7 +317,7 @@ func replaceVhost(k8sArtifact *K8sArtifacts, vhost string, deploymentType string
 			}
 		}
 	}
-	// TODO: GQLRoutes are not supported in the new envoy config. Check if there any additional 
+	// TODO: GQLRoutes are not supported in the new envoy config. Check if there any additional
 	// modifications are needed for that
 }
 
@@ -328,7 +325,7 @@ func replaceVhost(k8sArtifact *K8sArtifacts, vhost string, deploymentType string
 // the deploymemt descriptor
 func addOrganization(k8sArtifact *K8sArtifacts, organization string) {
 	organizationHash := generateSHA1Hash(organization)
-	for _,routemetadata := range k8sArtifact.RouteMetadata {
+	for _, routemetadata := range k8sArtifact.RouteMetadata {
 		routemetadata.Spec.API.Organization = organization
 		routemetadata.ObjectMeta.Labels[k8sOrganizationField] = organizationHash
 	}
@@ -485,10 +482,10 @@ func createEndpointSecrets(secretDataList []transformer.EndpointSecurityConfig, 
 
 // Get API name from any RouteMetadata in the map
 func getAPINameFromRouteMetadata(k8sArtifact *K8sArtifacts) string {
-    for _, routeMetadata := range k8sArtifact.RouteMetadata {
-        if routeMetadata != nil && routeMetadata.Spec.API.Name != "" {
-            return routeMetadata.Spec.API.Name
-        }
-    }
-    return "" // fallback if no RouteMetadata found
+	for _, routeMetadata := range k8sArtifact.RouteMetadata {
+		if routeMetadata != nil && routeMetadata.Spec.API.Name != "" {
+			return routeMetadata.Spec.API.Name
+		}
+	}
+	return "" // fallback if no RouteMetadata found
 }

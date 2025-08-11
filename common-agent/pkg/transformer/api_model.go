@@ -185,6 +185,7 @@ type APIMApi struct {
 	APIPolicies                 APIMOperationPolicies `yaml:"apiPolicies"`
 	SubtypeConfiguration        SubtypeConfiguration  `yaml:"subtypeConfiguration"`
 	MaxTps                      *MaxTps               `yaml:"maxTps"`
+	KeyManagers                 []string              `yaml:"keyManagers"`
 }
 
 // SubtypeConfiguration holds the details for Subtypes
