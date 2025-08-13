@@ -26,4 +26,23 @@ public class KongConstants {
     public static final String KONG_ADMIN_URL = "admin_url";
     public static final String KONG_CONTROL_PLANE_ID = "control_plane_id";
     public static final String KONG_AUTH_TOKEN = "auth_key";
+
+    public static final String KONG_DEPLOYMENT_TYPE = "deployment_type";
+    public static final String KONG_STANDALONE_DEPLOYMENT = "Standalone";
+    public static final String KONG_KUBERNETES_DEPLOYMENT = "Kubernetes";
+
+    // API endpoint configuration property names
+    public static final String KONG_API_UUID = "uuid";
+    public static final String KONG_API_CONTEXT = "context";
+    public static final String KONG_API_VERSION = "version";
+    public static final String KONG_GATEWAY_HOST = "host";
+    public static final String KONG_GATEWAY_HTTP_CONTEXT = "httpContext";
+    public static final String KONG_GATEWAY_HTTP_PORT = "httpPort";
+    public static final String KONG_GATEWAY_HTTPS_PORT = "httpsPort";
+
+    public static final String HTTPS_PROTOCOL = "https";
+    public static final String PROTOCOL_SEPARATOR = "://";
+    public static final String HOST_PORT_SEPARATOR = ":";
+    public static final String CONTEXT_SEPARATOR = "/";
+    public static final int DEFAULT_HTTPS_PORT = 443;
 }
