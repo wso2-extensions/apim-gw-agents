@@ -88,7 +88,7 @@ func GenerateCRs(apkConf string, apiDefinition string, certContainer transformer
 	// Close the multipart writer
 	writer.Close()
 
-	k8sResourceEndpointWithOrg := k8ResourceGenEndpoint + "?organization=" + organizationID
+	k8sResourceEndpointWithOrg := k8ResourceGenEndpoint + "?organization=" + organizationID + "&cpInitiated=true"
 
 	// Create the HTTP request
 	request, err := http.NewRequest(postHTTPMethod, k8sResourceEndpointWithOrg, &requestBody)

@@ -274,8 +274,9 @@ func GenerateConf(APIJson string, certArtifact CertificateArtifact, endpoints st
 	//!!!TODO: Add KeyManagers to the conf
 	// Since we only get the KM name, need to get the rest of the details from the internal map we keep
 	// after fetching the key managers from the control plane.
+	logger.LoggerTransformer.Infof("KeyManager data from yaml: %+v", apiYamlData.KeyManagers)
 	kmData := mapKeyManagers(apiYamlData.KeyManagers)
-	logger.LoggerTransformer.Debugf("KeyManagers: %+v", kmData)
+	logger.LoggerTransformer.Debugf("KeyManager data after mapping: %+v", kmData)
 	apk.KeyManagers = &kmData
 
 	c, marshalError := yaml.Marshal(apk)
@@ -976,6 +977,7 @@ func mapKeyManagers(keyManagers []string) []KeyManager {
 					Name: km.Name,
 					Issuer: km.KeyManagerConfig.Issuer,
 					JWKSEndpoint: km.KeyManagerConfig.CertificateValue,
+					ClaimMapping: km.KeyManagerConfig.ClaimMappings,
 				}
 				kmListForAPI = append(kmListForAPI, newkmConfig)
 			}
