@@ -18,6 +18,7 @@
 
 package org.wso2.aws.client.util;
 
+import com.google.gson.JsonObject;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -27,6 +28,8 @@ import org.wso2.aws.client.AWSConstants;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.model.API;
 import org.wso2.carbon.apimgt.api.model.APIIdentifier;
+import org.wso2.carbon.apimgt.api.model.Endpoint;
+import org.wso2.carbon.apimgt.api.model.EndpointConfig;
 import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.api.model.OperationPolicy;
 import org.wso2.carbon.apimgt.api.model.URITemplate;
@@ -66,6 +69,8 @@ import software.amazon.awssdk.services.apigateway.model.PutRestApiResponse;
 import software.amazon.awssdk.services.apigateway.model.Resource;
 import software.amazon.awssdk.services.apigateway.model.RestApi;
 import software.amazon.awssdk.services.apigateway.model.UpdateMethodRequest;
+import software.amazon.awssdk.services.apigatewayv2.model.GetApiResponse;
+import software.amazon.awssdk.services.chimesdkidentity.model.EndpointAttributes;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -76,8 +81,14 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static org.wso2.aws.client.AWSConstants.API_ID_PLACEHOLDER;
+import static org.wso2.aws.client.AWSConstants.API_REGION_PLACEHOLDER;
 import static org.wso2.aws.client.AWSConstants.JSON_PAYLOAD_TYPE;
 import static org.wso2.aws.client.AWSConstants.OPEN_API_VERSION;
+import static org.wso2.aws.client.AWSConstants.PRODUCTION_ENDPOINTS;
+import static org.wso2.aws.client.AWSConstants.SANDBOX_ENDPOINTS;
+import static org.wso2.aws.client.AWSConstants.TEMPLATE_NOT_SUPPORTED_PROP;
+import static org.wso2.aws.client.AWSConstants.URL_PROP;
 import static org.wso2.aws.client.AWSConstants.YAML_PAYLOAD_TYPE;
 
 /**
@@ -574,10 +585,10 @@ public class AWSAPIUtil {
     /**
      * Converts a RestApi object to an API object.
      *
-     * @param restApi         The RestApi object to convert.
-     * @param apiDefinition   The OpenAPI definition of the API.
-     * @param organization    The organization name.
-     * @param environment     The environment in which the API is deployed.
+     * @param restApi       The RestApi object to convert.
+     * @param apiDefinition The OpenAPI definition of the API.
+     * @param organization  The organization name.
+     * @param environment   The environment in which the API is deployed.
      * @return An API object representing the RestApi.
      */
     public static API restAPItoAPI(RestApi restApi, String apiDefinition, String organization, Environment environment) {
@@ -599,4 +610,39 @@ public class AWSAPIUtil {
         return api;
     }
 
+    public static void updateAPIWithEndpoints(API api, RestApi discoveredAPI, Environment environment, String region) {
+        String endpointTemplate = environment.getApiGatewayEndpoint();
+        String apiId = discoveredAPI.id();      // Replace with your actual API ID
+
+        // Replace placeholders
+        String resolved = endpointTemplate
+                .replace(API_ID_PLACEHOLDER, apiId)
+                .replace(API_REGION_PLACEHOLDER, region);
+        // Split by comma to get individual endpoints
+        String[] endpoints = resolved.split(",");
+
+        // Find the HTTP (port 80) endpoint
+        String httpEndpoint = null;
+        for (String endpoint : endpoints) {
+            if (endpoint.trim().startsWith("http://")) {
+                httpEndpoint = endpoint.trim();
+                break;
+            }
+        }
+        JsonObject endpointConfig = new JsonObject();
+        endpointConfig.addProperty("endpoint_type", "http");
+        endpointConfig.addProperty("failOver", false);
+
+        JsonObject prod = new JsonObject();
+        prod.addProperty(TEMPLATE_NOT_SUPPORTED_PROP, false);
+        prod.addProperty(URL_PROP, httpEndpoint);
+
+        JsonObject sand = new JsonObject();
+        sand.addProperty(TEMPLATE_NOT_SUPPORTED_PROP, false);
+        sand.addProperty(URL_PROP, httpEndpoint);
+        endpointConfig.add(PRODUCTION_ENDPOINTS, prod);
+        endpointConfig.add(SANDBOX_ENDPOINTS, sand);
+
+        api.setEndpointConfig(endpointConfig.toString());
+    }
 }

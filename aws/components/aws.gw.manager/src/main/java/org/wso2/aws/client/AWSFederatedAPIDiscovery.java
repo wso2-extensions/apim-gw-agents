@@ -20,7 +20,6 @@
 
 package org.wso2.aws.client;
 
-import com.google.gson.JsonObject;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.aws.client.util.AWSAPIUtil;
@@ -40,10 +39,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import static org.wso2.carbon.apimgt.impl.importexport.ImportExportConstants.DEPLOYMENT_NAME;
-import static org.wso2.carbon.apimgt.impl.importexport.ImportExportConstants.DEPLOYMENT_VHOST;
-import static org.wso2.carbon.apimgt.impl.importexport.ImportExportConstants.DISPLAY_ON_DEVPORTAL_OPTION;
-
 public class AWSFederatedAPIDiscovery implements FederatedAPIDiscovery {
 
     private static final Log log = LogFactory.getLog(AWSFederatedAPIDiscovery.class);
@@ -52,6 +47,7 @@ public class AWSFederatedAPIDiscovery implements FederatedAPIDiscovery {
     private ApiGatewayClient apiGatewayClient;
     private String organization;
     private String stage;
+    private String region;
 
     @Override
     public void init(Environment environment, String organization)
@@ -62,7 +58,7 @@ public class AWSFederatedAPIDiscovery implements FederatedAPIDiscovery {
         try {
             this.environment = environment;
             this.organization = organization;
-            String region = environment.getAdditionalProperties().get(AWSConstants.AWS_ENVIRONMENT_REGION);
+            region = environment.getAdditionalProperties().get(AWSConstants.AWS_ENVIRONMENT_REGION);
             this.stage = environment.getAdditionalProperties().get(AWSConstants.AWS_API_STAGE);
 
             String accessKey = environment.getAdditionalProperties().get(AWSConstants.AWS_ENVIRONMENT_ACCESS_KEY);
@@ -99,6 +95,7 @@ public class AWSFederatedAPIDiscovery implements FederatedAPIDiscovery {
             }
             String apiDefinition = AWSAPIUtil.getRestApiDefinition(apiGatewayClient, restApi.id(), stage);
             API api = AWSAPIUtil.restAPItoAPI(restApi, apiDefinition, organization, environment);
+            AWSAPIUtil.updateAPIWithEndpoints(api, restApi, environment, region);
             retrievedAPIs.add(api);
         }
         return retrievedAPIs;
