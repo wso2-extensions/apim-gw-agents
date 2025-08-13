@@ -33,6 +33,9 @@ public class AzureConstants {
             AZURE_API_EXECUTION_URL_TEMPLATE_CONTEXT_PLACEHOLDER;
     public static final String AZURE_EXTERNAL_REFERENCE_PATH = "path";
     public static final String AZURE_EXTERNAL_REFERENCE_UUID = "uuid";
+    public static final String AZURE_OPENAPI_EXPORT_VERSION = "2024-05-01";
+    public static final String AZURE_OPENAPI_EXPORT_FORMAT = "openapi-link";
+    public static final String AZURE_VERSION_SET_ID_PREFIX = "WSO2APIVersionSet-";
 
     public static final String GATEWAY_FEATURE_CATALOG_FILENAME = "GatewayFeatureCatalog.json";
 

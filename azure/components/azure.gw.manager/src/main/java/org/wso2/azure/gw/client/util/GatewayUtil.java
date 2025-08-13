@@ -117,4 +117,11 @@ public class GatewayUtil {
             return "Invalid Endpoint URL";
         }
     }
+
+    public static String validateAzureAPIContextTemplate(String contextTemplate) {
+        if (contextTemplate.indexOf("{version}") != contextTemplate.length() - "{version}".length()) {
+            return "Context templating not supported for Azure APIs.";
+        }
+        return null;
+    }
 }

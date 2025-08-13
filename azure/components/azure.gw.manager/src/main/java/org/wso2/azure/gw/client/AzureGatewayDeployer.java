@@ -132,6 +132,7 @@ public class AzureGatewayDeployer implements GatewayDeployer {
         List<String> errorList = new ArrayList<>();
 
         errorList.add(GatewayUtil.validateAzureAPIEndpoint(GatewayUtil.getEndpointURL(api)));
+        errorList.add(GatewayUtil.validateAzureAPIContextTemplate(api.getContextTemplate()));
 
         result.setValid(errorList.stream().allMatch(Objects::isNull));
         result.setErrors(errorList.stream().filter(Objects::nonNull).collect(Collectors.toList()));
