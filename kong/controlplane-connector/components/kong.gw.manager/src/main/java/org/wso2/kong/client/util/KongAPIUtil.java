@@ -20,11 +20,17 @@ package org.wso2.kong.client.util;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import org.wso2.carbon.apimgt.api.APIManagementException;
+import org.wso2.carbon.apimgt.api.model.API;
+import org.wso2.carbon.apimgt.api.model.Environment;
+import org.wso2.kong.client.KongConstants;
 import org.wso2.kong.client.model.KongRoute;
 import org.wso2.kong.client.model.KongService;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -204,6 +210,26 @@ public class KongAPIUtil {
         return endpointConfig.toString();
     }
 
+    /**
+     * Build endpointConfig JSON for KONG on Kubernetes.
+     */
+    public static String buildEndpointConfigJsonForKubernetes(API api, Environment environment) {
+        JsonObject endpointConfig = new JsonObject();
+
+        endpointConfig.addProperty(KongConstants.KONG_API_UUID, api.getUuid());
+        endpointConfig.addProperty(KongConstants.KONG_API_CONTEXT, api.getContext());
+        endpointConfig.addProperty(KongConstants.KONG_API_VERSION, api.getId().getVersion());
+
+        endpointConfig.addProperty(KongConstants.KONG_GATEWAY_HOST, environment.getVhosts().get(0).getHost());
+        endpointConfig.addProperty(KongConstants.KONG_GATEWAY_HTTP_CONTEXT,
+                environment.getVhosts().get(0).getHttpContext());
+        endpointConfig.addProperty(KongConstants.KONG_GATEWAY_HTTP_PORT, environment.getVhosts().get(0).getHttpPort());
+        endpointConfig.addProperty(KongConstants.KONG_GATEWAY_HTTPS_PORT,
+                environment.getVhosts().get(0).getHttpsPort());
+
+        return endpointConfig.toString();
+    }
+
     public static String buildEndpointUrl(String protocol, String host, int port, String path) {
         StringBuilder sb = new StringBuilder();
         sb.append(protocol).append("://").append(host);
@@ -217,6 +243,78 @@ public class KongAPIUtil {
             sb.append('/');
         }
         return sb.toString();
+    }
+
+    /**
+     * Checks if the environment is configured for Kubernetes deployment.
+     *
+     * @param environment The environment to check
+     * @return true if the environment is configured for Kubernetes deployment, false otherwise
+     */
+    public static boolean isKubernetesDeployment(Environment environment) {
+        return Objects.equals(getEnvironmentProperty(environment, KongConstants.KONG_DEPLOYMENT_TYPE),
+                KongConstants.KONG_KUBERNETES_DEPLOYMENT);
+    }
+
+    /**
+     * Safely gets a property from environment's additional properties.
+     *
+     * @param environment The environment
+     * @param key         The property key
+     * @return The property value, or null if not found or environment/properties are null
+     */
+    public static String getEnvironmentProperty(Environment environment, String key) {
+        if (environment == null || environment.getAdditionalProperties() == null || key == null) {
+            return null;
+        }
+        return environment.getAdditionalProperties().get(key);
+    }
+
+    /**
+     * Builds the API execution URL for Kong on Kubernetes deployment. Parses the external reference JSON to extract the
+     * necessary information.
+     *
+     * @param externalReference JSON string containing Kong API configuration
+     * @return The API execution URL for Kong on Kubernetes
+     * @throws APIManagementException If there is an error while constructing the URL.
+     */
+    public static String getAPIExecutionURLForKubernetes(String externalReference) throws APIManagementException {
+        try {
+            JsonObject config = JsonParser.parseString(externalReference).getAsJsonObject();
+
+            String host = config.get(KongConstants.KONG_GATEWAY_HOST).getAsString();
+            String context = config.get(KongConstants.KONG_API_CONTEXT).getAsString();
+            String httpContext = config.has(KongConstants.KONG_GATEWAY_HTTP_CONTEXT) ?
+                    config.get(KongConstants.KONG_GATEWAY_HTTP_CONTEXT).getAsString() :
+                    null;
+            int httpsPort = config.has(KongConstants.KONG_GATEWAY_HTTPS_PORT) ?
+                    config.get(KongConstants.KONG_GATEWAY_HTTPS_PORT).getAsInt() :
+                    KongConstants.DEFAULT_HTTPS_PORT;
+
+            StringBuilder url = new StringBuilder();
+            url.append(KongConstants.HTTPS_PROTOCOL).append(KongConstants.PROTOCOL_SEPARATOR).append(host);
+
+            if (httpsPort != KongConstants.DEFAULT_HTTPS_PORT) {
+                url.append(KongConstants.HOST_PORT_SEPARATOR).append(httpsPort);
+            }
+
+            if (httpContext != null && !httpContext.trim().isEmpty()) {
+                if (!httpContext.startsWith(KongConstants.CONTEXT_SEPARATOR)) {
+                    url.append(KongConstants.CONTEXT_SEPARATOR);
+                }
+                url.append(httpContext);
+            }
+
+            if (!context.startsWith(KongConstants.CONTEXT_SEPARATOR)) {
+                url.append(KongConstants.CONTEXT_SEPARATOR);
+            }
+            url.append(context);
+
+            return url.toString();
+
+        } catch (Exception e) {
+            throw new APIManagementException("Failed to parse Kong external reference");
+        }
     }
     
 }

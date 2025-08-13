@@ -23,6 +23,7 @@ import org.wso2.carbon.apimgt.api.model.API;
 import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.api.model.GatewayAPIValidationResult;
 import org.wso2.carbon.apimgt.api.model.GatewayDeployer;
+import org.wso2.kong.client.util.KongAPIUtil;
 
 import java.util.Collections;
 
@@ -45,6 +46,9 @@ public class KongGatewayDeployer implements GatewayDeployer {
 
     @Override
     public String deploy(API api, String externalReference) throws APIManagementException {
+        if (KongAPIUtil.isKubernetesDeployment(environment)) {
+            return KongAPIUtil.buildEndpointConfigJsonForKubernetes(api, environment);
+        }
         return null;
     }
 
@@ -63,6 +67,9 @@ public class KongGatewayDeployer implements GatewayDeployer {
 
     @Override
     public String getAPIExecutionURL(String externalReference) throws APIManagementException {
+        if (KongAPIUtil.isKubernetesDeployment(environment)) {
+            return KongAPIUtil.getAPIExecutionURLForKubernetes(externalReference);
+        }
         String vhost = environment.getVhosts() != null && !environment.getVhosts().isEmpty()
                 ? environment.getVhosts().get(0).getHost() : "example.com";
         return "https://" + vhost;
