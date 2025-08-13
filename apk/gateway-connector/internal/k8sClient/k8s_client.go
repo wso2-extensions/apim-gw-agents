@@ -44,37 +44,6 @@ import (
 	gwapiv1a3 "sigs.k8s.io/gateway-api/apis/v1alpha3"
 )
 
-// // UndeployK8sAPICR removes the API Custom Resource from the Kubernetes cluster based on API ID label.
-// func UndeployK8sAPICR(k8sClient client.Client, k8sAPI dpv1alpha3.API) error {
-// 	err := k8sClient.Delete(context.Background(), &k8sAPI, &client.DeleteOptions{})
-// 	if err != nil {
-// 		loggers.LoggerK8sClient.Errorf("Unable to delete API CR: %v", err)
-// 		return err
-// 	}
-// 	loggers.LoggerK8sClient.Infof("Deleted API CR: %s", k8sAPI.Name)
-// 	return nil
-// }
-
-// // UndeployAPICR removes the API Custom Resource from the Kubernetes cluster based on API ID label.
-// func UndeployAPICR(apiID string, k8sClient client.Client) {
-// 	conf, errReadConfig := config.ReadConfigs()
-// 	if errReadConfig != nil {
-// 		loggers.LoggerK8sClient.Errorf("Error reading configurations: %v", errReadConfig)
-// 	}
-// 	apiList := &dpv1alpha3.APIList{}
-// 	err := k8sClient.List(context.Background(), apiList, &client.ListOptions{Namespace: conf.DataPlane.Namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"apiUUID": apiID})})
-// 	// Retrieve all API CRs from the Kubernetes cluster
-// 	if err != nil {
-// 		loggers.LoggerK8sClient.Errorf("Unable to list API CRs: %v", err)
-// 	}
-// 	for _, api := range apiList.Items {
-// 		if err := UndeployK8sAPICR(k8sClient, api); err != nil {
-// 			loggers.LoggerK8sClient.Errorf("Unable to delete API CR: %v", err)
-// 		}
-// 		loggers.LoggerK8sClient.Infof("Deleted API CR: %s", api.Name)
-// 	}
-// }
-
 // !!! ======== NEW ========
 
 // UndeployRouteMetadataCRs removes all RouteMetadata Custom Resource from the Kubernetes cluster based on API ID label.
@@ -508,9 +477,13 @@ func DeploySubscriptionRateLimitPolicyCR(policy eventhubTypes.SubscriptionPolicy
 		"CPName":       policy.Name,
 	}
 	
-	RequestsPerUnit = uint(policy.DefaultLimit.RequestCount.RequestCount)/uint(policy.DefaultLimit.RequestCount.UnitTime)
+	if policy.DefaultLimit.RequestCount.UnitTime != 0 {
+		RequestsPerUnit = uint(policy.DefaultLimit.RequestCount.RequestCount)/uint(policy.DefaultLimit.RequestCount.UnitTime)
+	}else{
+		RequestsPerUnit = uint(policy.DefaultLimit.RequestCount.RequestCount)
+	}
 	Unit = gatewayv1alpha1.RateLimitUnit(policy.DefaultLimit.RequestCount.TimeUnit)
-	
+
 	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: conf.DataPlane.Namespace, Name: crName}, &crRLBackendTrafficPolicy); err != nil {
 		crRLBackendTrafficPolicy = gatewayv1alpha1.BackendTrafficPolicy{
 			ObjectMeta: metav1.ObjectMeta{
@@ -596,10 +569,12 @@ func DeployAIRateLimitPolicyFromCPPolicy(policy eventhubTypes.SubscriptionPolicy
 	if gatewayName == "" {
 		gatewayName = "wso2-kgw-default"
 	}
-	if policy.DefaultLimit.AiAPIQuota.RequestCount != nil {
+	if policy.DefaultLimit.AiAPIQuota.RequestCount != nil && policy.DefaultLimit.AiAPIQuota.UnitTime != 0 {
 		RequestsPerUnit = uint(*policy.DefaultLimit.AiAPIQuota.RequestCount)/uint(policy.DefaultLimit.AiAPIQuota.UnitTime)
-		Unit = gatewayv1alpha1.RateLimitUnit(policy.DefaultLimit.AiAPIQuota.TimeUnit)
-	} 
+	} else {
+		RequestsPerUnit = uint(*policy.DefaultLimit.AiAPIQuota.RequestCount)
+	}
+	Unit = gatewayv1alpha1.RateLimitUnit(policy.DefaultLimit.AiAPIQuota.TimeUnit)
 	labelMap := map[string]string{
 		"InitiateFrom": "CP",
 		"CPName":       policy.Name,
