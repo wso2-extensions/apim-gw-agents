@@ -39,6 +39,7 @@ import org.wso2.carbon.apimgt.api.model.APIIdentifier;
 import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.api.model.Tier;
 import org.wso2.carbon.apimgt.impl.kmclient.ApacheFeignHttpClient;
+import org.wso2.kong.client.model.KongPlugin;
 import org.wso2.kong.client.model.KongRoute;
 import org.wso2.kong.client.model.KongService;
 import org.wso2.kong.client.model.PagedResponse;
@@ -125,6 +126,11 @@ public class KongFederatedAPIDiscovery implements FederatedAPIDiscovery {
             List<KongRoute> routes = (resp != null && resp.getData() != null) ?
                     resp.getData() : java.util.Collections.emptyList();
 
+            PagedResponse<KongPlugin> pluginsResp = apiGatewayClient.listPluginsByServiceId(
+                    controlPlaneId, svc.getId(), 100);
+            List<KongPlugin> plugins = (pluginsResp != null && pluginsResp.getData() != null)
+                ? pluginsResp.getData() : java.util.Collections.<KongPlugin>emptyList();
+
             APIIdentifier apiId = new APIIdentifier("admin", svc.getName(), "v1");
             API api = new API(apiId);
             api.setDisplayName(svc.getName());
@@ -155,6 +161,17 @@ public class KongFederatedAPIDiscovery implements FederatedAPIDiscovery {
                     svc.getHost(), svc.getPort(), svc.getPath());
             api.setEndpointConfig(KongAPIUtil.buildEndpointConfigJson(endpoint, endpoint, false));
             api.setAvailableTiers(new HashSet<>(java.util.Collections.singleton(new Tier("Unlimited"))));
+
+            for (KongPlugin plugin : plugins) {
+                String pluginType = plugin.getName();
+                if (pluginType.equals(KongConstants.KONG_CORS_PLUGIN_TYPE)) {
+                    // Handle CORS plugin
+                    api.setCorsConfiguration(KongAPIUtil.kongCorsToWso2Cors(plugin));
+                } else if (pluginType.equals(KongConstants.KONG_RATELIMIT_PLUGIN_TYPE)) {
+                    // Handle Rate Limiting plugin
+                    api.setApiLevelPolicy(KongAPIUtil.kongRateLimitingToWso2Policy(plugin));
+                }
+            }
 
             retrievedAPIs.add(api);
         }

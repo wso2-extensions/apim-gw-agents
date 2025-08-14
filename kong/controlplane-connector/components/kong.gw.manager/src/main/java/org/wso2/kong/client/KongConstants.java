@@ -47,4 +47,8 @@ public class KongConstants {
     public static final String CONTEXT_SEPARATOR = "/";
     public static final int DEFAULT_HTTPS_PORT = 443;
     public static final int DEFAULT_HTTP_PORT = 80;
+
+    // Kong Plugin Types
+    public static final String KONG_CORS_PLUGIN_TYPE = "cors";
+    public static final String KONG_RATELIMIT_PLUGIN_TYPE = "rate-limiting-advanced";
 }

@@ -19,15 +19,22 @@
 package org.wso2.kong.client.util;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.model.API;
+import org.wso2.carbon.apimgt.api.model.CORSConfiguration;
 import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.kong.client.KongConstants;
+import org.wso2.kong.client.model.KongPlugin;
 import org.wso2.kong.client.model.KongRoute;
 import org.wso2.kong.client.model.KongService;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -38,6 +45,198 @@ import java.util.regex.Pattern;
  * Utility class for building OpenAPI Specification (OAS) from Kong routes and services.
  */
 public class KongAPIUtil {
+    public static final List<String> DEFAULT_ALLOW_HEADERS = Arrays.asList(
+            "authorization",
+            "Access-Control-Allow-Origin",
+            "Content-Type",
+            "SOAPAction",
+            "apikey",
+            "Internal-Key"
+    );
+
+    public static final java.util.Set<String> WSO2_ALLOWED_METHODS =
+            new java.util.LinkedHashSet<>(Arrays.asList("GET", "PUT", "POST", "DELETE", "PATCH", "OPTIONS"));
+
+    /** Transform a Kong CORS plugin to WSO2 CORSConfiguration. */
+    public static CORSConfiguration kongCorsToWso2Cors(KongPlugin plugin) {
+        boolean enabled = plugin.getEnabled() != null ? plugin.getEnabled() : false;
+        JsonObject cfg = plugin.getConfig(); // may be null if malformed
+
+        // Origins
+        List<String> origins = getStringList(cfg, "origins");
+        if (origins.isEmpty()) {
+            // If Kong has no origins configured, WSO2 defaults to * (or set to your org default)
+            origins = Collections.singletonList("*");
+        } else if (origins.contains("*")) {
+            // Normalize: if "*" is present, it implies all; keep only "*"
+            origins = Collections.singletonList("*");
+        }
+
+        // Credentials
+        boolean allowCreds = getBoolean(cfg, "credentials", false);
+
+        // Headers (fallback defaults if empty)
+        List<String> headers = getStringList(cfg, "headers");
+        if (headers.isEmpty()) {
+            headers = DEFAULT_ALLOW_HEADERS;
+        }
+
+        // Methods (filter to what WSO2 expects)
+        List<String> methodsRaw = getStringList(cfg, "methods");
+        List<String> methods = new ArrayList<String>();
+        if (methodsRaw.isEmpty()) {
+            methods.addAll(WSO2_ALLOWED_METHODS); // fallback
+        } else {
+            for (String m : methodsRaw) {
+                String up = m.toUpperCase(Locale.ROOT);
+                if (WSO2_ALLOWED_METHODS.contains(up)) {
+                    methods.add(up);
+                }
+            }
+            if (methods.isEmpty()) { // if everything got filtered out, use sane defaults
+                methods.addAll(WSO2_ALLOWED_METHODS);
+            }
+        }
+
+        CORSConfiguration cors = new CORSConfiguration(
+                enabled,
+                origins,
+                allowCreds,
+                headers,
+                methods
+        );
+        return cors;
+    }
+
+    public static boolean getBoolean(JsonObject obj, String key, boolean def) {
+        if (obj == null || !obj.has(key) || obj.get(key).isJsonNull()) {
+            return def;
+        }
+        JsonElement el = obj.get(key);
+        return el.isJsonPrimitive() && el.getAsJsonPrimitive().isBoolean() ? el.getAsBoolean() : def;
+    }
+
+    public static List<String> getStringList(JsonObject obj, String key) {
+        if (obj == null || !obj.has(key) || obj.get(key).isJsonNull()) {
+            return Collections.emptyList();
+        }
+        JsonElement el = obj.get(key);
+        List<String> out = new ArrayList<String>();
+        if (el.isJsonArray()) {
+            JsonArray arr = el.getAsJsonArray();
+            for (JsonElement e : arr) {
+                if (e != null && e.isJsonPrimitive() && e.getAsJsonPrimitive().isString()) {
+                    out.add(e.getAsString());
+                }
+            }
+        } else if (el.isJsonPrimitive() && el.getAsJsonPrimitive().isString()) {
+            out.add(el.getAsString());
+        }
+        return out;
+    }
+
+    /** Transform a Kong Advanced Rate Limiting plugin to WSO2 Rate Limiting Policy. */
+    public static String kongRateLimitingToWso2Policy(KongPlugin plugin) {
+        if (plugin == null || plugin.getConfig() == null) {
+            return null;
+        }
+        if (plugin.getEnabled() != null && !plugin.getEnabled()) {
+            return null;
+        }
+
+        JsonObject cfg = plugin.getConfig();
+        List<Integer> limits = getIntList(cfg, "limit");
+        List<Integer> windows = getIntList(cfg, "window_size");
+        if (limits.isEmpty() || windows.isEmpty()) {
+            return null;
+        }
+
+        // Build index → value map for quick lookup
+        int n = Math.min(limits.size(), windows.size());
+        // Preference order for APIM-friendly windows
+        int[] preferred = new int[] { 60, 3600, 86400, 604800, 2592000 };
+
+        // Try preferred windows first
+        for (int pw : preferred) {
+            for (int i = 0; i < n; i++) {
+                Integer w = windows.get(i);
+                if (w != null && w == pw) {
+                    Integer limit = limits.get(i) != null ? limits.get(i) : 0;
+                    String suffix = windowSuffix(pw); // never null for preferred
+                    return limit + suffix;
+                }
+            }
+        }
+
+        // No preferred window found; pick the smallest positive window and build a generic suffix
+        int bestIdx = -1;
+        int bestWindow = Integer.MAX_VALUE;
+        for (int i = 0; i < n; i++) {
+            Integer w = windows.get(i);
+            if (w != null && w > 0 && w < bestWindow) {
+                bestWindow = w;
+                bestIdx = i;
+            }
+        }
+        if (bestIdx >= 0) {
+            int limit = limits.get(bestIdx) != null ? limits.get(bestIdx) : 0;
+            return limit + "Per" + bestWindow + "Sec";
+        }
+
+        return null;
+    }
+
+    /** Map known window sizes (seconds) to APIM suffix. */
+    private static String windowSuffix(int seconds) {
+        switch (seconds) {
+            case 60:      return "PerMin";
+            case 3600:    return "PerHour";
+            case 86400:   return "PerDay";
+            case 604800:  return "PerWeek";
+            case 2592000: return "PerMonth"; // ~30 days
+            default:      return null;
+        }
+    }
+
+    /** Extract a list of integers from a JSON field that may be a single number or an array. */
+    private static List<Integer> getIntList(JsonObject obj, String key) {
+        if (obj == null || !obj.has(key) || obj.get(key).isJsonNull()) {
+            return Collections.emptyList();
+        }
+        JsonElement el = obj.get(key);
+        List<Integer> out = new ArrayList<Integer>();
+        if (el.isJsonArray()) {
+            JsonArray arr = el.getAsJsonArray();
+            for (JsonElement e : arr) {
+                Integer v = asInt(e);
+                if (v != null) {
+                    out.add(v);
+                }
+            }
+        } else {
+            Integer v = asInt(el);
+            if (v != null) {
+                out.add(v);
+            }
+        }
+        return out;
+    }
+
+    private static Integer asInt(JsonElement el) {
+        if (el == null || !el.isJsonPrimitive()) {
+            return null;
+        }
+        JsonPrimitive p = el.getAsJsonPrimitive();
+        if (p.isNumber()) {
+            try {
+                return p.getAsInt();
+            } catch (NumberFormatException ex) {
+                // fall through
+            }
+        }
+        return null;
+    }
+
     public static String buildOasFromRoutes(KongService svc, List<KongRoute> routes, String vhost) {
         JsonObject root = new JsonObject();
         root.addProperty("openapi", "3.0.3");
