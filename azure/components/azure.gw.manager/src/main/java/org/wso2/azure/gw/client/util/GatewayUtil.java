@@ -22,6 +22,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 import org.apache.commons.lang3.StringUtils;
+import org.wso2.azure.gw.client.AzureConstants;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.model.API;
 
@@ -116,5 +117,12 @@ public class GatewayUtil {
         } catch (MalformedURLException e) {
             return "Invalid Endpoint URL";
         }
+    }
+
+    public static String validateAzureAPIContextTemplate(String contextTemplate) {
+        if (!contextTemplate.endsWith(AzureConstants.API_CONTEXT_VERSION_PLACEHOLDER)) {
+            return "Context templating not supported for Azure APIs.";
+        }
+        return null;
     }
 }

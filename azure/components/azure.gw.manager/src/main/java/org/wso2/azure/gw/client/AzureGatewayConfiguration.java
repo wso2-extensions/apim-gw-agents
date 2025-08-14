@@ -67,7 +67,7 @@ public class AzureGatewayConfiguration implements GatewayAgentConfiguration {
 
     @Override
     public String getDiscoveryImplementation() {
-        return AzureGatewayDiscovery.class.getName();
+        return AzureFederatedAPIDiscovery.class.getName();
     }
 
     /**
@@ -94,7 +94,7 @@ public class AzureGatewayConfiguration implements GatewayAgentConfiguration {
                 "APIM Service Name", "input", "The name of the Azure API Management service resource.", "", true, false,
                 Collections.emptyList(), false));
         configurationDtoList.add(new ConfigurationDto(AzureConstants.AZURE_ENVIRONMENT_HOSTNAME, "APIM Host Name",
-                "input", "The host name of the Azure API Management service resource.", "azure-api.net", true, false,
+                "input", "The host name of the Azure API Management service resource.", "azure-api.net", false, false,
                 Collections.emptyList(), false));
 
         return configurationDtoList;

@@ -132,6 +132,7 @@ public class AzureGatewayDeployer implements GatewayDeployer {
         List<String> errorList = new ArrayList<>();
 
         errorList.add(GatewayUtil.validateAzureAPIEndpoint(GatewayUtil.getEndpointURL(api)));
+        errorList.add(GatewayUtil.validateAzureAPIContextTemplate(api.getContextTemplate()));
 
         result.setValid(errorList.stream().allMatch(Objects::isNull));
         result.setErrors(errorList.stream().filter(Objects::nonNull).collect(Collectors.toList()));
@@ -147,6 +148,11 @@ public class AzureGatewayDeployer implements GatewayDeployer {
      */
     @Override
     public String getAPIExecutionURL(String externalReference) throws APIManagementException {
+
+        if (externalReference == null || externalReference.isEmpty()) {
+            throw new APIManagementException("External reference cannot be null or empty.");
+        }
+
         StringBuilder resolvedUrl = new StringBuilder(AzureConstants.AZURE_API_EXECUTION_URL_TEMPLATE);
 
         //replace {service_name} placeHolder with actual Service Name
