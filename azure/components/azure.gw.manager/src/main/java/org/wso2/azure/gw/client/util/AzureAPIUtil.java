@@ -64,8 +64,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
+import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
@@ -130,7 +132,9 @@ public class AzureAPIUtil {
                     .withApiVersion(api.getId().getVersion())
                     .withSubscriptionRequired(false)
                     .create();
-            log.info("API deployed successfully to Azure Gateway: " + api.getUuid());
+            if (log.isDebugEnabled()) {
+                log.debug("API deployed successfully to Azure Gateway: " + api.getUuid());
+            }
 
             // Attach CORS and OAuth2 Policies
             String corsPolicyContent = null;
@@ -167,7 +171,12 @@ public class AzureAPIUtil {
                             }
                         }
                         if (corsPolicyContent != null && jwtPolicyContent != null) {
-                            corsPolicyContent = attachPolicyToParentPolicy(corsPolicyContent, jwtPolicyContent);
+                            try {
+                                corsPolicyContent = attachPolicyToParentPolicy(corsPolicyContent, jwtPolicyContent);
+                            } catch (APIManagementException e) {
+                                throw new APIManagementException("Error attaching JWT policy to CORS policy for API: "
+                                        + api.getId(), e);
+                            }
                         }
                         break;
                     }
@@ -187,7 +196,9 @@ public class AzureAPIUtil {
                 }
             }
 
-            log.info("API deployed successfully to Azure Gateway: " + api.getUuid());
+            if (log.isDebugEnabled()) {
+                log.debug("API deployed successfully to Azure Gateway: " + api.getUuid());
+            }
 
             JsonObject referenceArtifact = new JsonObject();
             referenceArtifact.addProperty(AzureConstants.AZURE_EXTERNAL_REFERENCE_UUID, api.getUuid());
@@ -205,32 +216,43 @@ public class AzureAPIUtil {
         dbf.setNamespaceAware(false);
         dbf.setIgnoringComments(false);
         dbf.setCoalescing(true);
+        dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+        dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+        try {
+            dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+        } catch (ParserConfigurationException e) {
+            if (log.isDebugEnabled()) {
+                log.debug("Disabling doctype declaration feature is not supported by the XML parser.", e);
+            }
+        }
         DocumentBuilder db;
 
         try {
             db = dbf.newDocumentBuilder();
 
-            InputStream parentPolicyStream = new ByteArrayInputStream(parentPolicy.getBytes(StandardCharsets.UTF_8));
-
-            Document parentPolicyDoc = db.parse(parentPolicyStream);
+            Document parentPolicyDoc;
+            try (InputStream parentPolicyStream =
+                         new ByteArrayInputStream(parentPolicy.getBytes(StandardCharsets.UTF_8))) {
+                parentPolicyDoc = db.parse(parentPolicyStream);
+            } catch (Exception e) {
+                throw new APIManagementException("Error parsing parent policy XML.", e);
+            }
 
             Element inbound = firstElementByTagName(parentPolicyDoc.getDocumentElement(), "inbound");
             if (inbound == null) {
-                throw new APIManagementException("<inbound> section not found in parent policy. " +
-                        "Returning original policy.");
+                throw new APIManagementException("Invalid policy:<inbound> section not found in parent policy.");
             }
 
             Element cors = firstChildElementByTagName(inbound, "cors");
             if (cors == null) {
-                throw new APIManagementException("<cors> section not found in parent policy. " +
-                        "Returning original policy.");
+                throw new APIManagementException("Invalid policy:<cors> section not found in parent policy. ");
             }
 
             Document jwtDoc = db.parse(new InputSource(new StringReader("<wrap>" + policyToAttach + "</wrap>")));
             Element jwtRoot = jwtDoc.getDocumentElement();
             Node jwtElem = firstChildElement(jwtRoot);
             if (jwtElem == null) {
-                throw new APIManagementException("Policy snippet is empty.");
+                throw new APIManagementException("Invalid policy: Child policy is empty.");
             }
             Node importedJwt = parentPolicyDoc.importNode(jwtElem, true);
 
