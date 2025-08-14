@@ -148,6 +148,11 @@ public class AzureGatewayDeployer implements GatewayDeployer {
      */
     @Override
     public String getAPIExecutionURL(String externalReference) throws APIManagementException {
+
+        if (externalReference == null || externalReference.isEmpty()) {
+            throw new APIManagementException("External reference cannot be null or empty.");
+        }
+
         StringBuilder resolvedUrl = new StringBuilder(AzureConstants.AZURE_API_EXECUTION_URL_TEMPLATE);
 
         //replace {service_name} placeHolder with actual Service Name
