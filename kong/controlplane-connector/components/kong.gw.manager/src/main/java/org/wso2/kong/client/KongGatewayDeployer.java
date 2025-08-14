@@ -29,7 +29,7 @@ import java.util.Collections;
 
 
 /**
- * This class controls the API artifact deployments on the AWS API Gateway.
+ * This class controls the API artifact deployments on the Kong Gateway.
  */
 public class KongGatewayDeployer implements GatewayDeployer {
 
@@ -68,7 +68,7 @@ public class KongGatewayDeployer implements GatewayDeployer {
     @Override
     public String getAPIExecutionURL(String externalReference) throws APIManagementException {
         if (KongAPIUtil.isKubernetesDeployment(environment)) {
-            return KongAPIUtil.getAPIExecutionURLForKubernetes(externalReference);
+            return KongAPIUtil.getAPIExecutionURLForKubernetes(externalReference, null);
         }
         String vhost = environment.getVhosts() != null && !environment.getVhosts().isEmpty()
                 ? environment.getVhosts().get(0).getHost() : "example.com";

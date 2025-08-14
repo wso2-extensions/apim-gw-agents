@@ -275,10 +275,12 @@ public class KongAPIUtil {
      * necessary information.
      *
      * @param externalReference JSON string containing Kong API configuration
+     * @param protocol          The protocol to use (http or https). If null or empty, defaults to https.
      * @return The API execution URL for Kong on Kubernetes
      * @throws APIManagementException If there is an error while constructing the URL.
      */
-    public static String getAPIExecutionURLForKubernetes(String externalReference) throws APIManagementException {
+    public static String getAPIExecutionURLForKubernetes(String externalReference, String protocol)
+            throws APIManagementException {
         try {
             JsonObject config = JsonParser.parseString(externalReference).getAsJsonObject();
 
@@ -290,12 +292,22 @@ public class KongAPIUtil {
             int httpsPort = config.has(KongConstants.KONG_GATEWAY_HTTPS_PORT) ?
                     config.get(KongConstants.KONG_GATEWAY_HTTPS_PORT).getAsInt() :
                     KongConstants.DEFAULT_HTTPS_PORT;
+            int httpPort = config.has(KongConstants.KONG_GATEWAY_HTTP_PORT) ?
+                    config.get(KongConstants.KONG_GATEWAY_HTTP_PORT).getAsInt() :
+                    KongConstants.DEFAULT_HTTP_PORT;
 
             StringBuilder url = new StringBuilder();
-            url.append(KongConstants.HTTPS_PROTOCOL).append(KongConstants.PROTOCOL_SEPARATOR).append(host);
+            if (protocol == null || protocol.isEmpty()) {
+                protocol = KongConstants.HTTPS_PROTOCOL;
+            }
+            url.append(protocol).append(KongConstants.PROTOCOL_SEPARATOR).append(host);
 
-            if (httpsPort != KongConstants.DEFAULT_HTTPS_PORT) {
+            if (protocol.equalsIgnoreCase(
+                    KongConstants.HTTPS_PROTOCOL) && httpsPort != KongConstants.DEFAULT_HTTPS_PORT) {
                 url.append(KongConstants.HOST_PORT_SEPARATOR).append(httpsPort);
+            } else if (protocol.equalsIgnoreCase(
+                    KongConstants.HTTP_PROTOCOL) && httpPort != KongConstants.DEFAULT_HTTP_PORT) {
+                url.append(KongConstants.HOST_PORT_SEPARATOR).append(httpPort);
             }
 
             if (httpContext != null && !httpContext.trim().isEmpty()) {
