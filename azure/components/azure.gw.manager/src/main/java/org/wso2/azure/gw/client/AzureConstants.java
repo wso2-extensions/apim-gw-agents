@@ -37,7 +37,12 @@ public class AzureConstants {
     public static final String AZURE_OPENAPI_EXPORT_FORMAT = "openapi-link";
     public static final String AZURE_VERSION_SET_ID_PREFIX = "WSO2APIVersionSet-";
 
+    public static final String AZURE_OPERATION_POLICY_NAME = "azureOAuth2";
+    public static final String AZURE_OPERATION_POLICY_PARAMETER_OPENID_URL = "openIdURL";
+
     public static final String GATEWAY_FEATURE_CATALOG_FILENAME = "GatewayFeatureCatalog.json";
+    public static final String AZURE_CORS_POLICY_FILENAME = "AzureCORSPolicy.xml";
+    public static final String AZURE_JWT_POLICY_FILENAME = "AzureJWTPolicy.xml";
 
     // Environment related constants
     public static final String AZURE_ENVIRONMENT_TENANT_ID = "tenant_id";
