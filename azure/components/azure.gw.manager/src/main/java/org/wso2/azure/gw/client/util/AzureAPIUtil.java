@@ -54,12 +54,14 @@ import org.wso2.carbon.apimgt.api.model.API;
 import org.wso2.carbon.apimgt.api.model.APIIdentifier;
 import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.api.model.OperationPolicy;
+import org.wso2.carbon.apimgt.api.model.Tier;
 import org.xml.sax.InputSource;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 import javax.xml.parsers.DocumentBuilder;
@@ -193,13 +195,12 @@ public class AzureAPIUtil {
             Gson gson = new Gson();
             return gson.toJson(referenceArtifact);
         } catch (Exception e) {
-            log.error("Error while deploying API to Azure Gateway: " + api.getId(), e);
             throw new APIManagementException("Error while deploying API to Azure Gateway: " + api.getId(), e);
         }
     }
 
     private static String attachPolicyToParentPolicy(String parentPolicy, String policyToAttach)
-            throws APIManagementException{
+            throws APIManagementException {
         DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
         dbf.setNamespaceAware(false);
         dbf.setIgnoringComments(false);
@@ -215,12 +216,14 @@ public class AzureAPIUtil {
 
             Element inbound = firstElementByTagName(parentPolicyDoc.getDocumentElement(), "inbound");
             if (inbound == null) {
-                throw new APIManagementException("<inbound> section not found in parent policy. Returning original policy.");
+                throw new APIManagementException("<inbound> section not found in parent policy. " +
+                        "Returning original policy.");
             }
 
             Element cors = firstChildElementByTagName(inbound, "cors");
             if (cors == null) {
-                throw new APIManagementException("<cors> section not found in parent policy. Returning original policy.");
+                throw new APIManagementException("<cors> section not found in parent policy. " +
+                        "Returning original policy.");
             }
 
             Document jwtDoc = db.parse(new InputSource(new StringReader("<wrap>" + policyToAttach + "</wrap>")));
@@ -377,6 +380,7 @@ public class AzureAPIUtil {
             api.setEndpointConfig(AzureAPIUtil.buildEndpointConfigJson(
                     apiContract.serviceUrl(), apiContract.serviceUrl(), false));
         }
+        api.setAvailableTiers(new HashSet<>(java.util.Collections.singleton(new Tier("Unlimited"))));
         return api;
     }
 

@@ -37,6 +37,8 @@ public class AzureConstants {
     public static final String AZURE_OPENAPI_EXPORT_FORMAT = "openapi-link";
     public static final String AZURE_VERSION_SET_ID_PREFIX = "WSO2APIVersionSet-";
 
+    public static final String API_CONTEXT_VERSION_PLACEHOLDER = "{version}";
+
     public static final String AZURE_OPERATION_POLICY_NAME = "azureOAuth2";
     public static final String AZURE_OPERATION_POLICY_PARAMETER_OPENID_URL = "openIdURL";
 

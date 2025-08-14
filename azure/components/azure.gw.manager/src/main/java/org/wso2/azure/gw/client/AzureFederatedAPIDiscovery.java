@@ -59,7 +59,7 @@ public class AzureFederatedAPIDiscovery implements FederatedAPIDiscovery {
     @Override
     public void init(Environment environment, String organization)
             throws APIManagementException {
-        log.debug("Initializing AWS Gateway Deployer for environment: " + environment.getName());
+        log.info("Initializing Azure Gateway Deployer for environment: " + environment.getName());
         try {
 
             String tenantId = environment.getAdditionalProperties().get(AzureConstants.AZURE_ENVIRONMENT_TENANT_ID);
@@ -94,7 +94,7 @@ public class AzureFederatedAPIDiscovery implements FederatedAPIDiscovery {
                 throw new APIManagementException("Missing required Azure environment configurations");
             }
 
-            log.debug("Initialization completed Azure Gateway Deployer for environment: " + environment.getName());
+            log.info("Initialization completed Azure Gateway Discovery for environment: " + environment.getName());
 
         } catch (Exception e) {
             throw new APIManagementException("Error occurred while initializing Azure Gateway Deployer", e);
