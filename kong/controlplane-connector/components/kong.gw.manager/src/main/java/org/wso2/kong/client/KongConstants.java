@@ -41,8 +41,10 @@ public class KongConstants {
     public static final String KONG_GATEWAY_HTTPS_PORT = "httpsPort";
 
     public static final String HTTPS_PROTOCOL = "https";
+    public static final String HTTP_PROTOCOL = "http";
     public static final String PROTOCOL_SEPARATOR = "://";
     public static final String HOST_PORT_SEPARATOR = ":";
     public static final String CONTEXT_SEPARATOR = "/";
     public static final int DEFAULT_HTTPS_PORT = 443;
+    public static final int DEFAULT_HTTP_PORT = 80;
 }
