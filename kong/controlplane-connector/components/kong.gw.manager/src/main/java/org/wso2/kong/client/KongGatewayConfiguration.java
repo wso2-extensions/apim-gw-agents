@@ -26,6 +26,7 @@ import org.osgi.service.component.annotations.Component;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.model.ConfigurationDto;
 import org.wso2.carbon.apimgt.api.model.GatewayAgentConfiguration;
+import org.wso2.carbon.apimgt.api.model.GatewayMode;
 import org.wso2.carbon.apimgt.api.model.GatewayPortalConfiguration;
 
 import java.io.InputStream;
@@ -59,6 +60,15 @@ public class KongGatewayConfiguration implements GatewayAgentConfiguration {
 
     public String getDiscoveryImplementation() {
         return KongFederatedAPIDiscovery.class.getName();
+    }
+
+    @Override
+    public List<String> getSupportedModes() {
+        List<String> supportedModes = new ArrayList<>();
+        supportedModes.add(GatewayMode.WRITE_ONLY.getMode());
+        supportedModes.add(GatewayMode.READ_ONLY.getMode());
+        supportedModes.add(GatewayMode.READ_WRITE.getMode());
+        return supportedModes;
     }
 
     @Override
