@@ -50,5 +50,6 @@ public class KongConstants {
 
     // Kong Plugin Types
     public static final String KONG_CORS_PLUGIN_TYPE = "cors";
-    public static final String KONG_RATELIMIT_PLUGIN_TYPE = "rate-limiting-advanced";
+    public static final String KONG_RATELIMIT_ADVANCED_PLUGIN_TYPE = "rate-limiting-advanced";
+    public static final String KONG_RATELIMIT_PLUGIN_TYPE = "rate-limiting";
 }
