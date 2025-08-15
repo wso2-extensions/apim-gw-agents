@@ -21,6 +21,7 @@ package org.wso2.kong.client;
 import feign.Headers;
 import feign.Param;
 import feign.RequestLine;
+import org.wso2.kong.client.model.KongPlugin;
 import org.wso2.kong.client.model.KongRoute;
 import org.wso2.kong.client.model.KongService;
 import org.wso2.kong.client.model.PagedResponse;
@@ -54,6 +55,32 @@ public interface KongKonnectApi {
   KongRoute createRouteForService(@Param("cpId") String controlPlaneId,
                                   @Param("serviceId") String serviceId,
                                   KongRoute body);
+
+  // List plugins bound to a specific service
+  @RequestLine("GET /v2/control-planes/{cpId}/core-entities/services/{serviceId}/plugins?size={size}")
+  @Headers({"Accept: application/json"})
+  PagedResponse<KongPlugin> listPluginsByServiceId(@Param("cpId") String controlPlaneId,
+                                                   @Param("serviceId") String serviceId,
+                                                   @Param("size") int size);
+
+  // (Optional) create a plugin on a service
+  @RequestLine("POST /v2/control-planes/{cpId}/core-entities/services/{serviceId}/plugins")
+  @Headers({"Accept: application/json", "Content-Type: application/json"})
+  KongPlugin createPluginForService(@Param("cpId") String controlPlaneId,
+                                    @Param("serviceId") String serviceId,
+                                    KongPlugin body);
+
+  // (Optional) update/delete by plugin id
+  @RequestLine("PATCH /v2/control-planes/{cpId}/core-entities/plugins/{pluginId}")
+  @Headers({"Accept: application/json", "Content-Type: application/json"})
+  KongPlugin patchPlugin(@Param("cpId") String controlPlaneId,
+                         @Param("pluginId") String pluginId,
+                         KongPlugin body);
+
+  @RequestLine("DELETE /v2/control-planes/{cpId}/core-entities/plugins/{pluginId}")
+  @Headers({"Accept: application/json"})
+  void deletePlugin(@Param("cpId") String controlPlaneId,
+                    @Param("pluginId") String pluginId);
 
   // Routes
   @RequestLine("GET /v2/control-planes/{cpId}/core-entities/routes?size={size}")
