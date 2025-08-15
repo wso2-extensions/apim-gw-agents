@@ -54,7 +54,6 @@ public class AWSFederatedAPIDiscovery implements FederatedAPIDiscovery {
     private String region;
     private String stage;
     private JsonObject deploymentConfigObject;
-    private List<String> apisDeployedInGatewayEnv;
 
     @Override
     public void init(Environment environment, String organization)
@@ -63,7 +62,6 @@ public class AWSFederatedAPIDiscovery implements FederatedAPIDiscovery {
         try {
             this.environment = environment;
             this.organization = organization;
-            this.apisDeployedInGatewayEnv = apisDeployedInGatewayEnv;
             this.region = environment.getAdditionalProperties().get(AWSConstants.AWS_ENVIRONMENT_REGION);
             this.stage = environment.getAdditionalProperties().get(AWSConstants.AWS_API_STAGE);
 
@@ -104,6 +102,7 @@ public class AWSFederatedAPIDiscovery implements FederatedAPIDiscovery {
             }
             String apiDefinition = AWSAPIUtil.getRestApiDefinition(apiGatewayClient, restApi.id(), stage);
             API api = AWSAPIUtil.restAPItoAPI(restApi, apiDefinition, organization, environment);
+            AWSAPIUtil.setEndpointConfig(api, restApi, apiGatewayClient);
             retrievedAPIs.add(api);
         }
         return retrievedAPIs;

@@ -18,6 +18,7 @@
 
 package org.wso2.aws.client.util;
 
+import com.google.gson.JsonObject;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -43,6 +44,8 @@ import software.amazon.awssdk.services.apigateway.model.GetDeploymentsRequest;
 import software.amazon.awssdk.services.apigateway.model.GetDeploymentsResponse;
 import software.amazon.awssdk.services.apigateway.model.GetExportRequest;
 import software.amazon.awssdk.services.apigateway.model.GetExportResponse;
+import software.amazon.awssdk.services.apigateway.model.GetIntegrationRequest;
+import software.amazon.awssdk.services.apigateway.model.GetIntegrationResponse;
 import software.amazon.awssdk.services.apigateway.model.GetMethodRequest;
 import software.amazon.awssdk.services.apigateway.model.GetMethodResponse;
 import software.amazon.awssdk.services.apigateway.model.GetResourcesRequest;
@@ -78,6 +81,10 @@ import java.util.regex.Pattern;
 
 import static org.wso2.aws.client.AWSConstants.JSON_PAYLOAD_TYPE;
 import static org.wso2.aws.client.AWSConstants.OPEN_API_VERSION;
+import static org.wso2.aws.client.AWSConstants.PRODUCTION_ENDPOINTS;
+import static org.wso2.aws.client.AWSConstants.SANDBOX_ENDPOINTS;
+import static org.wso2.aws.client.AWSConstants.TEMPLATE_NOT_SUPPORTED_PROP;
+import static org.wso2.aws.client.AWSConstants.URL_PROP;
 import static org.wso2.aws.client.AWSConstants.YAML_PAYLOAD_TYPE;
 
 /**
@@ -599,4 +606,45 @@ public class AWSAPIUtil {
         return api;
     }
 
+    public static void setEndpointConfig(API api, RestApi restApi, ApiGatewayClient client) {
+        String restApiId = restApi.id();
+        String endpointUrls = getEndpointUrls(restApiId, client);
+        if (endpointUrls != null) {
+            JsonObject endpointConfig = new JsonObject();
+            endpointConfig.addProperty("endpoint_type", "http");
+            endpointConfig.addProperty("failOver", false);
+
+            JsonObject prod = new JsonObject();
+            prod.addProperty(TEMPLATE_NOT_SUPPORTED_PROP, false);
+            prod.addProperty(URL_PROP, endpointUrls);
+
+            JsonObject sand = new JsonObject();
+            sand.addProperty(TEMPLATE_NOT_SUPPORTED_PROP, false);
+            sand.addProperty(URL_PROP, endpointUrls);
+            endpointConfig.add(PRODUCTION_ENDPOINTS, prod);
+            endpointConfig.add(SANDBOX_ENDPOINTS, sand);
+            api.setEndpointConfig(endpointConfig.toString());
+        } else {
+            log.warn("No endpoint URLs found for API: " + restApi.name());
+        }
+    }
+
+    private static String getEndpointUrls(String restApiId, ApiGatewayClient client) {
+        GetResourcesResponse resources = client.getResources(GetResourcesRequest.builder()
+                .restApiId(restApiId)
+                .build());
+
+        if (resources.hasItems()) {
+            GetIntegrationRequest request = GetIntegrationRequest.builder()
+                    .restApiId(restApiId)
+                    .resourceId(resources.items().get(0).id())
+                    .httpMethod(resources.items().get(0).resourceMethods().keySet().iterator().next().toString())
+                    .build();
+
+            GetIntegrationResponse response = client.getIntegration(request);
+            return response.uri();
+        } else {
+            return null;
+        }
+    }
 }
