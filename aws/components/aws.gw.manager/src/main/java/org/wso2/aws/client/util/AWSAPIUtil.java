@@ -606,6 +606,13 @@ public class AWSAPIUtil {
         return api;
     }
 
+    /**
+     * Sets the endpoint configuration for the API based on the provided RestApi.
+     *
+     * @param api      The API object to set the endpoint configuration for.
+     * @param restApi  The RestApi object containing endpoint information.
+     * @param client   The ApiGatewayClient to interact with AWS API Gateway.
+     */
     public static void setEndpointConfig(API api, RestApi restApi, ApiGatewayClient client) {
         String restApiId = restApi.id();
         String endpointUrls = getEndpointUrls(restApiId, client);
