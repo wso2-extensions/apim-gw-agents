@@ -162,15 +162,36 @@ public class KongFederatedAPIDiscovery implements FederatedAPIDiscovery {
             api.setEndpointConfig(KongAPIUtil.buildEndpointConfigJson(endpoint, endpoint, false));
             api.setAvailableTiers(new HashSet<>(java.util.Collections.singleton(new Tier("Unlimited"))));
 
+            String selectedAPILevelRateLimitPolicy = null;
+
             for (KongPlugin plugin : plugins) {
                 String pluginType = plugin.getName();
-                if (pluginType.equals(KongConstants.KONG_CORS_PLUGIN_TYPE)) {
-                    // Handle CORS plugin
+
+                if (KongConstants.KONG_CORS_PLUGIN_TYPE.equals(pluginType)) {
                     api.setCorsConfiguration(KongAPIUtil.kongCorsToWso2Cors(plugin));
-                } else if (pluginType.equals(KongConstants.KONG_RATELIMIT_PLUGIN_TYPE)) {
-                    // Handle Rate Limiting plugin
-                    api.setApiLevelPolicy(KongAPIUtil.kongRateLimitingToWso2Policy(plugin));
+                    continue;
                 }
+
+                if (KongConstants.KONG_RATELIMIT_ADVANCED_PLUGIN_TYPE.equals(pluginType)
+                        && selectedAPILevelRateLimitPolicy == null) {
+                    String p = KongAPIUtil.kongRateLimitingToWso2Policy(plugin);
+                    if (p != null) {
+                        selectedAPILevelRateLimitPolicy = p;
+                    }
+                    continue;
+                }
+
+                if (KongConstants.KONG_RATELIMIT_PLUGIN_TYPE.equals(pluginType)
+                        && selectedAPILevelRateLimitPolicy == null) {
+                    String p = KongAPIUtil.kongRateLimitingStandardToWso2Policy(plugin);
+                    if (p != null) {
+                        selectedAPILevelRateLimitPolicy = p;
+                    }
+                }
+            }
+
+            if (selectedAPILevelRateLimitPolicy != null) {
+                api.setApiLevelPolicy(selectedAPILevelRateLimitPolicy);
             }
 
             retrievedAPIs.add(api);

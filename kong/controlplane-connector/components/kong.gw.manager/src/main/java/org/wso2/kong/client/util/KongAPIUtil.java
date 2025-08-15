@@ -237,6 +237,78 @@ public class KongAPIUtil {
         return null;
     }
 
+    /**
+     * Transform a standard Kong "rate-limiting" plugin to a WSO2 APIM API-level policy string.
+     * Example:
+     *   config.minute = 4  -> "4PerMin"
+     *
+     * Preference order if multiple are set: minute -> hour -> day -> month -> year -> second.
+     * Returns null if plugin is disabled or no positive limits are present.
+     */
+    public static String kongRateLimitingStandardToWso2Policy(KongPlugin plugin) {
+        if (plugin == null || plugin.getConfig() == null) {
+            return null;
+        }
+        if (plugin.getEnabled() != null && !plugin.getEnabled()) {
+            return null;
+        }
+
+        JsonObject cfg = plugin.getConfig();
+
+        Integer minute = getInt(cfg, "minute");
+        if (isPositive(minute)) {
+            return minute + "PerMin";
+        }
+
+        Integer hour = getInt(cfg, "hour");
+        if (isPositive(hour)) {
+            return hour + "PerHour";
+        }
+
+        Integer day = getInt(cfg, "day");
+        if (isPositive(day)) {
+            return day + "PerDay";
+        }
+
+        Integer month = getInt(cfg, "month");
+        if (isPositive(month)) {
+            return month + "PerMonth";
+        }
+
+        Integer year = getInt(cfg, "year");
+        if (isPositive(year)) {
+            return year + "PerYear";
+        }
+
+        Integer second = getInt(cfg, "second");
+        if (isPositive(second)) {
+            return second + "PerSec";
+        }
+
+        return null;
+    }
+
+    // ---- helpers ----
+    private static Integer getInt(JsonObject obj, String key) {
+        if (obj == null || !obj.has(key) || obj.get(key).isJsonNull()) {
+            return null;
+        }
+        JsonElement el = obj.get(key);
+        if (el.isJsonPrimitive()) {
+            JsonPrimitive p = el.getAsJsonPrimitive();
+            if (p.isNumber()) {
+                try {
+                    return p.getAsInt();
+                } catch (NumberFormatException ignore) { /* fall through */ }
+            }
+        }
+        return null;
+    }
+
+    private static boolean isPositive(Integer v) {
+        return v != null && v > 0;
+    }
+
     public static String buildOasFromRoutes(KongService svc, List<KongRoute> routes, String vhost) {
         JsonObject root = new JsonObject();
         root.addProperty("openapi", "3.0.3");
