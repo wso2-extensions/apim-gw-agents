@@ -1,0 +1,78 @@
+name: Release APIM-GATEWAY Agent
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        required: true
+        type: string
+        description: "Release Version"
+      next_version:
+        type: string
+        description: "Next Development Version"
+  pull_request_target:
+    types:
+      - labeled
+      - closed
+    paths:
+      - '**/common-gradle-scripts/**'
+      - '**/common-agent/**'
+      - '**/apk/**'
+    branches:
+      - 'master'
+env:
+  GH_TOKEN: ${{ secrets.APIM_GW_AGENT_TOKEN }}
+concurrency:
+  group: apim-apk-agent-${{ github.event.number || github.run_id }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: "1.24"
+      - name: Install Revive
+        shell: sh
+        run: |
+          go install github.com/mgechev/revive@v1.3.4
+      - name: Checkout product-apim-tooling-repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: "0"
+          token: ${{ secrets.APIM_GW_AGENT_TOKEN }}
+      - name: Set release username and email
+        shell: sh
+        run: |
+          git config --global user.name ${{ secrets.APIM_GW_AGENT_USER }}
+          git config --global user.email ${{ secrets.APIM_GW_AGENT_EMAIL }}
+      - name: checkout pull request and merge.
+        shell: sh
+        if: github.event_name == 'pull_request_target' && contains(github.event.label.name, 'trigger-action')
+        run: |
+          gh pr checkout ${{ github.event.number }} -b pr-${{ github.event.number }}
+          git checkout pr-${{ github.event.number }}
+          git merge origin/master
+      - name: Run Release Gradle build
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.release_version != '' && github.event.inputs.next_version != ''   
+        run: |
+          git checkout -b apim-gw-agents-1.x
+          git push origin apim-gw-agents-1.x
+          cd common-agent
+          ./gradlew release -Prelease.useAutomaticVersion=true -Pdocker_organization=${{ secrets.DOCKER_ORGANIZATION }} -Pdocker_username=${{ secrets.DOCKER_USERNAME }} -Pdocker_password=${{ secrets.DOCKER_PASSWORD }} -Prelease.releaseVersion=${{ github.event.inputs.release_version }} -Prelease.newVersion=${{ github.event.inputs.next_version }} -PmultiArch=true -PreleaseBranch=apim-gw-agents-1.x
+      - name: Run Gradle Build
+        run: |
+          cd common-agent
+          ./gradlew build
+      - name: Push docker images to docker hub
+        if: github.event_name == 'pull_request_target' && github.event.action == 'closed' && github.event.pull_request.merged == true
+        run: |
+          cd common-agent
+          ./gradlew docker_push -Pdocker_organization=${{ secrets.DOCKER_ORGANIZATION }} -Pdocker_username=${{ secrets.DOCKER_USERNAME }} -Pdocker_password=${{ secrets.DOCKER_PASSWORD }} -Pimage_version=latest -PmultiArch=true
+          ./gradlew docker_push -Pdocker_organization=${{ secrets.DOCKER_ORGANIZATION }} -Pdocker_username=${{ secrets.DOCKER_USERNAME }} -Pdocker_password=${{ secrets.DOCKER_PASSWORD }} -Pimage_version=${{ github.sha }} -PmultiArch=true
+      - name: run codecov
+        uses: codecov/codecov-action@v3
+        with:
+          verbose: true # optional (default = false)
+          directory: common-agent
+          flags: apim-gw-agents
