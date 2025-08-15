@@ -95,7 +95,6 @@ public class AWSFederatedAPIDiscovery implements FederatedAPIDiscovery {
             }
             String apiDefinition = AWSAPIUtil.getRestApiDefinition(apiGatewayClient, restApi.id(), stage);
             API api = AWSAPIUtil.restAPItoAPI(restApi, apiDefinition, organization, environment);
-            AWSAPIUtil.updateAPIWithEndpoints(api, restApi, environment, region);
             retrievedAPIs.add(api);
         }
         return retrievedAPIs;

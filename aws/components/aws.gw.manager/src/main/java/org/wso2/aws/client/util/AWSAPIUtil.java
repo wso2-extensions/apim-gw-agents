@@ -46,6 +46,8 @@ import software.amazon.awssdk.services.apigateway.model.GetDeploymentsRequest;
 import software.amazon.awssdk.services.apigateway.model.GetDeploymentsResponse;
 import software.amazon.awssdk.services.apigateway.model.GetExportRequest;
 import software.amazon.awssdk.services.apigateway.model.GetExportResponse;
+import software.amazon.awssdk.services.apigateway.model.GetIntegrationRequest;
+import software.amazon.awssdk.services.apigateway.model.GetIntegrationResponse;
 import software.amazon.awssdk.services.apigateway.model.GetMethodRequest;
 import software.amazon.awssdk.services.apigateway.model.GetMethodResponse;
 import software.amazon.awssdk.services.apigateway.model.GetResourcesRequest;
@@ -608,41 +610,5 @@ public class AWSAPIUtil {
         api.setGatewayVendor(environment.getGatewayType());
         api.setGatewayType("external");
         return api;
-    }
-
-    public static void updateAPIWithEndpoints(API api, RestApi discoveredAPI, Environment environment, String region) {
-        String endpointTemplate = environment.getApiGatewayEndpoint();
-        String apiId = discoveredAPI.id();      // Replace with your actual API ID
-
-        // Replace placeholders
-        String resolved = endpointTemplate
-                .replace(API_ID_PLACEHOLDER, apiId)
-                .replace(API_REGION_PLACEHOLDER, region);
-        // Split by comma to get individual endpoints
-        String[] endpoints = resolved.split(",");
-
-        // Find the HTTP (port 80) endpoint
-        String httpEndpoint = null;
-        for (String endpoint : endpoints) {
-            if (endpoint.trim().startsWith("http://")) {
-                httpEndpoint = endpoint.trim();
-                break;
-            }
-        }
-        JsonObject endpointConfig = new JsonObject();
-        endpointConfig.addProperty("endpoint_type", "http");
-        endpointConfig.addProperty("failOver", false);
-
-        JsonObject prod = new JsonObject();
-        prod.addProperty(TEMPLATE_NOT_SUPPORTED_PROP, false);
-        prod.addProperty(URL_PROP, httpEndpoint);
-
-        JsonObject sand = new JsonObject();
-        sand.addProperty(TEMPLATE_NOT_SUPPORTED_PROP, false);
-        sand.addProperty(URL_PROP, httpEndpoint);
-        endpointConfig.add(PRODUCTION_ENDPOINTS, prod);
-        endpointConfig.add(SANDBOX_ENDPOINTS, sand);
-
-        api.setEndpointConfig(endpointConfig.toString());
     }
 }
