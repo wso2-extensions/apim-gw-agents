@@ -40,4 +40,9 @@ public class AWSConstants {
     public static final String OPEN_API_VERSION = "oas30";
     public static final String YAML_PAYLOAD_TYPE = "application/yaml";
     public static final String JSON_PAYLOAD_TYPE = "application/json";
+
+    public static final String PRODUCTION_ENDPOINTS = "production_endpoints";
+    public static final String SANDBOX_ENDPOINTS = "sandbox_endpoints";
+    public static final String TEMPLATE_NOT_SUPPORTED_PROP = "template_not_supported";
+    public static final String URL_PROP = "url";
 }
