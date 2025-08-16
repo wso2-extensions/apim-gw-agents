@@ -44,8 +44,8 @@ func CreateAPIYaml(apiCPEvent *APICPEvent) (string, string, string) {
 	sandCount := 0
 	primaryProductionEndpointID := ""
 	primarySandboxEndpointID := ""
-	primaryProdcutionURL := ""
-	primarySandboxURL := ""
+	// primaryProdcutionURL := ""
+	// primarySandboxURL := ""
 	for _, endpoint := range multiEndpoints.ProdEndpoints {
 		prodCount++
 		var endpointName string
@@ -61,7 +61,7 @@ func CreateAPIYaml(apiCPEvent *APICPEvent) (string, string, string) {
 		endpointUUID := uuid.New().String() + "--PRODUCTION"
 		if prodCount == 1 {
 			primaryProductionEndpointID = endpointUUID
-			primaryProdcutionURL = prodEndpoint
+			//primaryProdcutionURL = prodEndpoint
 		}
 		apimEndpints = append(apimEndpints, APIMEndpoint{
 			DeploymentStage: "PRODUCTION",
@@ -105,7 +105,7 @@ func CreateAPIYaml(apiCPEvent *APICPEvent) (string, string, string) {
 		endpointUUID := uuid.New().String() + "--SANDBOX"
 		if sandCount == 1 {
 			primarySandboxEndpointID = endpointUUID
-			primarySandboxURL = sandEndpoint
+			//primarySandboxURL = sandEndpoint
 		}
 		apimEndpints = append(apimEndpints, APIMEndpoint{
 			DeploymentStage: "SANDBOX",
@@ -139,13 +139,14 @@ func CreateAPIYaml(apiCPEvent *APICPEvent) (string, string, string) {
 		logger.LoggerMgtServer.Errorf("Error occured while extracting operations from open API: %s, \nError: %+v", apiCPEvent.API.Definition, operationsErr)
 		operations = []APIOperation{}
 	}
-	sandEndpoint := ""
+	sandEndpoint := apiCPEvent.API.SandEndpoint
 	if apiCPEvent.API.SandEndpoint != "" {
 		sandEndpoint = fmt.Sprintf("%s://%s", apiCPEvent.API.EndpointProtocol, apiCPEvent.API.SandEndpoint)
 	}
-	prodEndpoint := ""
+	prodEndpoint := apiCPEvent.API.ProdEndpoint
+	logger.LoggerMgtServer.Infof("Sandbox Endpoint: %s, Production Endpoint: %s", sandEndpoint, prodEndpoint)
 	if apiCPEvent.API.ProdEndpoint != "" {
-		prodEndpoint = fmt.Sprintf("%s://%s", apiCPEvent.API.EndpointProtocol, apiCPEvent.API.ProdEndpoint)
+		prodEndpoint = fmt.Sprintf("%s://%s", "http", apiCPEvent.API.ProdEndpoint)
 	}
 	authHeader := apiCPEvent.API.AuthHeader
 	apiKeyHeader := apiCPEvent.API.APIKeyHeader
@@ -185,43 +186,43 @@ func CreateAPIYaml(apiCPEvent *APICPEvent) (string, string, string) {
 			"type":                         apiType,
 			"transport":                    []string{"http", "https"},
 			"endpointConfig": map[string]interface{}{
-				"endpoint_type": apiCPEvent.API.EndpointProtocol,
+				"endpoint_type": "http",
 				"sandbox_endpoints": map[string]interface{}{
 					"url": sandEndpoint,
 				},
 				"production_endpoints": map[string]interface{}{
 					"url": prodEndpoint,
 				},
-				"endpoint_security": map[string]interface{}{
-					"sandbox": map[string]interface{}{
-						"apiKeyValue":                      apiCPEvent.API.SandEndpointSecurity.APIKeyValue,
-						"apiKeyIdentifier":                 apiCPEvent.API.SandEndpointSecurity.APIKeyName,
-						"apiKeyIdentifierType":             "HEADER",
-						"type":                             apiCPEvent.API.SandEndpointSecurity.SecurityType,
-						"username":                         apiCPEvent.API.SandEndpointSecurity.BasicUsername,
-						"password":                         apiCPEvent.API.SandEndpointSecurity.BasicPassword,
-						"enabled":                          apiCPEvent.API.SandEndpointSecurity.Enabled,
-						"additionalProperties":             map[string]interface{}{},
-						"customParameters":                 map[string]interface{}{},
-						"connectionTimeoutDuration":        -1.0,
-						"socketTimeoutDuration":            -1.0,
-						"connectionRequestTimeoutDuration": -1.0,
-					},
-					"production": map[string]interface{}{
-						"apiKeyValue":                      apiCPEvent.API.ProdEndpointSecurity.APIKeyValue,
-						"apiKeyIdentifier":                 apiCPEvent.API.ProdEndpointSecurity.APIKeyName,
-						"apiKeyIdentifierType":             "HEADER",
-						"type":                             apiCPEvent.API.ProdEndpointSecurity.SecurityType,
-						"username":                         apiCPEvent.API.ProdEndpointSecurity.BasicUsername,
-						"password":                         apiCPEvent.API.ProdEndpointSecurity.BasicPassword,
-						"enabled":                          apiCPEvent.API.ProdEndpointSecurity.Enabled,
-						"additionalProperties":             map[string]interface{}{},
-						"customParameters":                 map[string]interface{}{},
-						"connectionTimeoutDuration":        -1.0,
-						"socketTimeoutDuration":            -1.0,
-						"connectionRequestTimeoutDuration": -1.0,
-					},
-				},
+				// 	"endpoint_security": map[string]interface{}{
+				// 		"sandbox": map[string]interface{}{
+				// 			"apiKeyValue":                      apiCPEvent.API.SandEndpointSecurity.APIKeyValue,
+				// 			"apiKeyIdentifier":                 apiCPEvent.API.SandEndpointSecurity.APIKeyName,
+				// 			"apiKeyIdentifierType":             "HEADER",
+				// 			"type":                             apiCPEvent.API.SandEndpointSecurity.SecurityType,
+				// 			"username":                         apiCPEvent.API.SandEndpointSecurity.BasicUsername,
+				// 			"password":                         apiCPEvent.API.SandEndpointSecurity.BasicPassword,
+				// 			"enabled":                          apiCPEvent.API.SandEndpointSecurity.Enabled,
+				// 			"additionalProperties":             map[string]interface{}{},
+				// 			"customParameters":                 map[string]interface{}{},
+				// 			"connectionTimeoutDuration":        -1.0,
+				// 			"socketTimeoutDuration":            -1.0,
+				// 			"connectionRequestTimeoutDuration": -1.0,
+				// 		},
+				// 		"production": map[string]interface{}{
+				// 			"apiKeyValue":                      apiCPEvent.API.ProdEndpointSecurity.APIKeyValue,
+				// 			"apiKeyIdentifier":                 apiCPEvent.API.ProdEndpointSecurity.APIKeyName,
+				// 			"apiKeyIdentifierType":             "HEADER",
+				// 			"type":                             apiCPEvent.API.ProdEndpointSecurity.SecurityType,
+				// 			"username":                         apiCPEvent.API.ProdEndpointSecurity.BasicUsername,
+				// 			"password":                         apiCPEvent.API.ProdEndpointSecurity.BasicPassword,
+				// 			"enabled":                          apiCPEvent.API.ProdEndpointSecurity.Enabled,
+				// 			"additionalProperties":             map[string]interface{}{},
+				// 			"customParameters":                 map[string]interface{}{},
+				// 			"connectionTimeoutDuration":        -1.0,
+				// 			"socketTimeoutDuration":            -1.0,
+				// 			"connectionRequestTimeoutDuration": -1.0,
+				// 	},
+				// },
 			},
 			"policies":             []string{"Unlimited"},
 			"gatewayType":          "wso2/apk",
@@ -232,6 +233,7 @@ func CreateAPIYaml(apiCPEvent *APICPEvent) (string, string, string) {
 			"authorizationHeader":  authHeader,
 			"apiKeyHeader":         apiKeyHeader,
 			"scopes":               scopes,
+			"initiatedFromGateway": true,
 		},
 	}
 	if len(subTypeConfiguration) > 0 {
@@ -242,9 +244,9 @@ func CreateAPIYaml(apiCPEvent *APICPEvent) (string, string, string) {
 	// if apiCPEvent.API.SandEndpoint == "" {
 	delete(data["data"].(map[string]interface{})["endpointConfig"].(map[string]interface{}), "sandbox_endpoints")
 	// }
-	if apiCPEvent.API.ProdEndpoint == "" {
-		delete(data["data"].(map[string]interface{})["endpointConfig"].(map[string]interface{}), "production_endpoints")
-	}
+	// if apiCPEvent.API.ProdEndpoint == "" {
+	// 	delete(data["data"].(map[string]interface{})["endpointConfig"].(map[string]interface{}), "production_endpoints")
+	// }
 	if apiCPEvent.API.CORSPolicy != nil {
 		data["data"].(map[string]interface{})["corsConfiguration"] = map[string]interface{}{
 			"corsConfigurationEnabled":      true,
@@ -387,7 +389,7 @@ func CreateAPIYaml(apiCPEvent *APICPEvent) (string, string, string) {
 		// Depending on PRODUCTION or SANDBOX, fill the right endpoints key
 		if e.DeploymentStage == "PRODUCTION" {
 			configMap["production_endpoints"] = map[string]interface{}{
-				"url": e.EndpointConfig.ProductionEndpoints.URL,
+				"url": "htts://pp.cm",
 			}
 		} else if e.DeploymentStage == "SANDBOX" {
 			configMap["sandbox_endpoints"] = map[string]interface{}{
@@ -476,10 +478,10 @@ func CreateAPIYaml(apiCPEvent *APICPEvent) (string, string, string) {
 		data["data"].(map[string]interface{})["endpointConfig"] = map[string]interface{}{
 			"endpoint_type": apiCPEvent.API.EndpointProtocol,
 			"sandbox_endpoints": map[string]interface{}{
-				"url": primarySandboxURL,
+				"url": "http://cw",
 			},
 			"production_endpoints": map[string]interface{}{
-				"url": primaryProdcutionURL,
+				"url": "http://cw",
 			},
 			"endpoint_security": map[string]interface{}{
 				"sandbox": map[string]interface{}{

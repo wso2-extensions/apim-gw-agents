@@ -89,11 +89,13 @@ func StartInternalServer(port uint) {
 				event.API.Definition = utils.OpenAPIDefaultYaml
 			}
 			if strings.EqualFold(event.API.APIType, "rest") {
+				logger.LoggerMgtServer.Info("aaaaa")
 				yaml, errJSONToYaml := mgtServer.JSONToYAML(event.API.Definition)
 				if errJSONToYaml == nil {
 					event.API.Definition = yaml
 				}
 			}
+			logger.LoggerMgtServer.Infof("ssss", &event)
 			apiYaml, definition, endpointsYaml := mgtServer.CreateAPIYaml(&event)
 			deploymentContent := mgtServer.CreateDeploymentYaml(event.API.Vhost)
 			logger.LoggerMgtServer.Debugf("Created apiYaml : %s, \n\n\n created definition file: %s, \n\n\n created endpointYaml : %s", apiYaml, definition, endpointsYaml)
@@ -135,7 +137,7 @@ func StartInternalServer(port uint) {
 			if err := utils.CreateZipFile(&buf, zipFiles); err != nil {
 				logger.LoggerMgtServer.Errorf("Error while creating apim zip file for api uuid: %s. Error: %+v", event.API.APIUUID, err)
 			}
-
+			logger.LoggerMgtServer.Infof("Creating zip file without endpoints")
 			id, revisionID, err := utils.ImportAPI(fmt.Sprintf("admin-%s-%s.zip", event.API.APIName, event.API.APIVersion), &buf)
 			if err != nil {
 				logger.LoggerMgtServer.Errorf("Error while importing API. Sending error response to Adapter.")
