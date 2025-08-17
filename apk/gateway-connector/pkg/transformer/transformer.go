@@ -58,7 +58,7 @@ import (
 // GenerateCRs takes the .apk-conf, api definition, vHost and the organization for a particular API and then generate and returns
 // the relavant CRD set as a zip
 func GenerateCRs(apkConf string, apiDefinition string, certContainer transformer.CertContainer, k8ResourceGenEndpoint string, organizationID string) (*K8sArtifacts, error) {
-	k8sArtifact := K8sArtifacts{HTTPRoutes: make(map[string]*gwapiv1.HTTPRoute), Backends: make(map[string]*gatewayv1alpha1.Backend), ConfigMaps: make(map[string]*corev1.ConfigMap), Secrets: make(map[string]*corev1.Secret), RouteMetadata: make(map[string]*dpv2alpha1.RouteMetadata), SecurityPolicies: make(map[string]*gatewayv1alpha1.SecurityPolicy), BackendTLSPolicies: make(map[string]*gwapiv1a3.BackendTLSPolicy), RoutePolicies: make(map[string]*dpv2alpha1.RoutePolicy), EnvoyExtensionPolicies: make(map[string]*gatewayv1alpha1.EnvoyExtensionPolicy), BackendTrafficPolicies: make(map[string]*gatewayv1alpha1.BackendTrafficPolicy), GRPCRoutes: make(map[string]*gwapiv1a2.GRPCRoute)}
+	k8sArtifact := K8sArtifacts{HTTPRoutes: make(map[string]*gwapiv1.HTTPRoute), HTTPRouteFilters: make(map[string]*gatewayv1alpha1.HTTPRouteFilter), Backends: make(map[string]*gatewayv1alpha1.Backend), ConfigMaps: make(map[string]*corev1.ConfigMap), Secrets: make(map[string]*corev1.Secret), RouteMetadata: make(map[string]*dpv2alpha1.RouteMetadata), SecurityPolicies: make(map[string]*gatewayv1alpha1.SecurityPolicy), BackendTLSPolicies: make(map[string]*gwapiv1a3.BackendTLSPolicy), RoutePolicies: make(map[string]*dpv2alpha1.RoutePolicy), EnvoyExtensionPolicies: make(map[string]*gatewayv1alpha1.EnvoyExtensionPolicy), BackendTrafficPolicies: make(map[string]*gatewayv1alpha1.BackendTrafficPolicy), GRPCRoutes: make(map[string]*gwapiv1a2.GRPCRoute)}
 	if apkConf == "" {
 		logger.LoggerTransformer.Error("Empty apk-conf parameter provided. Unable to generate CRDs.")
 		return nil, errors.New("Error: APK-Conf can't be empty")
@@ -68,20 +68,33 @@ func GenerateCRs(apkConf string, apiDefinition string, certContainer transformer
 		logger.LoggerTransformer.Error("Empty api definition provided. Unable to generate CRDs.")
 		return nil, errors.New("Error: API Definition can't be empty")
 	}
-
+	fmt.Printf("\nAPI Definition: %s\n", apiDefinition)
+	fmt.Printf("\nAPK Conf: %v\n", apkConf)
 	// Create a buffer to store the request body
 	var requestBody bytes.Buffer
 	writer := multipart.NewWriter(&requestBody)
 
 	// Add apkConfiguration field and store the passed APK Conf file
-	if err := writer.WriteField("apkConfiguration", apkConf); err != nil {
-		logger.LoggerTransformer.Error("Error writing apkConfiguration field:", err)
+	apkPart, err := writer.CreateFormFile("apkConfiguration", "api.apk-conf")
+	if err != nil {
+		logger.LoggerTransformer.Errorf("Error creating form file for apkConfiguration: %+v", err)
+		return nil, err
+	}
+	_ , err = io.Copy(apkPart, strings.NewReader(apkConf))
+	if err != nil {
+		logger.LoggerTransformer.Errorf("Error writing apkConfiguration content: %v", err)
 		return nil, err
 	}
 
 	// Add apiDefinition field and store the passed API Definition file
-	if err := writer.WriteField("definitionFile", apiDefinition); err != nil {
-		logger.LoggerTransformer.Error("Error writing definitionFile field:", err)
+	defPart, err := writer.CreateFormFile("definitionFile", "definition.json")
+	if err != nil {
+		logger.LoggerTransformer.Errorf("Error creating form file for definitionFile: %+v", err)
+		return nil, err
+	}
+	_, err = io.Copy(defPart, strings.NewReader(apiDefinition))
+	if err != nil {
+		logger.LoggerTransformer.Errorf("Error writing definitionFile content: %v", err)
 		return nil, err
 	}
 
@@ -89,6 +102,8 @@ func GenerateCRs(apkConf string, apiDefinition string, certContainer transformer
 	writer.Close()
 
 	k8sResourceEndpointWithOrg := k8ResourceGenEndpoint + "?organization=" + organizationID + "&cpInitiated=true"
+	logger.LoggerTransformer.Infof("K8s Resource Endpoint with Org: %s", k8sResourceEndpointWithOrg)
+	logger.LoggerTransformer.Infof("\nRequest Body string: %s\n", requestBody.String())
 
 	// Create the HTTP request
 	request, err := http.NewRequest(postHTTPMethod, k8sResourceEndpointWithOrg, &requestBody)
@@ -119,7 +134,7 @@ func GenerateCRs(apkConf string, apiDefinition string, certContainer transformer
 	// Check the HTTP status code
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		logger.LoggerTransformer.Errorf("HTTP request failed with status code: %d", response.StatusCode)
-		return nil, fmt.Errorf("HTTP request failed with status code: %v", response.Body)
+		return nil, fmt.Errorf("HTTP request failed with status code: %+v", response.Body)
 	}
 
 	//Extracting response body to get the CRD zipfile
@@ -164,16 +179,25 @@ func GenerateCRs(apkConf string, apiDefinition string, certContainer transformer
 			var httpRoute gwapiv1.HTTPRoute
 			err = k8Yaml.Unmarshal(yamlData, &httpRoute)
 			if err != nil {
-				logger.LoggerSync.Errorf("Error unmarshaling HTTPRoute YAML: %v", err)
+				logger.LoggerSync.Errorf("Error unmarshaling HTTPRoute YAML: %+v", err)
 				continue
 			}
 			k8sArtifact.HTTPRoutes[httpRoute.ObjectMeta.Name] = &httpRoute
+		
+		case "HTTPRouteFilter":
+			var httpRouteFilter gatewayv1alpha1.HTTPRouteFilter
+			err = k8Yaml.Unmarshal(yamlData, &httpRouteFilter)
+			if err != nil {
+				logger.LoggerSync.Errorf("Error unmarshaling HTTPRouteFilter YAML: %+v", err)
+				continue
+			}
+			k8sArtifact.HTTPRouteFilters[httpRouteFilter.ObjectMeta.Name] = &httpRouteFilter
 
 		case "Backend":
 			var backend gatewayv1alpha1.Backend
 			err = k8Yaml.Unmarshal(yamlData, &backend)
 			if err != nil {
-				logger.LoggerSync.Errorf("Error unmarshaling Backend YAML: %v", err)
+				logger.LoggerSync.Errorf("Error unmarshaling Backend YAML: %+v", err)
 				continue
 			}
 			k8sArtifact.Backends[backend.ObjectMeta.Name] = &backend
@@ -182,7 +206,7 @@ func GenerateCRs(apkConf string, apiDefinition string, certContainer transformer
 			var configMap corev1.ConfigMap
 			err = k8Yaml.Unmarshal(yamlData, &configMap)
 			if err != nil {
-				logger.LoggerSync.Errorf("Error unmarshaling ConfigMap YAML: %v", err)
+				logger.LoggerSync.Errorf("Error unmarshaling ConfigMap YAML: %+v", err)
 				continue
 			}
 			k8sArtifact.ConfigMaps[configMap.ObjectMeta.Name] = &configMap
@@ -191,7 +215,7 @@ func GenerateCRs(apkConf string, apiDefinition string, certContainer transformer
 			var secret corev1.Secret
 			err = k8Yaml.Unmarshal(yamlData, &secret)
 			if err != nil {
-				logger.LoggerSync.Errorf("Error unmarshaling Secret YAML: %v", err)
+				logger.LoggerSync.Errorf("Error unmarshaling Secret YAML: %+v", err)
 				continue
 			}
 			k8sArtifact.Secrets[secret.Name] = &secret
@@ -200,7 +224,7 @@ func GenerateCRs(apkConf string, apiDefinition string, certContainer transformer
 			var securityPolicy gatewayv1alpha1.SecurityPolicy
 			err = k8Yaml.Unmarshal(yamlData, &securityPolicy)
 			if err != nil {
-				logger.LoggerSync.Errorf("Error unmarshaling SecurityPolicy YAML: %v", err)
+				logger.LoggerSync.Errorf("Error unmarshaling SecurityPolicy YAML: %+v", err)
 				continue
 			}
 			k8sArtifact.SecurityPolicies[securityPolicy.Name] = &securityPolicy
@@ -209,7 +233,7 @@ func GenerateCRs(apkConf string, apiDefinition string, certContainer transformer
 			var backendTrafficPolicy gatewayv1alpha1.BackendTrafficPolicy
 			err = k8Yaml.Unmarshal(yamlData, &backendTrafficPolicy)
 			if err != nil {
-				logger.LoggerSync.Errorf("Error unmarshaling BackendTrafficPolicy YAML: %v", err)
+				logger.LoggerSync.Errorf("Error unmarshaling BackendTrafficPolicy YAML: %+v", err)
 				continue
 			}
 			k8sArtifact.BackendTrafficPolicies[backendTrafficPolicy.Name] = &backendTrafficPolicy
@@ -218,7 +242,7 @@ func GenerateCRs(apkConf string, apiDefinition string, certContainer transformer
 			var backendTLSPolicy gwapiv1a3.BackendTLSPolicy
 			err = k8Yaml.Unmarshal(yamlData, &backendTLSPolicy)
 			if err != nil {
-				logger.LoggerSync.Errorf("Error unmarshaling BackendTLSPolicy YAML: %v", err)
+				logger.LoggerSync.Errorf("Error unmarshaling BackendTLSPolicy YAML: %+v", err)
 				continue
 			}
 			k8sArtifact.BackendTLSPolicies[backendTLSPolicy.Name] = &backendTLSPolicy
@@ -227,7 +251,7 @@ func GenerateCRs(apkConf string, apiDefinition string, certContainer transformer
 			var routePolicy dpv2alpha1.RoutePolicy
 			err = k8Yaml.Unmarshal(yamlData, &routePolicy)
 			if err != nil {
-				logger.LoggerSync.Errorf("Error unmarshaling RoutePolicy YAML: %v", err)
+				logger.LoggerSync.Errorf("Error unmarshaling RoutePolicy YAML: %+v", err)
 				continue
 			}
 			k8sArtifact.RoutePolicies[routePolicy.Name] = &routePolicy
@@ -236,7 +260,7 @@ func GenerateCRs(apkConf string, apiDefinition string, certContainer transformer
 			var envoyExtensionPolicy gatewayv1alpha1.EnvoyExtensionPolicy
 			err = k8Yaml.Unmarshal(yamlData, &envoyExtensionPolicy)
 			if err != nil {
-				logger.LoggerSync.Errorf("Error unmarshaling EnvoyExtensionPolicy YAML: %v", err)
+				logger.LoggerSync.Errorf("Error unmarshaling EnvoyExtensionPolicy YAML: %+v", err)
 				continue
 			}
 			k8sArtifact.EnvoyExtensionPolicies[envoyExtensionPolicy.Name] = &envoyExtensionPolicy
@@ -245,7 +269,7 @@ func GenerateCRs(apkConf string, apiDefinition string, certContainer transformer
 			var routeMetadata dpv2alpha1.RouteMetadata
 			err = k8Yaml.Unmarshal(yamlData, &routeMetadata)
 			if err != nil {
-				logger.LoggerSync.Errorf("Error unmarshaling RouteMetadata YAML: %v", err)
+				logger.LoggerSync.Errorf("Error unmarshaling RouteMetadata YAML: %+v", err)
 				continue
 			}
 			k8sArtifact.RouteMetadata[routeMetadata.Name] = &routeMetadata
@@ -254,7 +278,7 @@ func GenerateCRs(apkConf string, apiDefinition string, certContainer transformer
 			var grpcRoute gwapiv1a2.GRPCRoute
 			err = k8Yaml.Unmarshal(yamlData, &grpcRoute)
 			if err != nil {
-				logger.LoggerSync.Errorf("Error unmarshaling GRPCRoute YAML: %v", err)
+				logger.LoggerSync.Errorf("Error unmarshaling GRPCRoute YAML: %+v", err)
 				continue
 			}
 			k8sArtifact.GRPCRoutes[grpcRoute.Name] = &grpcRoute
@@ -331,6 +355,9 @@ func addOrganization(k8sArtifact *K8sArtifacts, organization string) {
 	}
 	for _, httproutes := range k8sArtifact.HTTPRoutes {
 		httproutes.ObjectMeta.Labels[k8sOrganizationField] = organizationHash
+	}
+	for _, httpRouteFilter := range k8sArtifact.HTTPRouteFilters {
+		httpRouteFilter.ObjectMeta.Labels[k8sOrganizationField] = organizationHash
 	}
 	for _, securitypolicy := range k8sArtifact.SecurityPolicies {
 		securitypolicy.ObjectMeta.Labels[k8sOrganizationField] = organizationHash

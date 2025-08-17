@@ -26,12 +26,12 @@ package synchronizer
 import (
 	"time"
 
+	k8sclient "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/k8sClient"
 	logger "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/loggers"
 	"github.com/wso2-extensions/apim-gw-agents/common-agent/config"
+	managementserver "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/managementserver"
 	sync "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/synchronizer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	k8sclient "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/k8sClient"
-	managementserver "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/managementserver"
 )
 
 // FetchRateLimitPoliciesOnEvent fetches the policies from the control plane on the start up and notification event updates
@@ -42,7 +42,8 @@ func FetchRateLimitPoliciesOnEvent(ratelimitName string, organization string, c 
 		// This has to be error. For debugging purpose info
 		logger.LoggerSynchronizer.Errorf("Error reading configs: %v", errReadConfig)
 	}
-
+	logger.LoggerSynchronizer.Infof("Fetching rate limit policies on event for organization: %s", organization)
+	logger.LoggerSynchronizer.Debugf("Rate Limit Name: %s | Organization: %s", ratelimitName, organization)
 	rateLimitPolicies, errorMsg := sync.FetchRateLimitPoliciesOnEvent(ratelimitName, organization)
 	if rateLimitPolicies != nil {
 		if len(rateLimitPolicies) == 0 && errorMsg != "" {
@@ -74,9 +75,9 @@ func FetchSubscriptionRateLimitPoliciesOnEvent(ratelimitName string, organizatio
 		// This has to be error. For debugging purpose info
 		logger.LoggerSynchronizer.Errorf("Error reading configs: %v", errReadConfig)
 	}
+	logger.LoggerSynchronizer.Infof("Fetching rate limit policies on event for organization: %s", organization)
 	logger.LoggerSynchronizer.Debugf("Rate Limit Name: %s | Organization: %s", ratelimitName, organization)
 	rateLimitPolicies, errorMsg := sync.FetchSubscriptionRateLimitPoliciesOnEvent(ratelimitName, organization)
-	logger.LoggerSynchronizer.Debugf("Rate Limit Policies fetched on event: %+v", rateLimitPolicies)
 	if rateLimitPolicies != nil {
 		if len(rateLimitPolicies) == 0 && errorMsg != "" {
 			go retrySubscriptionRLPFetchData(conf, errorMsg, c)
@@ -86,7 +87,7 @@ func FetchSubscriptionRateLimitPoliciesOnEvent(ratelimitName string, organizatio
 				// !!!TODO: NEED TO ADD THE LOGIC
 				// This logic is executed once at the startup time so no need to worry about the nested for loops for performance.
 				// Fetch all AiRatelimitPolicies
-				airls, _, retrieveAllAIRLErr := k8sclient.RetrieveAllAIRatelimitPoliciesSFromK8s(ratelimitName, organization, c, "")
+				airls, retrieveAllAIRLErr := k8sclient.RetrieveAllAIRatelimitPoliciesSFromK8s(ratelimitName, organization, c)
 				if retrieveAllAIRLErr == nil {
 					for _, airl := range airls {
 						if cpName, exists := airl.ObjectMeta.Labels["CPName"]; exists {
@@ -107,7 +108,7 @@ func FetchSubscriptionRateLimitPoliciesOnEvent(ratelimitName string, organizatio
 					logger.LoggerSynchronizer.Errorf("Error while fetching airatelimitpolicies for cleaning up outdataed crs. Error: %+v", retrieveAllAIRLErr)
 				}
 
-				rls, _, retrieveAllRLErr := k8sclient.RetrieveAllRatelimitPoliciesSFromK8s(ratelimitName, organization, c, "")
+				rls, retrieveAllRLErr := k8sclient.RetrieveAllRatelimitPoliciesSFromK8s(ratelimitName, organization, c)
 				if retrieveAllRLErr == nil {
 					for _, rl := range rls {
 						if cpName, exists := rl.ObjectMeta.Labels["CPName"]; exists {
@@ -131,18 +132,23 @@ func FetchSubscriptionRateLimitPoliciesOnEvent(ratelimitName string, organizatio
 
 			for _, policy := range rateLimitPolicies {
 				if policy.QuotaType == "aiApiQuota" {
+					logger.LoggerSynchronizer.Info("AI Subscription RateLimit Policy detected...")
+					logger.LoggerSynchronizer.Infof("AIAPIQuota data: %+v", policy.DefaultLimit.AiAPIQuota)
 					if policy.DefaultLimit.AiAPIQuota != nil {
-						switch policy.DefaultLimit.AiAPIQuota.TimeUnit {
-						case "min":
-							policy.DefaultLimit.AiAPIQuota.TimeUnit = "Minute"
-						case "hours":
-							policy.DefaultLimit.AiAPIQuota.TimeUnit = "Hour"
-						case "days":
-							policy.DefaultLimit.AiAPIQuota.TimeUnit = "Day"
-						default:
-							logger.LoggerSynchronizer.Errorf("Unsupported timeunit %s", policy.DefaultLimit.AiAPIQuota.TimeUnit)
-							continue
-						}
+						// switch policy.DefaultLimit.AiAPIQuota.TimeUnit {
+						// case "min":
+						// 	policy.DefaultLimit.AiAPIQuota.TimeUnit = "Minute"
+						// case "hours":
+						// 	policy.DefaultLimit.AiAPIQuota.TimeUnit = "Hour"
+						// case "days":
+						// 	policy.DefaultLimit.AiAPIQuota.TimeUnit = "Day"
+						// case "months":
+						// 	policy.DefaultLimit.AiAPIQuota.TimeUnit = "Month"
+						// default:
+						// 	logger.LoggerSynchronizer.Errorf("Unsupported timeunit %s", policy.DefaultLimit.AiAPIQuota.TimeUnit)
+						// 	continue
+						// }
+						// !!! Need to check what this logic is 
 						if policy.DefaultLimit.AiAPIQuota.PromptTokenCount == nil && policy.DefaultLimit.AiAPIQuota.TotalTokenCount != nil {
 							policy.DefaultLimit.AiAPIQuota.PromptTokenCount = policy.DefaultLimit.AiAPIQuota.TotalTokenCount
 						}
@@ -153,29 +159,35 @@ func FetchSubscriptionRateLimitPoliciesOnEvent(ratelimitName string, organizatio
 							total := *policy.DefaultLimit.AiAPIQuota.PromptTokenCount + *policy.DefaultLimit.AiAPIQuota.CompletionTokenCount
 							policy.DefaultLimit.AiAPIQuota.TotalTokenCount = &total
 						}
-						managementserver.AddSubscriptionPolicy(policy)
+						logger.LoggerSynchronizer.Infof("\n\nAI Subscription RateLimit Policy added from CP: %+v", policy)
 						// !!!TODO: NEED TO ADD THE LOGIC
 						logger.LoggerSynchronizer.Infof("Policy Quota Type: %s", policy.QuotaType)
-						logger.LoggerSynchronizer.Infof("AI Subscription RateLimit Policy added from CP: %+v", policy)
-						k8sclient.DeployAIRateLimitPolicyFromCPPolicy(policy, c)
+						logger.LoggerSynchronizer.Infof("AI -> PromptTokenCount: %d", *policy.DefaultLimit.AiAPIQuota.PromptTokenCount)
+						logger.LoggerSynchronizer.Infof("AI -> CompletionTokenCount: %d", *policy.DefaultLimit.AiAPIQuota.CompletionTokenCount)
+						logger.LoggerSynchronizer.Infof("AI -> TotalTokenCount: %d", *policy.DefaultLimit.AiAPIQuota.TotalTokenCount)
+						managementserver.AddSubscriptionPolicy(policy)
+						logger.LoggerSynchronizer.Infof("AI Subscription RateLimit Policy added to internal map")
+						// k8sclient.DeployAIRateLimitPolicyFromCPPolicy(policy, c)
 						logger.LoggerSynchronizer.Debugf("AI RateLimit Policy added from CP Policy: %v", policy)
 					} else {
 						logger.LoggerSynchronizer.Errorf("AIQuota type response recieved but no data found. %+v", policy.DefaultLimit)
 					}
 				} else {
-					logger.LoggerSynchronizer.Infof("Normal Subscription RateLimit policy added from CP: %+v", policy)
+					logger.LoggerSynchronizer.Infof("\n\nNormal Subscription RateLimit policy added from CP: %+v", policy)
 					if policy.DefaultLimit.RequestCount.TimeUnit == "min" {
 						policy.DefaultLimit.RequestCount.TimeUnit = "Minute"
 					} else if policy.DefaultLimit.RequestCount.TimeUnit == "hours" {
 						policy.DefaultLimit.RequestCount.TimeUnit = "Hour"
 					} else if policy.DefaultLimit.RequestCount.TimeUnit == "days" {
 						policy.DefaultLimit.RequestCount.TimeUnit = "Day"
+					} else if policy.DefaultLimit.RequestCount.TimeUnit == "months" {
+						policy.DefaultLimit.RequestCount.TimeUnit = "Month"
 					}
 					managementserver.AddSubscriptionPolicy(policy)
-					logger.LoggerSynchronizer.Infof("RateLimit Policy added to internal map: %v", policy)
+					logger.LoggerSynchronizer.Info("Normal Subscription RateLimit Policy added to internal map")
 					// Update the exisitng rate limit policies with current policy
 					// !!!TODO: NEED TO ADD THE LOGIC
-					k8sclient.DeploySubscriptionRateLimitPolicyCR(policy, c)
+					// k8sclient.DeploySubscriptionRateLimitPolicyCR(policy, c)
 					logger.LoggerSynchronizer.Debugf("Subscription RL Policy added: %v", policy)
 				}
 			}

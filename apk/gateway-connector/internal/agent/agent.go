@@ -26,11 +26,16 @@ import (
 	"github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/synchronizer"
 	"github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/pkg/managementserver"
 	"github.com/wso2-extensions/apim-gw-agents/common-agent/config"
+
+	gatewayv1alpha1 "github.com/envoyproxy/gateway/api/v1alpha1"
 	cpv1alpha2 "github.com/wso2/apk/common-go-libs/apis/cp/v1alpha2"
 	dpv2alpha1 "github.com/wso2/apk/common-go-libs/apis/dp/v2alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	gwapiv1 "sigs.k8s.io/gateway-api/apis/v1"
+	gwapiv1a2 "sigs.k8s.io/gateway-api/apis/v1alpha2"
+	gwapiv1a3 "sigs.k8s.io/gateway-api/apis/v1alpha3"
 )
 
 var (
@@ -44,8 +49,11 @@ func init() {
 // PreRun prepares the agent environment and runs before Run.
 func PreRun(conf *config.Config, scheme *runtime.Scheme) {
 	utilruntime.Must(cpv1alpha2.AddToScheme(scheme))
-	utilruntime.Must(cpv1alpha2.AddToScheme(scheme))
 	utilruntime.Must(dpv2alpha1.AddToScheme(scheme))
+	utilruntime.Must(gatewayv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(gwapiv1.Install(scheme))
+	utilruntime.Must(gwapiv1a2.Install(scheme))
+	utilruntime.Must(gwapiv1a3.Install(scheme))
 }
 
 // Run starts the GRPC server and Rest API server.

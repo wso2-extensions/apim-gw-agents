@@ -79,6 +79,12 @@ func GenerateConf(APIJson string, certArtifact CertificateArtifact, endpoints st
 	apiYamlData := apiYaml.Data
 	logger.LoggerTransformer.Debugf("apiYamlData: %v", apiYamlData)
 
+	// Check if the API is initiated from the gateway
+	if apiYamlData.InitiatedFromGateway {
+		logger.LoggerTransformer.Infof("API is initiated from the gateway. Hence skipping the API...")
+		return "", "null", 0, nil, []EndpointSecurityConfig{}, nil, nil, nil, fmt.Errorf("API is initiated from the gateway.")
+	}
+
 	apk.Name = apiYamlData.Name
 	apk.Context = apiYamlData.Context
 	apk.Version = apiYamlData.Version
@@ -276,7 +282,7 @@ func GenerateConf(APIJson string, certArtifact CertificateArtifact, endpoints st
 	// after fetching the key managers from the control plane.
 	logger.LoggerTransformer.Infof("KeyManager data from yaml: %+v", apiYamlData.KeyManagers)
 	kmData := mapKeyManagers(apiYamlData.KeyManagers)
-	logger.LoggerTransformer.Debugf("KeyManager data after mapping: %+v", kmData)
+	logger.LoggerTransformer.Infof("KeyManager data after mapping: %+v", kmData)
 	apk.KeyManagers = &kmData
 
 	c, marshalError := yaml.Marshal(apk)

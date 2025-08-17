@@ -13,6 +13,7 @@ import (
 type K8sArtifacts struct {
 	RouteMetadata          map[string]*dpv2alpha1.RouteMetadata
 	HTTPRoutes             map[string]*gwapiv1.HTTPRoute
+	HTTPRouteFilters       map[string]*gatewayv1alpha1.HTTPRouteFilter
 	SecurityPolicies       map[string]*gatewayv1alpha1.SecurityPolicy
 	Backends               map[string]*gatewayv1alpha1.Backend
 	BackendTLSPolicies     map[string]*gwapiv1a3.BackendTLSPolicy

@@ -55,6 +55,10 @@ func MapAndCreateCR(k8sArtifact transformer.K8sArtifacts, k8sClient client.Clien
 		httpRoutes.Namespace = namespace
 		internalk8sClient.DeployHTTPRouteCR(httpRoutes, k8sClient)
 	}
+	for _, httpRouteFilters := range k8sArtifact.HTTPRouteFilters {
+		httpRouteFilters.Namespace = namespace
+		internalk8sClient.DeployHTTPRouteFilterCR(httpRouteFilters, k8sClient)
+	}
 	for _, backends := range k8sArtifact.Backends {
 		backends.Namespace = namespace
 		internalk8sClient.DeployBackendCR(backends, k8sClient)

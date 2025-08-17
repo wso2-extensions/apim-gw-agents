@@ -36,7 +36,7 @@ controlPlane:
   serviceURL: https://apim-wso2am-acp-1-service.default.svc.cluster.local:9443/ # change the ns to the appropriate ns
   username: admin
   password: admin
-  environmentLabels: Default
+  environmentLabels: Default_APK
   skipSSLVerification: true
   eventListeningEndpoints: amqp://admin:admin@apim-wso2am-acp-1-service.default.svc.cluster.local:5672?retries='10'&connectdelay='30'  # change the ns to the appropriate ns
   # internalKeyIssuer: http://am.wso2.com:443/token
@@ -51,6 +51,9 @@ agent:
   gateway: apk
 certmanager:
   enabled: true
+logging:
+  level: "INFO" # LogLevels can be "DEBG", "FATL", "ERRO", "WARN", "INFO", "PANC"
+  format: "TEXT" # Values can be "JSON", "TEXT"
 serviceAccount:
   enableServiceAccountCreation: true
   enableClusterRoleCreation: true

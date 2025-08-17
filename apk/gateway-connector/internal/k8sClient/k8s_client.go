@@ -122,6 +122,28 @@ func DeployConfigMapCR(configMap *corev1.ConfigMap, k8sClient client.Client) {
 }
 
 // DeployHTTPRouteCR applies the given HttpRoute struct to the Kubernetes cluster.
+func DeployHTTPRouteFilterCR(httpRouteFilter *gatewayv1alpha1.HTTPRouteFilter, k8sClient client.Client) {
+	crHTTPRouteFilter := &gatewayv1alpha1.HTTPRouteFilter{}
+	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: httpRouteFilter.ObjectMeta.Namespace, Name: httpRouteFilter.Name}, crHTTPRouteFilter); err != nil {
+		if !k8error.IsNotFound(err) {
+			loggers.LoggerK8sClient.Error("Unable to get HTTPRouteFilter CR: " + err.Error())
+		}
+		if err := k8sClient.Create(context.Background(), httpRouteFilter); err != nil {
+			loggers.LoggerK8sClient.Error("Unable to create HTTPRouteFilter CR: " + err.Error())
+		} else {
+			loggers.LoggerK8sClient.Info("HTTPRouteFilter CR created: " + httpRouteFilter.Name)
+		}
+	} else {
+		crHTTPRouteFilter.Spec = httpRouteFilter.Spec
+		if err := k8sClient.Update(context.Background(), crHTTPRouteFilter); err != nil {
+			loggers.LoggerK8sClient.Error("Unable to update HTTPRouteFilter CR: " + err.Error())
+		} else {
+			loggers.LoggerK8sClient.Info("HTTPRouteFilter CR updated: " + httpRouteFilter.Name)
+		}
+	}
+}
+
+// DeployHTTPRouteCR applies the given HttpRoute struct to the Kubernetes cluster.
 func DeployHTTPRouteCR(httpRoute *gwapiv1.HTTPRoute, k8sClient client.Client) {
 	crHTTPRoute := &gwapiv1.HTTPRoute{}
 	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: httpRoute.ObjectMeta.Namespace, Name: httpRoute.Name}, crHTTPRoute); err != nil {
@@ -407,7 +429,7 @@ func DeleteAIProviderCR(aiProviderName string, k8sClient client.Client) {
 // 	}
 // }
 
-//UpdateRateLimitPolicyCR applies the updated policy details to all the RateLimitPolicies struct which has the provided label to the Kubernetes cluster.
+// UpdateRateLimitPolicyCR applies the updated policy details to all the RateLimitPolicies struct which has the provided label to the Kubernetes cluster.
 func UpdateRateLimitPolicyCR(policy eventhubTypes.RateLimitPolicy, k8sClient client.Client) {
 	conf, _ := config.ReadConfigs()
 	policyName := getSha1Value(policy.Name)
@@ -424,6 +446,10 @@ func UpdateRateLimitPolicyCR(policy eventhubTypes.RateLimitPolicy, k8sClient cli
 	err := k8sClient.List(context.Background(), rlBackendTrafficPolicyList, listOption)
 	if err != nil {
 		loggers.LoggerK8sClient.Errorf("Unable to list BackendTrafficPolicy CRs for Rate Limiting: %v", err)
+	}
+	if len(rlBackendTrafficPolicyList.Items) == 0 {
+		loggers.LoggerK8sClient.Info("No Rate Limit BackendTrafficPolicy CRs found to update")
+		return
 	}
 	loggers.LoggerK8sClient.Infof("Rate Limit BackendTrafficPolicy CR list retrieved: %v", rlBackendTrafficPolicyList.Items)
 	for _, rlBackendTrafficPolicy := range rlBackendTrafficPolicyList.Items {
@@ -466,9 +492,12 @@ func DeploySubscriptionRateLimitPolicyCR(policy eventhubTypes.SubscriptionPolicy
 	conf, _ := config.ReadConfigs()
 	crRLBackendTrafficPolicy := gatewayv1alpha1.BackendTrafficPolicy{}
 	crName := PrepareSubscritionPolicyCRName(policy.Name, policy.TenantDomain)
-	var RequestsPerUnit uint
-	var Unit gatewayv1alpha1.RateLimitUnit
+
+	unit, requestsPerUnit := getRateLimitPolicyContents(policy)
+	loggers.LoggerK8sClient.Infof("Requests Per Unit after parsing: %d | Unit: %s", requestsPerUnit, unit)
+
 	gatewayName, _ := getGatewayNameFromK8s(k8sClient)
+	loggers.LoggerK8sClient.Infof("Gateway Name fetched from the k8s cluster: %s", gatewayName)
 	if gatewayName == "" {
 		gatewayName = "wso2-kgw-default"
 	}
@@ -476,13 +505,6 @@ func DeploySubscriptionRateLimitPolicyCR(policy eventhubTypes.SubscriptionPolicy
 		"InitiateFrom": "CP",
 		"CPName":       policy.Name,
 	}
-	
-	if policy.DefaultLimit.RequestCount.UnitTime != 0 {
-		RequestsPerUnit = uint(policy.DefaultLimit.RequestCount.RequestCount)/uint(policy.DefaultLimit.RequestCount.UnitTime)
-	}else{
-		RequestsPerUnit = uint(policy.DefaultLimit.RequestCount.RequestCount)
-	}
-	Unit = gatewayv1alpha1.RateLimitUnit(policy.DefaultLimit.RequestCount.TimeUnit)
 
 	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: conf.DataPlane.Namespace, Name: crName}, &crRLBackendTrafficPolicy); err != nil {
 		crRLBackendTrafficPolicy = gatewayv1alpha1.BackendTrafficPolicy{
@@ -492,7 +514,9 @@ func DeploySubscriptionRateLimitPolicyCR(policy eventhubTypes.SubscriptionPolicy
 				Labels:    labelMap,
 			},
 			Spec: gatewayv1alpha1.BackendTrafficPolicySpec{
+				MergeType: ptr.To(gatewayv1alpha1.MergeType("StrategicMerge")),
 				RateLimit: &gatewayv1alpha1.RateLimitSpec{
+					Type: gatewayv1alpha1.RateLimitType("Global"),
 					Global: &gatewayv1alpha1.GlobalRateLimit{
 						Rules: []gatewayv1alpha1.RateLimitRule{
 							{
@@ -500,32 +524,33 @@ func DeploySubscriptionRateLimitPolicyCR(policy eventhubTypes.SubscriptionPolicy
 									{
 										Headers: []gatewayv1alpha1.HeaderMatch{
 											{
-												Name:  "x-wso2-api-id",
-												Value: ptr.To(""),
+												Name:   "x-wso2-api-id",
+												Value:  ptr.To(""),
 												Invert: ptr.To(false),
 											},
 											{
-												Name:  "x-wso2-organization",
-												Value: ptr.To(""),
+												Name:   "x-wso2-organization",
+												Value:  ptr.To(""),
 												Invert: ptr.To(false),
 											},
 											{
-												Name:  "x-wso2-subscription-id",
-												Value: ptr.To(""),
+												Name:   "x-wso2-subscription-id",
+												Value:  ptr.To(""),
 												Invert: ptr.To(false),
 											},
 											{
-												Name:  "policy-id",
-												Value: &policy.Name,
+												Name:   "policy-id",
+												Value:  &policy.Name,
 												Invert: ptr.To(false),
 											},
 										},
 									},
 								},
 								Limit: gatewayv1alpha1.RateLimitValue{
-									Requests: RequestsPerUnit,
-									Unit:     Unit,
+									Requests: requestsPerUnit,
+									Unit:     unit,
 								},
+								Shared: ptr.To(false),
 							},
 						},
 					},
@@ -549,8 +574,8 @@ func DeploySubscriptionRateLimitPolicyCR(policy eventhubTypes.SubscriptionPolicy
 			loggers.LoggerK8sClient.Info("RateLimit BackendTrafficPolicy CR created: " + crRLBackendTrafficPolicy.Name)
 		}
 	} else {
-		crRLBackendTrafficPolicy.Spec.RateLimit.Global.Rules[0].Limit.Requests = RequestsPerUnit
-		crRLBackendTrafficPolicy.Spec.RateLimit.Global.Rules[0].Limit.Unit = Unit
+		crRLBackendTrafficPolicy.Spec.RateLimit.Global.Rules[0].Limit.Requests = requestsPerUnit
+		crRLBackendTrafficPolicy.Spec.RateLimit.Global.Rules[0].Limit.Unit = unit
 		if err := k8sClient.Update(context.Background(), &crRLBackendTrafficPolicy); err != nil {
 			loggers.LoggerK8sClient.Error("Unable to update RateLimit BackendTrafficPolicy CR: " + err.Error())
 		} else {
@@ -563,18 +588,14 @@ func DeploySubscriptionRateLimitPolicyCR(policy eventhubTypes.SubscriptionPolicy
 // DeployAIRateLimitPolicyFromCPPolicy applies the given AIRateLimitPolicies struct to the Kubernetes cluster.
 func DeployAIRateLimitPolicyFromCPPolicy(policy eventhubTypes.SubscriptionPolicy, k8sClient client.Client) {
 	conf, _ := config.ReadConfigs()
-	var RequestsPerUnit uint
-	var Unit gatewayv1alpha1.RateLimitUnit
+	unit, requestsPerUnit := getRateLimitPolicyContents(policy)
+	loggers.LoggerK8sClient.Infof("Requests Per Unit after parsing: %d | Unit: %s", requestsPerUnit, unit)
 	gatewayName, _ := getGatewayNameFromK8s(k8sClient)
+	loggers.LoggerK8sClient.Infof("Gateway Name fetched from the k8s cluster: %s", gatewayName)
 	if gatewayName == "" {
 		gatewayName = "wso2-kgw-default"
 	}
-	if policy.DefaultLimit.AiAPIQuota.RequestCount != nil && policy.DefaultLimit.AiAPIQuota.UnitTime != 0 {
-		RequestsPerUnit = uint(*policy.DefaultLimit.AiAPIQuota.RequestCount)/uint(policy.DefaultLimit.AiAPIQuota.UnitTime)
-	} else {
-		RequestsPerUnit = uint(*policy.DefaultLimit.AiAPIQuota.RequestCount)
-	}
-	Unit = gatewayv1alpha1.RateLimitUnit(policy.DefaultLimit.AiAPIQuota.TimeUnit)
+
 	labelMap := map[string]string{
 		"InitiateFrom": "CP",
 		"CPName":       policy.Name,
@@ -588,7 +609,9 @@ func DeployAIRateLimitPolicyFromCPPolicy(policy eventhubTypes.SubscriptionPolicy
 		},
 
 		Spec: gatewayv1alpha1.BackendTrafficPolicySpec{
+			MergeType: ptr.To(gatewayv1alpha1.MergeType("StrategicMerge")),
 			RateLimit: &gatewayv1alpha1.RateLimitSpec{
+				Type: gatewayv1alpha1.RateLimitType("Global"),
 				Global: &gatewayv1alpha1.GlobalRateLimit{
 					Rules: []gatewayv1alpha1.RateLimitRule{
 						{
@@ -596,37 +619,38 @@ func DeployAIRateLimitPolicyFromCPPolicy(policy eventhubTypes.SubscriptionPolicy
 								{
 									Headers: []gatewayv1alpha1.HeaderMatch{
 										{
-											Name:  "x-wso2-api-id",
-											Value: ptr.To(""),
+											Name:   "x-wso2-api-id",
+											Value:  ptr.To(""),
 											Invert: ptr.To(false),
 										},
 										{
-											Name:  "x-wso2-organization",
-											Value: ptr.To(""),
+											Name:   "x-wso2-organization",
+											Value:  ptr.To(""),
 											Invert: ptr.To(false),
 										},
 										{
-											Name:  "x-wso2-subscription-id",
-											Value: ptr.To(""),
+											Name:   "x-wso2-subscription-id",
+											Value:  ptr.To(""),
 											Invert: ptr.To(false),
 										},
 										{
-											Name:  "cost",
-											Value: ptr.To(""),
+											Name:   "cost",
+											Value:  ptr.To(""),
 											Invert: ptr.To(false),
 										},
 										{
-											Name:  "policy-id",
-											Value: &policy.Name,
+											Name:   "policy-id",
+											Value:  &policy.Name,
 											Invert: ptr.To(false),
 										},
 									},
 								},
 							},
 							Limit: gatewayv1alpha1.RateLimitValue{
-								Requests: RequestsPerUnit,
-								Unit:     Unit,
+								Requests: requestsPerUnit,
+								Unit:     unit,
 							},
+							Shared: ptr.To(false),
 						},
 					},
 				},
@@ -889,13 +913,13 @@ func DeleteSecurityPolicyCR(k8sClient client.Client, securityPolicy gatewayv1alp
 // 	conf, _ := config.ReadConfigs()
 // 	sha1ValueofKmName := getSha1Value(keyManager.Name)
 // 	sha1ValueOfOrganization := getSha1Value(keyManager.Organization)
-	// labelMap := map[string]string{"name": sha1ValueofKmName, "organization": sha1ValueOfOrganization}
-	// tokenIssuer := &dpv1alpha2.TokenIssuer{}
-	// err := k8sClient.Get(context.Background(), client.ObjectKey{Name: keyManager.UUID, Namespace: conf.DataPlane.Namespace}, tokenIssuer)
-	// if err != nil {
-	// 	loggers.LoggerK8sClient.Error("Unable to get TokenIssuer CR: " + err.Error())
-	// 	return err
-	// }
+// labelMap := map[string]string{"name": sha1ValueofKmName, "organization": sha1ValueOfOrganization}
+// tokenIssuer := &dpv1alpha2.TokenIssuer{}
+// err := k8sClient.Get(context.Background(), client.ObjectKey{Name: keyManager.UUID, Namespace: conf.DataPlane.Namespace}, tokenIssuer)
+// if err != nil {
+// 	loggers.LoggerK8sClient.Error("Unable to get TokenIssuer CR: " + err.Error())
+// 	return err
+// }
 // 	tokenIssuer.ObjectMeta.Labels = labelMap
 // 	tokenIssuer.Spec.Name = keyManager.Name
 // 	tokenIssuer.Spec.Organization = keyManager.Organization
@@ -1132,7 +1156,7 @@ func RetrieveAllAIProvidersFromK8s(k8sClient client.Client, nextToken string) ([
 
 // !!!TODO: Change this becuase now we support this via BackendTrafficPolicy CRs.
 // RetrieveAllRatelimitPoliciesSFromK8s retrieves all the API CRs from the Kubernetes cluster
-func RetrieveAllRatelimitPoliciesSFromK8s(ratelimitName string, organization string, k8sClient client.Client, nextToken string) ([]gatewayv1alpha1.BackendTrafficPolicy, string, error) {
+func RetrieveAllRatelimitPoliciesSFromK8s(ratelimitName string, organization string, k8sClient client.Client) ([]gatewayv1alpha1.BackendTrafficPolicy, error) {
 	conf, _ := config.ReadConfigs()
 	rlBackendTPList := gatewayv1alpha1.BackendTrafficPolicyList{}
 	resolvedRLBackendTPList := make([]gatewayv1alpha1.BackendTrafficPolicy, 0)
@@ -1144,28 +1168,19 @@ func RetrieveAllRatelimitPoliciesSFromK8s(ratelimitName string, organization str
 		LabelSelector: labels.SelectorFromSet(labelMap),
 	}
 	var err error
-	if nextToken != "" {
-		listOption.Continue = nextToken
-	} 
+
 	err = k8sClient.List(context.Background(), &rlBackendTPList, listOption)
 	if err != nil {
 		loggers.LoggerK8sClient.ErrorC(logging.PrintError(logging.Error1102, logging.CRITICAL, "Failed to get ratelimitpolicies from k8s %v", err.Error()))
-		return nil, "", err
+		return nil, err
 	}
 	resolvedRLBackendTPList = append(resolvedRLBackendTPList, rlBackendTPList.Items...)
-	if rlBackendTPList.Continue != "" {
-		tempRLBackendTPList, _, err := RetrieveAllRatelimitPoliciesSFromK8s(ratelimitName, organization, k8sClient, rlBackendTPList.Continue)
-		if err != nil {
-			return nil, "", err
-		}
-		resolvedRLBackendTPList = append(resolvedRLBackendTPList, tempRLBackendTPList...)
-	}
-	return resolvedRLBackendTPList, rlBackendTPList.Continue, nil
+	return resolvedRLBackendTPList, nil
 }
 
 // !!!TODO: Change this because now we support this via BackendTrafficPolicy + RoutePolicy CRs.
 // RetrieveAllAIRatelimitPoliciesSFromK8s retrieves all the API CRs from the Kubernetes cluster
-func RetrieveAllAIRatelimitPoliciesSFromK8s(aiRatelimitName string, organization string,k8sClient client.Client, nextToken string) ([]gatewayv1alpha1.BackendTrafficPolicy, string, error) {
+func RetrieveAllAIRatelimitPoliciesSFromK8s(aiRatelimitName string, organization string, k8sClient client.Client) ([]gatewayv1alpha1.BackendTrafficPolicy, error) {
 	conf, _ := config.ReadConfigs()
 	airlBackendTPList := gatewayv1alpha1.BackendTrafficPolicyList{}
 	resolvedAIRLBackendTPList := make([]gatewayv1alpha1.BackendTrafficPolicy, 0)
@@ -1177,23 +1192,14 @@ func RetrieveAllAIRatelimitPoliciesSFromK8s(aiRatelimitName string, organization
 		LabelSelector: labels.SelectorFromSet(labelMap),
 	}
 	var err error
-	if nextToken != "" {
-		listOption.Continue = nextToken
-	} 
+
 	err = k8sClient.List(context.Background(), &airlBackendTPList, listOption)
 	if err != nil {
 		loggers.LoggerK8sClient.ErrorC(logging.PrintError(logging.Error1102, logging.CRITICAL, "Failed to get backend traffic policies for ai rate limiting from k8s %v", err.Error()))
-		return nil, "", err
+		return nil, err
 	}
 	resolvedAIRLBackendTPList = append(resolvedAIRLBackendTPList, airlBackendTPList.Items...)
-	if airlBackendTPList.Continue != "" {
-		tempAIRLBackendTPList, _, err := RetrieveAllAIRatelimitPoliciesSFromK8s(aiRatelimitName, organization, k8sClient, airlBackendTPList.Continue)
-		if err != nil {
-			return nil, "", err
-		}
-		resolvedAIRLBackendTPList = append(resolvedAIRLBackendTPList, tempAIRLBackendTPList...)
-	}
-	return resolvedAIRLBackendTPList, airlBackendTPList.Continue, nil
+	return resolvedAIRLBackendTPList, nil
 }
 
 // PrepareSubscritionPolicyCRName prepare the cr name for a given policy name and organization pair
@@ -1206,7 +1212,7 @@ func getGatewayNameFromK8s(k8sClient client.Client) (string, error) {
 	conf, _ := config.ReadConfigs()
 	gatewayList := gwapiv1.GatewayList{}
 	// !!! TODO: Label name should be decided and added here.
-	labelMap := map[string]string{"gateway": "kgw-envoy-gateway"}
+	labelMap := map[string]string{"managed-by": "wso2kgw"}
 	listOption := &client.ListOptions{
 		Namespace:     conf.DataPlane.Namespace,
 		LabelSelector: labels.SelectorFromSet(labelMap),
@@ -1221,4 +1227,48 @@ func getGatewayNameFromK8s(k8sClient client.Client) (string, error) {
 		return "", errors.New("no gateway found with the label selector")
 	}
 	return gatewayList.Items[0].Name, nil
+}
+
+// getRateLimitPolicyContents returns the time unit and count for the given policy based on the quota type
+func getRateLimitPolicyContents(policy eventhubTypes.SubscriptionPolicy) (gatewayv1alpha1.RateLimitUnit, uint) {
+	var timeUnit gatewayv1alpha1.RateLimitUnit
+	var count, unitTime int
+	switch policy.QuotaType {
+	case "aiApiQuota":
+		// For AI RL, the time unit is already properly formatted
+		unitTime = int(policy.DefaultLimit.AiAPIQuota.UnitTime)
+		loggers.LoggerK8sClient.Infof("Formatted Time Unit(AIAPIQuota): %s",policy.DefaultLimit.AiAPIQuota.TimeUnit)
+		timeUnit = gatewayv1alpha1.RateLimitUnit(policy.DefaultLimit.AiAPIQuota.TimeUnit)
+		count = int(*policy.DefaultLimit.AiAPIQuota.RequestCount) / unitTime
+	case "eventCount":
+		unitTime = int(policy.DefaultLimit.EventCount.UnitTime)
+		loggers.LoggerK8sClient.Infof("Formatted Time Unit(EventCount): %s", getFormattedTimeUnit(policy.DefaultLimit.EventCount.TimeUnit))
+		timeUnit = gatewayv1alpha1.RateLimitUnit(getFormattedTimeUnit(policy.DefaultLimit.EventCount.TimeUnit))
+		count = int(policy.DefaultLimit.EventCount.EventCount) / unitTime
+	case "requestCount":
+		unitTime = int(policy.DefaultLimit.RequestCount.UnitTime)
+		loggers.LoggerK8sClient.Infof("Formatted Time Unit(RequestCount): %s", getFormattedTimeUnit(policy.DefaultLimit.EventCount.TimeUnit))
+		timeUnit = gatewayv1alpha1.RateLimitUnit(getFormattedTimeUnit(policy.DefaultLimit.RequestCount.TimeUnit))
+		count = int(policy.DefaultLimit.RequestCount.RequestCount) / unitTime
+	default:
+		loggers.LoggerK8sClient.Errorf("Unexpected quota type %s", policy.QuotaType)
+		return "", 0
+	}
+	return timeUnit, uint(count)
+}
+
+func getFormattedTimeUnit(timeUnit string) string {
+	switch timeUnit {
+	case "min":
+		return "Minute"
+	case "hours":
+		return "Hour"
+	case "days":
+		return "Day"
+	case "months":
+		return "Day" // Changed this because the envoy CRD does not support month
+	default:
+		loggers.LoggerK8sClient.Errorf("Unexpected timeunit %s", timeUnit)
+		return timeUnit
+	}
 }
