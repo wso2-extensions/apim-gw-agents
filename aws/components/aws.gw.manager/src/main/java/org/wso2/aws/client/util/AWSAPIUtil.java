@@ -79,6 +79,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static org.wso2.aws.client.AWSConstants.DEFAULT_VERSION;
 import static org.wso2.aws.client.AWSConstants.JSON_PAYLOAD_TYPE;
 import static org.wso2.aws.client.AWSConstants.OPEN_API_VERSION;
 import static org.wso2.aws.client.AWSConstants.PRODUCTION_ENDPOINTS;
@@ -587,8 +588,11 @@ public class AWSAPIUtil {
      * @param environment     The environment in which the API is deployed.
      * @return An API object representing the RestApi.
      */
-    public static API restAPItoAPI(RestApi restApi, String apiDefinition, String organization, Environment environment) {
-        APIIdentifier apiIdentifier = new APIIdentifier("admin", restApi.name(), restApi.version());
+    public static API restAPItoAPI(RestApi restApi, String apiDefinition, String organization,
+                                   Environment environment) {
+        String name = restApi.name() == null ? restApi.id() : restApi.name();
+        String version = restApi.version() == null ? DEFAULT_VERSION : restApi.version();
+        APIIdentifier apiIdentifier = new APIIdentifier("admin", name, version);
         API api = new API(apiIdentifier);
         api.setDisplayName(restApi.name());
         api.setUuid(restApi.id());
@@ -619,14 +623,11 @@ public class AWSAPIUtil {
         if (endpointUrls != null) {
             JsonObject endpointConfig = new JsonObject();
             endpointConfig.addProperty("endpoint_type", "http");
-            endpointConfig.addProperty("failOver", false);
 
             JsonObject prod = new JsonObject();
-            prod.addProperty(TEMPLATE_NOT_SUPPORTED_PROP, false);
             prod.addProperty(URL_PROP, endpointUrls);
 
             JsonObject sand = new JsonObject();
-            sand.addProperty(TEMPLATE_NOT_SUPPORTED_PROP, false);
             sand.addProperty(URL_PROP, endpointUrls);
             endpointConfig.add(PRODUCTION_ENDPOINTS, prod);
             endpointConfig.add(SANDBOX_ENDPOINTS, sand);

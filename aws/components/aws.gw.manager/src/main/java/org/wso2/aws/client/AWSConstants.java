@@ -45,4 +45,5 @@ public class AWSConstants {
     public static final String SANDBOX_ENDPOINTS = "sandbox_endpoints";
     public static final String TEMPLATE_NOT_SUPPORTED_PROP = "template_not_supported";
     public static final String URL_PROP = "url";
+    public static final String DEFAULT_VERSION = "1.0.0";
 }
