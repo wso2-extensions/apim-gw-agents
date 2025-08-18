@@ -173,12 +173,14 @@ func HandleApplicationEvents(data []byte, eventType string, c client.Client) {
 				applicationRegistrationEvent.ConsumerKey, applicationRegistrationEvent.TenantDomain)
 			return
 		}
+		envID := internalutils.GetEnvLabel()
+		logger.LoggerMessaging.Infof("EnvID from handler.go: %s", envID)
 		applicationKeyMappingEvent := event.ApplicationKeyMapping{ApplicationUUID: applicationRegistrationEvent.ApplicationUUID,
 			SecurityScheme:        "OAuth2",
 			ApplicationIdentifier: applicationRegistrationEvent.ConsumerKey,
 			KeyType:               applicationRegistrationEvent.KeyType,
 			Organization:          applicationRegistrationEvent.TenantDomain,
-			EnvID:                 "Default",
+			EnvID:                 envID,
 		}
 		if strings.EqualFold(eventConstants.ApplicationRegistration, eventType) {
 			event := event.Event{Type: constants.ApplicationKeyMappingCreated,

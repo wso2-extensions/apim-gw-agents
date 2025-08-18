@@ -69,7 +69,14 @@ func FetchAPIsOnEvent(conf *config.Config, apiUUID *string, k8sClient client.Cli
 						return nil, err
 					}
 
-					apkConf, apiUUID, revisionID, configuredRateLimitPoliciesMap, endpointSecurityData, api, prodAIRL, sandAIRL, apkErr := transformer.GenerateConf(artifact.APIJson, artifact.CertArtifact, artifact.Endpoints, apiDeployment.OrganizationID)
+					logger.LoggerUtils.Infof("Environments: %+v", apiDeployment.Environments)
+					envLabel := "Default" // fallback default
+					if apiDeployment.Environments != nil && len(*apiDeployment.Environments) > 0 {
+						envLabel = (*apiDeployment.Environments)[0].Name
+					}
+					logger.LoggerUtils.Infof("Selected Environment Label: %s", envLabel)
+
+					apkConf, apiUUID, revisionID, configuredRateLimitPoliciesMap, endpointSecurityData, api, prodAIRL, sandAIRL, apkErr := transformer.GenerateConf(artifact.APIJson, artifact.CertArtifact, artifact.Endpoints, apiDeployment.OrganizationID, envLabel)
 					if prodAIRL == nil {
 						// Try to delete production AI ratelimit for this api
 						// !!!TODO: Might hava to change the implementation becuase now we use BackendTrafficPolicy + RoutePolicy

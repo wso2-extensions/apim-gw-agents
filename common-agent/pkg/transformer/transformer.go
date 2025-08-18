@@ -41,7 +41,7 @@ import (
 )
 
 // GenerateConf will Generate the mapped .apk-conf file for a given API Project zip
-func GenerateConf(APIJson string, certArtifact CertificateArtifact, endpoints string, organizationID string) (string, string, uint32, map[string]eventHub.RateLimitPolicy, []EndpointSecurityConfig, *API, *AIRatelimit, *AIRatelimit, error) {
+func GenerateConf(APIJson string, certArtifact CertificateArtifact, endpoints string, organizationID string, envLabel string) (string, string, uint32, map[string]eventHub.RateLimitPolicy, []EndpointSecurityConfig, *API, *AIRatelimit, *AIRatelimit, error) {
 
 	apk := &API{}
 
@@ -82,7 +82,7 @@ func GenerateConf(APIJson string, certArtifact CertificateArtifact, endpoints st
 	// Check if the API is initiated from the gateway
 	if apiYamlData.InitiatedFromGateway {
 		logger.LoggerTransformer.Infof("API is initiated from the gateway. Hence skipping the API...")
-		return "", "null", 0, nil, []EndpointSecurityConfig{}, nil, nil, nil, fmt.Errorf("API is initiated from the gateway.")
+		return "", "null", 0, nil, []EndpointSecurityConfig{}, nil, nil, nil, fmt.Errorf("api is initiated from the gateway")
 	}
 
 	apk.Name = apiYamlData.Name
@@ -90,6 +90,7 @@ func GenerateConf(APIJson string, certArtifact CertificateArtifact, endpoints st
 	apk.Version = apiYamlData.Version
 	apk.Type = getAPIType(apiYamlData.Type)
 	apk.DefaultVersion = apiYamlData.DefaultVersion
+	apk.Environment = envLabel
 	apk.DefinitionPath = "/definition"
 	apk.SubscriptionValidation = true
 
@@ -996,6 +997,7 @@ func mapKeyManagers(keyManagers []string) []KeyManager {
 					Name: km.Name,
 					Issuer: km.KeyManagerConfig.Issuer,
 					JWKSEndpoint: km.KeyManagerConfig.CertificateValue,
+					ClaimMapping: km.KeyManagerConfig.ClaimMappings,
 				}
 				kmListForAPI = append(kmListForAPI, newkmConfig)
 			}

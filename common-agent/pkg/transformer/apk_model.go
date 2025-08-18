@@ -165,6 +165,7 @@ type API struct {
 	Context                string                  `yaml:"basePath,omitempty"`
 	Type                   string                  `yaml:"type,omitempty"`
 	DefaultVersion         bool                    `yaml:"defaultVersion"`
+	Environment            string                  `yaml:"environment,omitempty"`
 	DefinitionPath         string                  `yaml:"definitionPath,omitempty"`
 	EndpointConfigurations *EndpointConfigurations `yaml:"endpointConfigurations,omitempty"`
 	Operations             *[]Operation            `yaml:"operations,omitempty"`

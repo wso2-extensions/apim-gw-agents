@@ -58,7 +58,7 @@ import (
 // GenerateCRs takes the .apk-conf, api definition, vHost and the organization for a particular API and then generate and returns
 // the relavant CRD set as a zip
 func GenerateCRs(apkConf string, apiDefinition string, certContainer transformer.CertContainer, k8ResourceGenEndpoint string, organizationID string) (*K8sArtifacts, error) {
-	k8sArtifact := K8sArtifacts{HTTPRoutes: make(map[string]*gwapiv1.HTTPRoute), HTTPRouteFilters: make(map[string]*gatewayv1alpha1.HTTPRouteFilter), Backends: make(map[string]*gatewayv1alpha1.Backend), ConfigMaps: make(map[string]*corev1.ConfigMap), Secrets: make(map[string]*corev1.Secret), RouteMetadata: make(map[string]*dpv2alpha1.RouteMetadata), SecurityPolicies: make(map[string]*gatewayv1alpha1.SecurityPolicy), BackendTLSPolicies: make(map[string]*gwapiv1a3.BackendTLSPolicy), RoutePolicies: make(map[string]*dpv2alpha1.RoutePolicy), EnvoyExtensionPolicies: make(map[string]*gatewayv1alpha1.EnvoyExtensionPolicy), BackendTrafficPolicies: make(map[string]*gatewayv1alpha1.BackendTrafficPolicy), GRPCRoutes: make(map[string]*gwapiv1a2.GRPCRoute)}
+	k8sArtifact := K8sArtifacts{HTTPRoutes: make(map[string]*gwapiv1.HTTPRoute), HTTPRouteFilters: make(map[string]*gatewayv1alpha1.HTTPRouteFilter), Backends: make(map[string]*gatewayv1alpha1.Backend), ConfigMaps: make(map[string]*corev1.ConfigMap), Secrets: make(map[string]*corev1.Secret), SecurityPolicies: make(map[string]*gatewayv1alpha1.SecurityPolicy), BackendTLSPolicies: make(map[string]*gwapiv1a3.BackendTLSPolicy), RoutePolicies: make(map[string]*dpv2alpha1.RoutePolicy), EnvoyExtensionPolicies: make(map[string]*gatewayv1alpha1.EnvoyExtensionPolicy), BackendTrafficPolicies: make(map[string]*gatewayv1alpha1.BackendTrafficPolicy), GRPCRoutes: make(map[string]*gwapiv1a2.GRPCRoute)}
 	if apkConf == "" {
 		logger.LoggerTransformer.Error("Empty apk-conf parameter provided. Unable to generate CRDs.")
 		return nil, errors.New("Error: APK-Conf can't be empty")
@@ -68,8 +68,8 @@ func GenerateCRs(apkConf string, apiDefinition string, certContainer transformer
 		logger.LoggerTransformer.Error("Empty api definition provided. Unable to generate CRDs.")
 		return nil, errors.New("Error: API Definition can't be empty")
 	}
-	fmt.Printf("\nAPI Definition: %s\n", apiDefinition)
-	fmt.Printf("\nAPK Conf: %v\n", apkConf)
+	logger.LoggerTransformer.Debugf("\nAPI Definition: %s\n", apiDefinition)
+	logger.LoggerTransformer.Debugf("\nAPK Conf: %v\n", apkConf)
 	// Create a buffer to store the request body
 	var requestBody bytes.Buffer
 	writer := multipart.NewWriter(&requestBody)
@@ -102,8 +102,8 @@ func GenerateCRs(apkConf string, apiDefinition string, certContainer transformer
 	writer.Close()
 
 	k8sResourceEndpointWithOrg := k8ResourceGenEndpoint + "?organization=" + organizationID + "&cpInitiated=true"
-	logger.LoggerTransformer.Infof("K8s Resource Endpoint with Org: %s", k8sResourceEndpointWithOrg)
-	logger.LoggerTransformer.Infof("\nRequest Body string: %s\n", requestBody.String())
+	logger.LoggerTransformer.Debugf("K8s Resource Endpoint with Org: %s", k8sResourceEndpointWithOrg)
+	logger.LoggerTransformer.Debugf("\nRequest Body string: %s\n", requestBody.String())
 
 	// Create the HTTP request
 	request, err := http.NewRequest(postHTTPMethod, k8sResourceEndpointWithOrg, &requestBody)
@@ -272,7 +272,7 @@ func GenerateCRs(apkConf string, apiDefinition string, certContainer transformer
 				logger.LoggerSync.Errorf("Error unmarshaling RouteMetadata YAML: %+v", err)
 				continue
 			}
-			k8sArtifact.RouteMetadata[routeMetadata.Name] = &routeMetadata
+			k8sArtifact.RouteMetadata = &routeMetadata
 
 		case "GRPCRoute":
 			var grpcRoute gwapiv1a2.GRPCRoute
@@ -305,20 +305,6 @@ func GenerateCRs(apkConf string, apiDefinition string, certContainer transformer
 func UpdateCRS(k8sArtifact *K8sArtifacts, environments *[]transformer.Environment, organizationID string, apiUUID string, revisionID string, namespace string, configuredRateLimitPoliciesMap map[string]eventHub.RateLimitPolicy) {
 	addOrganization(k8sArtifact, organizationID)
 	addRevisionAndAPIUUID(k8sArtifact, apiUUID, revisionID)
-	// Create a in-memory map to store routemeta names and their associated deployemnt envs
-	deploymentTypeMap := make(map[string]string)
-	for _, routemetadata := range k8sArtifact.RouteMetadata {
-		routemetaName := routemetadata.Name
-		if deploymentTypeMap[routemetaName] == "" {
-			deploymentTypeMap[routemetaName] = routemetadata.Spec.API.Environment
-			logger.LoggerTransformer.Infof("RouteMetadata Name: %s | Deployment Type: %s", routemetadata.Name, routemetadata.Spec.API.Environment)
-		} else {
-			if deploymentTypeMap[routemetaName] != routemetadata.Spec.API.Environment {
-				logger.LoggerTransformer.Errorf("Environment mismatch for RouteMetadata: %s", routemetaName)
-			}
-		}
-	}
-
 	for _, environment := range *environments {
 		replaceVhost(k8sArtifact, environment.Vhost, environment.Type)
 	}
@@ -349,10 +335,10 @@ func replaceVhost(k8sArtifact *K8sArtifacts, vhost string, deploymentType string
 // the deploymemt descriptor
 func addOrganization(k8sArtifact *K8sArtifacts, organization string) {
 	organizationHash := generateSHA1Hash(organization)
-	for _, routemetadata := range k8sArtifact.RouteMetadata {
-		routemetadata.Spec.API.Organization = organization
-		routemetadata.ObjectMeta.Labels[k8sOrganizationField] = organizationHash
-	}
+	
+	k8sArtifact.RouteMetadata.Spec.API.Organization = organization
+	k8sArtifact.RouteMetadata.ObjectMeta.Labels[k8sOrganizationField] = organizationHash
+	
 	for _, httproutes := range k8sArtifact.HTTPRoutes {
 		httproutes.ObjectMeta.Labels[k8sOrganizationField] = organizationHash
 	}
@@ -390,10 +376,8 @@ func addOrganization(k8sArtifact *K8sArtifacts, organization string) {
 
 // addRevisionAndAPIUUID will add the API ID and the revision field attributes to the API CR
 func addRevisionAndAPIUUID(k8sArtifact *K8sArtifacts, apiID string, revisionID string) {
-	for _, routemetadata := range k8sArtifact.RouteMetadata {
-		routemetadata.ObjectMeta.Labels[k8APIUuidField] = apiID
-		routemetadata.ObjectMeta.Labels[k8RevisionField] = revisionID
-	}
+	k8sArtifact.RouteMetadata.ObjectMeta.Labels[k8APIUuidField] = apiID
+	k8sArtifact.RouteMetadata.ObjectMeta.Labels[k8RevisionField] = revisionID
 }
 
 // addRateLimitPolicyNames will add the rate limit policy names to the respective CRs
@@ -509,10 +493,8 @@ func createEndpointSecrets(secretDataList []transformer.EndpointSecurityConfig, 
 
 // Get API name from any RouteMetadata in the map
 func getAPINameFromRouteMetadata(k8sArtifact *K8sArtifacts) string {
-	for _, routeMetadata := range k8sArtifact.RouteMetadata {
-		if routeMetadata != nil && routeMetadata.Spec.API.Name != "" {
-			return routeMetadata.Spec.API.Name
-		}
+	if k8sArtifact.RouteMetadata != nil && k8sArtifact.RouteMetadata.Spec.API.Name != "" {
+		return k8sArtifact.RouteMetadata.Spec.API.Name
 	}
 	return "" // fallback if no RouteMetadata found
 }

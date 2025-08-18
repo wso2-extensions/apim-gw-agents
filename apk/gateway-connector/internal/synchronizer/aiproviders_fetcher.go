@@ -175,7 +175,8 @@ func FetchAIProvidersOnEvent(aiProviderName string, aiProviderVersion string, or
 			crAIProviderRP := createAIProviderRoutePolicy(&aiProvider)
 			// Deploy the AI Provider CR
 			// !!!TODO: NEED TO ADD THE LOGIC
-			k8sclient.DeployRoutePolicyCR(&crAIProviderRP, c)
+			ownerRef := &metav1.OwnerReference{} // Passing an empty owner ref
+			k8sclient.DeployRoutePolicyCR(&crAIProviderRP, ownerRef, c)
 			logger.LoggerSynchronizer.Info("AI Provider RoutePolicy CR Deployed Successfully")
 		}
 	} else {

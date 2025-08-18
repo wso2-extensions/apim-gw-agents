@@ -37,6 +37,7 @@ import (
 	k8error "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gwapiv1 "sigs.k8s.io/gateway-api/apis/v1"
@@ -78,7 +79,7 @@ func UndeployK8sRouteMetadataCRs(k8sClient client.Client, k8sRouteMetadata dpv2a
 }
 
 // DeployRouteMetadataCR applies the given RouteMetadata struct to the Kubernetes cluster.
-func DeployRouteMetadataCR(routeMetadata *dpv2alpha1.RouteMetadata, k8sClient client.Client) {
+func DeployRouteMetadataCR(routeMetadata *dpv2alpha1.RouteMetadata, k8sClient client.Client) (types.UID, error) {
 	crRouteMetadata := &dpv2alpha1.RouteMetadata{}
 	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: routeMetadata.ObjectMeta.Namespace, Name: routeMetadata.Name}, crRouteMetadata); err != nil {
 		if !k8error.IsNotFound(err) {
@@ -86,21 +87,28 @@ func DeployRouteMetadataCR(routeMetadata *dpv2alpha1.RouteMetadata, k8sClient cl
 		}
 		if err := k8sClient.Create(context.Background(), routeMetadata); err != nil {
 			loggers.LoggerK8sClient.Error("Unable to create RouteMetadata CR: " + err.Error())
+			return "", err
 		} else {
 			loggers.LoggerK8sClient.Info("RouteMetadata CR created: " + routeMetadata.Name)
+			return routeMetadata.ObjectMeta.UID, nil
 		}
 	} else {
 		crRouteMetadata.Spec = routeMetadata.Spec
 		if err := k8sClient.Update(context.Background(), crRouteMetadata); err != nil {
 			loggers.LoggerK8sClient.Error("Unable to update RouteMetadata CR: " + err.Error())
+			return "", err
 		} else {
 			loggers.LoggerK8sClient.Info("RouteMetadata CR updated: " + routeMetadata.Name)
+			return crRouteMetadata.ObjectMeta.UID, nil
 		}
 	}
 }
 
 // DeployConfigMapCR applies the given ConfigMap struct to the Kubernetes cluster.
-func DeployConfigMapCR(configMap *corev1.ConfigMap, k8sClient client.Client) {
+func DeployConfigMapCR(configMap *corev1.ConfigMap, ownerRef *metav1.OwnerReference, k8sClient client.Client) {
+	if ownerRef != nil {
+		configMap.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerRef}
+	}
 	crConfigMap := &corev1.ConfigMap{}
 	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: configMap.ObjectMeta.Namespace, Name: configMap.Name}, crConfigMap); err != nil {
 		if !k8error.IsNotFound(err) {
@@ -122,7 +130,10 @@ func DeployConfigMapCR(configMap *corev1.ConfigMap, k8sClient client.Client) {
 }
 
 // DeployHTTPRouteCR applies the given HttpRoute struct to the Kubernetes cluster.
-func DeployHTTPRouteFilterCR(httpRouteFilter *gatewayv1alpha1.HTTPRouteFilter, k8sClient client.Client) {
+func DeployHTTPRouteFilterCR(httpRouteFilter *gatewayv1alpha1.HTTPRouteFilter, ownerRef *metav1.OwnerReference, k8sClient client.Client) {
+	if ownerRef != nil {
+		httpRouteFilter.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerRef}
+	}
 	crHTTPRouteFilter := &gatewayv1alpha1.HTTPRouteFilter{}
 	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: httpRouteFilter.ObjectMeta.Namespace, Name: httpRouteFilter.Name}, crHTTPRouteFilter); err != nil {
 		if !k8error.IsNotFound(err) {
@@ -144,7 +155,10 @@ func DeployHTTPRouteFilterCR(httpRouteFilter *gatewayv1alpha1.HTTPRouteFilter, k
 }
 
 // DeployHTTPRouteCR applies the given HttpRoute struct to the Kubernetes cluster.
-func DeployHTTPRouteCR(httpRoute *gwapiv1.HTTPRoute, k8sClient client.Client) {
+func DeployHTTPRouteCR(httpRoute *gwapiv1.HTTPRoute, ownerRef *metav1.OwnerReference, k8sClient client.Client) {
+	if ownerRef != nil {
+		httpRoute.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerRef}
+	}
 	crHTTPRoute := &gwapiv1.HTTPRoute{}
 	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: httpRoute.ObjectMeta.Namespace, Name: httpRoute.Name}, crHTTPRoute); err != nil {
 		if !k8error.IsNotFound(err) {
@@ -166,7 +180,10 @@ func DeployHTTPRouteCR(httpRoute *gwapiv1.HTTPRoute, k8sClient client.Client) {
 }
 
 // DeploySecretCR applies the given Secret struct to the Kubernetes cluster.
-func DeploySecretCR(secret *corev1.Secret, k8sClient client.Client) {
+func DeploySecretCR(secret *corev1.Secret, ownerRef *metav1.OwnerReference, k8sClient client.Client) {
+	if ownerRef != nil {
+		secret.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerRef}
+	}
 	crSecret := &corev1.Secret{}
 	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: secret.ObjectMeta.Namespace, Name: secret.Name}, crSecret); err != nil {
 		if !k8error.IsNotFound(err) {
@@ -188,7 +205,10 @@ func DeploySecretCR(secret *corev1.Secret, k8sClient client.Client) {
 }
 
 // DeployBackendCR applies the given Backend struct to the Kubernetes cluster.
-func DeployBackendCR(backends *gatewayv1alpha1.Backend, k8sClient client.Client) {
+func DeployBackendCR(backends *gatewayv1alpha1.Backend, ownerRef *metav1.OwnerReference, k8sClient client.Client) {
+	if ownerRef != nil {
+		backends.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerRef}
+	}
 	crBackends := &gatewayv1alpha1.Backend{}
 	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: backends.ObjectMeta.Namespace, Name: backends.Name}, crBackends); err != nil {
 		if !k8error.IsNotFound(err) {
@@ -210,7 +230,10 @@ func DeployBackendCR(backends *gatewayv1alpha1.Backend, k8sClient client.Client)
 }
 
 // DeploySecurityPolicyCR applies the given SecurityPolicy struct to the Kubernetes cluster.
-func DeploySecurityPolicyCR(securityPolicy *gatewayv1alpha1.SecurityPolicy, k8sClient client.Client) {
+func DeploySecurityPolicyCR(securityPolicy *gatewayv1alpha1.SecurityPolicy, ownerRef *metav1.OwnerReference, k8sClient client.Client) {
+	if ownerRef != nil {
+		securityPolicy.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerRef}
+	}
 	crSecurityPolicy := &gatewayv1alpha1.SecurityPolicy{}
 	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: securityPolicy.ObjectMeta.Namespace, Name: securityPolicy.Name}, crSecurityPolicy); err != nil {
 		if !k8error.IsNotFound(err) {
@@ -232,7 +255,10 @@ func DeploySecurityPolicyCR(securityPolicy *gatewayv1alpha1.SecurityPolicy, k8sC
 }
 
 // DeployBackendTLSPolicyCR applies the given BackendTLSPolicy struct to the Kubernetes cluster.
-func DeployBackendTLSPolicyCR(backendTLSPolicy *gwapiv1a3.BackendTLSPolicy, k8sClient client.Client) {
+func DeployBackendTLSPolicyCR(backendTLSPolicy *gwapiv1a3.BackendTLSPolicy, ownerRef *metav1.OwnerReference, k8sClient client.Client) {
+	if ownerRef != nil {
+		backendTLSPolicy.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerRef}
+	}
 	crBackendTLSPolicy := &gwapiv1a3.BackendTLSPolicy{}
 	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: backendTLSPolicy.ObjectMeta.Namespace, Name: backendTLSPolicy.Name}, crBackendTLSPolicy); err != nil {
 		if !k8error.IsNotFound(err) {
@@ -254,7 +280,10 @@ func DeployBackendTLSPolicyCR(backendTLSPolicy *gwapiv1a3.BackendTLSPolicy, k8sC
 }
 
 // DeployRoutePolicyCR applies the given RoutePolicy struct to the Kubernetes cluster.
-func DeployRoutePolicyCR(routePolicy *dpv2alpha1.RoutePolicy, k8sClient client.Client) {
+func DeployRoutePolicyCR(routePolicy *dpv2alpha1.RoutePolicy, ownerRef *metav1.OwnerReference, k8sClient client.Client) {
+	if ownerRef != nil {
+		routePolicy.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerRef}
+	}
 	crRoutePolicy := &dpv2alpha1.RoutePolicy{}
 	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: routePolicy.ObjectMeta.Namespace, Name: routePolicy.Name}, crRoutePolicy); err != nil {
 		if !k8error.IsNotFound(err) {
@@ -276,7 +305,10 @@ func DeployRoutePolicyCR(routePolicy *dpv2alpha1.RoutePolicy, k8sClient client.C
 }
 
 // DeployEnvoyExtensionPolicyCR applies the given EnvoyExtensionPolicy struct to the Kubernetes cluster.
-func DeployEnvoyExtensionPolicyCR(extensionPolicy *gatewayv1alpha1.EnvoyExtensionPolicy, k8sClient client.Client) {
+func DeployEnvoyExtensionPolicyCR(extensionPolicy *gatewayv1alpha1.EnvoyExtensionPolicy, ownerRef *metav1.OwnerReference, k8sClient client.Client) {
+	if ownerRef != nil {
+		extensionPolicy.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerRef}
+	}
 	crExtensionPolicy := &gatewayv1alpha1.EnvoyExtensionPolicy{}
 	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: extensionPolicy.ObjectMeta.Namespace, Name: extensionPolicy.Name}, crExtensionPolicy); err != nil {
 		if !k8error.IsNotFound(err) {
@@ -298,7 +330,10 @@ func DeployEnvoyExtensionPolicyCR(extensionPolicy *gatewayv1alpha1.EnvoyExtensio
 }
 
 // DeployBakcendTrafficPolicyCR applies the given BakcendTrafficPolicy struct to the Kubernetes cluster.
-func DeployBakcendTrafficPolicyCR(backendTrafficPolicy *gatewayv1alpha1.BackendTrafficPolicy, k8sClient client.Client) {
+func DeployBakcendTrafficPolicyCR(backendTrafficPolicy *gatewayv1alpha1.BackendTrafficPolicy, ownerRef *metav1.OwnerReference, k8sClient client.Client) {
+	if ownerRef != nil {
+		backendTrafficPolicy.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerRef}
+	}
 	crBackendTrafficPolicy := &gatewayv1alpha1.BackendTrafficPolicy{}
 	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: backendTrafficPolicy.ObjectMeta.Namespace, Name: backendTrafficPolicy.Name}, crBackendTrafficPolicy); err != nil {
 		if !k8error.IsNotFound(err) {
@@ -320,7 +355,10 @@ func DeployBakcendTrafficPolicyCR(backendTrafficPolicy *gatewayv1alpha1.BackendT
 }
 
 // DeployGRPCRouteCR applies the given GRPCRoute struct to the Kubernetes cluster.
-func DeployGRPCRouteCR(grpcRoute *gwapiv1a2.GRPCRoute, k8sClient client.Client) {
+func DeployGRPCRouteCR(grpcRoute *gwapiv1a2.GRPCRoute, ownerRef *metav1.OwnerReference, k8sClient client.Client) {
+	if ownerRef != nil {
+		grpcRoute.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerRef}
+	}
 	crGRPCRoute := &gwapiv1.GRPCRoute{}
 	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: grpcRoute.ObjectMeta.Namespace, Name: grpcRoute.Name}, crGRPCRoute); err != nil {
 		if !k8error.IsNotFound(err) {
@@ -1237,7 +1275,7 @@ func getRateLimitPolicyContents(policy eventhubTypes.SubscriptionPolicy) (gatewa
 	case "aiApiQuota":
 		// For AI RL, the time unit is already properly formatted
 		unitTime = int(policy.DefaultLimit.AiAPIQuota.UnitTime)
-		loggers.LoggerK8sClient.Infof("Formatted Time Unit(AIAPIQuota): %s",policy.DefaultLimit.AiAPIQuota.TimeUnit)
+		loggers.LoggerK8sClient.Infof("Formatted Time Unit(AIAPIQuota): %s", policy.DefaultLimit.AiAPIQuota.TimeUnit)
 		timeUnit = gatewayv1alpha1.RateLimitUnit(policy.DefaultLimit.AiAPIQuota.TimeUnit)
 		count = int(*policy.DefaultLimit.AiAPIQuota.RequestCount) / unitTime
 	case "eventCount":

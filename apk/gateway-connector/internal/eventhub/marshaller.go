@@ -18,10 +18,13 @@
 package eventhub
 
 import (
+	"fmt"
+
 	"github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/pkg/managementserver"
 	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/eventhub/types"
 	mgtServer "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/managementserver"
 	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/utils"
+	synchronizer "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/utils"
 )
 
 // MarshalMultipleApplications is used to update the applicationList during the startup where
@@ -93,12 +96,14 @@ func MarshalApplication(appInternal *Application) managementserver.Application {
 }
 
 func marshalKeyMapping(keyMappingInternal *ApplicationKeyMapping) managementserver.ApplicationKeyMapping {
+	envID := synchronizer.GetEnvLabel()
+	fmt.Printf("\nenvID selected: %s\n", envID)
 	return managementserver.ApplicationKeyMapping{
 		ApplicationUUID:       keyMappingInternal.ApplicationUUID,
 		ApplicationIdentifier: keyMappingInternal.ConsumerKey,
 		KeyType:               keyMappingInternal.KeyType,
 		SecurityScheme:        "OAuth2",
-		EnvID:                 "Default",
+		EnvID:                 envID,
 		Timestamp:             keyMappingInternal.TimeStamp,
 	}
 }
