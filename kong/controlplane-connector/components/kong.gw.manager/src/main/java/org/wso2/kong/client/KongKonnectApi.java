@@ -21,6 +21,11 @@ package org.wso2.kong.client;
 import feign.Headers;
 import feign.Param;
 import feign.RequestLine;
+
+import org.wso2.kong.client.model.KongAPI;
+import org.wso2.kong.client.model.KongAPIImplementation;
+import org.wso2.kong.client.model.KongAPISpec;
+import org.wso2.kong.client.model.KongListResponse;
 import org.wso2.kong.client.model.KongPlugin;
 import org.wso2.kong.client.model.KongRoute;
 import org.wso2.kong.client.model.KongService;
@@ -33,7 +38,28 @@ import org.wso2.kong.client.model.PagedResponse;
  */
 public interface KongKonnectApi {
 
+  // List APIs
+  @RequestLine("GET /v3/apis?size={size}")
+  @Headers({"Accept: application/json"})
+  KongListResponse<KongAPI> listAPIs(@Param("size") int size);
+
+  // Get one API spec by API ID + Spec ID
+  @RequestLine("GET /v3/apis/{apiId}/specifications/{specId}")
+  @Headers({"Accept: application/json"})
+  KongAPISpec getAPISpec(@Param("apiId") String apiId, @Param("specId") String specId);
+
+  // List API implementations (api_id -> service mapping)
+  @RequestLine("GET /v3/api-implementations?size={size}")
+  @Headers({"Accept: application/json"})
+  KongListResponse<KongAPIImplementation> listAPIImplementations(@Param("size") int size);
+
   // Services
+
+  // Fetch a single service from a given control plane
+  @RequestLine("GET /v2/control-planes/{cpId}/core-entities/services/{serviceId}")
+  @Headers({"Accept: application/json"})
+  KongService getService(@Param("cpId") String controlPlaneId, @Param("serviceId") String serviceId);
+
   @RequestLine("GET /v2/control-planes/{cpId}/core-entities/services?size={size}")
   @Headers({"Accept: application/json"})
   PagedResponse<KongService> listServices(@Param("cpId") String controlPlaneId, @Param("size") int size);
