@@ -186,6 +186,7 @@ type APIMApi struct {
 	SubtypeConfiguration        SubtypeConfiguration  `yaml:"subtypeConfiguration"`
 	MaxTps                      *MaxTps               `yaml:"maxTps"`
 	KeyManagers                 []string              `yaml:"keyManagers"`
+	InitiatedFromGateway        bool                  `yaml:"initiatedFromGateway"`
 }
 
 // SubtypeConfiguration holds the details for Subtypes

@@ -17,6 +17,8 @@
 
 package transformer
 
+import "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/eventhub/types"
+
 // SecretInfo holds the info related to the created secret upon enabling the endpoint security options like basic auth
 type SecretInfo struct {
 	SecretName     string `yaml:"secretName,omitempty"`
@@ -141,11 +143,18 @@ type AIProvider struct {
 	APIVersion string `yaml:"apiVersion,omitempty"`
 }
 
+// // Claim represents a claim mapping between local and remote claims.
+// type Claim struct {
+//     LocalClaim  string `json:"localClaim" yaml:"localClaim"`
+//     RemoteClaim string `json:"remoteClaim" yaml:"remoteClaim"`
+// }
+
 // KeyManager represents the properties of a particular key manager.
 type KeyManager struct {
     Name        string `json:"name" yaml:"name"`
     Issuer      string `json:"issuer" yaml:"issuer"`
     JWKSEndpoint string `json:"JWKSEndpoint" yaml:"JWKSEndpoint"`
+	ClaimMapping []types.Claim `json:"claimMappings" yaml:"claimMappings"`
 }
 
 // API represents an main API type definition
@@ -156,6 +165,7 @@ type API struct {
 	Context                string                  `yaml:"basePath,omitempty"`
 	Type                   string                  `yaml:"type,omitempty"`
 	DefaultVersion         bool                    `yaml:"defaultVersion"`
+	Environment            string                  `yaml:"environment,omitempty"`
 	DefinitionPath         string                  `yaml:"definitionPath,omitempty"`
 	EndpointConfigurations *EndpointConfigurations `yaml:"endpointConfigurations,omitempty"`
 	Operations             *[]Operation            `yaml:"operations,omitempty"`

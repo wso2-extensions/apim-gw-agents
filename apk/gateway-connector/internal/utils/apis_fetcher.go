@@ -69,7 +69,14 @@ func FetchAPIsOnEvent(conf *config.Config, apiUUID *string, k8sClient client.Cli
 						return nil, err
 					}
 
-					apkConf, apiUUID, revisionID, configuredRateLimitPoliciesMap, endpointSecurityData, api, prodAIRL, sandAIRL, apkErr := transformer.GenerateConf(artifact.APIJson, artifact.CertArtifact, artifact.Endpoints, apiDeployment.OrganizationID)
+					logger.LoggerUtils.Infof("Environments: %+v", apiDeployment.Environments)
+					envLabel := "Default" // fallback default
+					if apiDeployment.Environments != nil && len(*apiDeployment.Environments) > 0 {
+						envLabel = (*apiDeployment.Environments)[0].Name
+					}
+					logger.LoggerUtils.Infof("Selected Environment Label: %s", envLabel)
+
+					apkConf, apiUUID, revisionID, configuredRateLimitPoliciesMap, endpointSecurityData, api, prodAIRL, sandAIRL, apkErr := transformer.GenerateConf(artifact.APIJson, artifact.CertArtifact, artifact.Endpoints, apiDeployment.OrganizationID, envLabel)
 					if prodAIRL == nil {
 						// Try to delete production AI ratelimit for this api
 						// !!!TODO: Might hava to change the implementation becuase now we use BackendTrafficPolicy + RoutePolicy
@@ -83,10 +90,9 @@ func FetchAPIsOnEvent(conf *config.Config, apiUUID *string, k8sClient client.Cli
 						logger.LoggerUtils.Debugf("Trying to delete sandbox AI ratelimit for API: %v", api.Name)
 					}
 					if apkErr != nil {
-						logger.LoggerUtils.Errorf("Error while generating APK-Conf: %v", apkErr)
+						logger.LoggerUtils.Errorf("Unable to generate APK-Conf: %+v", apkErr)
 						return nil, err
 					}
-					logger.LoggerUtils.Debugf("APK Conf: %v", apkConf)
 					certContainer := transformer.CertContainer{
 						ClientCertObj:   artifact.CertMeta,
 						EndpointCertObj: artifact.EndpointCertMeta,
@@ -95,7 +101,7 @@ func FetchAPIsOnEvent(conf *config.Config, apiUUID *string, k8sClient client.Cli
 					k8ResourceEndpoint := conf.DataPlane.K8ResourceEndpoint
 					crResponse, err := apkTransformer.GenerateCRs(apkConf, artifact.Schema, certContainer, k8ResourceEndpoint, apiDeployment.OrganizationID)
 					if err != nil {
-						logger.LoggerUtils.Errorf("Error occured in receiving the updated CRDs: %v", err)
+						logger.LoggerUtils.Errorf("Error occured in receiving the updated CRDs: %+v", err)
 						return nil, err
 					}
 					apkTransformer.UpdateCRS(crResponse, apiDeployment.Environments, apiDeployment.OrganizationID, apiUUID, fmt.Sprint(revisionID), "namespace", configuredRateLimitPoliciesMap)

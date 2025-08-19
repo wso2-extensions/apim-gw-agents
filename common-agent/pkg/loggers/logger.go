@@ -38,8 +38,8 @@ const (
 	pkgUtils       = "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/utils"
 	pkgMgtServer   = "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/managementserver"
 	pkgTransformer = "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/transformer"
-	pkgSync        = "github.com/wso2/product-apim-tooling/apim-apk-agent/pkg/synchronizer"
-	pkgWatcher     = "github.com/wso2/product-apim-tooling/apim-apk-agent/pkg/watcher"
+	pkgSync        = "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/synchronizer"
+	pkgWatcher     = "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/discovery"
 	pkgCache       = "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/cache"
 )
 

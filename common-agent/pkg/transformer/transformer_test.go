@@ -141,7 +141,7 @@ func TestAPKConfGeneration(t *testing.T) {
 				assert.NoError(t, err)
 				assert.IsType(t, &APIArtifact{}, apiArtifact)
 
-				apkConf, apiUUID, revisionID, configuredRateLimitPoliciesMap, endpointSecurityData, _, _, _, apkErr := GenerateConf(apiArtifact.APIJson, apiArtifact.CertArtifact, apiArtifact.Endpoints, "default")
+				apkConf, apiUUID, revisionID, configuredRateLimitPoliciesMap, endpointSecurityData, _, _, _, apkErr := GenerateConf(apiArtifact.APIJson, apiArtifact.CertArtifact, apiArtifact.Endpoints, "default", "Default")
 
 				assert.NoError(t, apkErr)
 				assert.NotEmpty(t, apkConf)

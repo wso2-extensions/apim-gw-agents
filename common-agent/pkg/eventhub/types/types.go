@@ -145,7 +145,11 @@ type DefaultLimit struct {
 		RequestCount int    `json:"requestCount"`
 	} `json:"requestCount"`
 	Bandwidth  interface{} `json:"bandwidth"`
-	EventCount interface{} `json:"eventCount"`
+	EventCount struct {
+		TimeUnit     string `json:"timeUnit"`
+		UnitTime     int    `json:"unitTime"`
+		EventCount   int    `json:"eventCount"`
+	} `json:"eventCount"`
 }
 
 // AiAPIQuota contains the AI ratelimit configurations

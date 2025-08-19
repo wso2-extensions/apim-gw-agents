@@ -39,12 +39,10 @@ data:
     {{- end }}
 
   log_config.toml: |
-    # The logging configuration for Adapter
-
-    ## Adapter root Level configurations
+    # The logging configuration for Agent
       
-      logLevel = "INFO" # LogLevels can be "DEBG", "FATL", "ERRO", "WARN", "INFO", "PANC"
-      LogFormat = "TEXT" # Values can be "JSON", "TEXT"
+      logLevel = "{{ .Values.logging.level }}"
+      LogFormat = "{{ .Values.logging.format }}"
       
       [rotation]
       MaxSize = 10    # In MegaBytes (MB)

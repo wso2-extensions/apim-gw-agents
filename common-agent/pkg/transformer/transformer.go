@@ -41,7 +41,7 @@ import (
 )
 
 // GenerateConf will Generate the mapped .apk-conf file for a given API Project zip
-func GenerateConf(APIJson string, certArtifact CertificateArtifact, endpoints string, organizationID string) (string, string, uint32, map[string]eventHub.RateLimitPolicy, []EndpointSecurityConfig, *API, *AIRatelimit, *AIRatelimit, error) {
+func GenerateConf(APIJson string, certArtifact CertificateArtifact, endpoints string, organizationID string, envLabel string) (string, string, uint32, map[string]eventHub.RateLimitPolicy, []EndpointSecurityConfig, *API, *AIRatelimit, *AIRatelimit, error) {
 
 	apk := &API{}
 
@@ -79,11 +79,18 @@ func GenerateConf(APIJson string, certArtifact CertificateArtifact, endpoints st
 	apiYamlData := apiYaml.Data
 	logger.LoggerTransformer.Debugf("apiYamlData: %v", apiYamlData)
 
+	// Check if the API is initiated from the gateway
+	if apiYamlData.InitiatedFromGateway {
+		logger.LoggerTransformer.Infof("API is initiated from the gateway. Hence skipping the API...")
+		return "", "null", 0, nil, []EndpointSecurityConfig{}, nil, nil, nil, fmt.Errorf("api is initiated from the gateway")
+	}
+
 	apk.Name = apiYamlData.Name
 	apk.Context = apiYamlData.Context
 	apk.Version = apiYamlData.Version
 	apk.Type = getAPIType(apiYamlData.Type)
 	apk.DefaultVersion = apiYamlData.DefaultVersion
+	apk.Environment = envLabel
 	apk.DefinitionPath = "/definition"
 	apk.SubscriptionValidation = true
 
@@ -274,8 +281,9 @@ func GenerateConf(APIJson string, certArtifact CertificateArtifact, endpoints st
 	//!!!TODO: Add KeyManagers to the conf
 	// Since we only get the KM name, need to get the rest of the details from the internal map we keep
 	// after fetching the key managers from the control plane.
+	logger.LoggerTransformer.Infof("KeyManager data from yaml: %+v", apiYamlData.KeyManagers)
 	kmData := mapKeyManagers(apiYamlData.KeyManagers)
-	logger.LoggerTransformer.Debugf("KeyManagers: %+v", kmData)
+	logger.LoggerTransformer.Infof("KeyManager data after mapping: %+v", kmData)
 	apk.KeyManagers = &kmData
 
 	c, marshalError := yaml.Marshal(apk)
@@ -976,6 +984,7 @@ func mapKeyManagers(keyManagers []string) []KeyManager {
 					Name: km.Name,
 					Issuer: km.KeyManagerConfig.Issuer,
 					JWKSEndpoint: km.KeyManagerConfig.CertificateValue,
+					ClaimMapping: km.KeyManagerConfig.ClaimMappings,
 				}
 				kmListForAPI = append(kmListForAPI, newkmConfig)
 			}
@@ -988,6 +997,7 @@ func mapKeyManagers(keyManagers []string) []KeyManager {
 					Name: km.Name,
 					Issuer: km.KeyManagerConfig.Issuer,
 					JWKSEndpoint: km.KeyManagerConfig.CertificateValue,
+					ClaimMapping: km.KeyManagerConfig.ClaimMappings,
 				}
 				kmListForAPI = append(kmListForAPI, newkmConfig)
 			}
