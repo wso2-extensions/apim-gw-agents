@@ -599,5 +599,19 @@ public class KongAPIUtil {
             throw new APIManagementException("Failed to parse Kong external reference");
         }
     }
+
+    /**
+     * Ensures the given string starts with a leading slash.
+     * If the string is null or empty, returns "/".
+     *
+     * @param v The input string
+     * @return The input string with a leading slash, or "/" if null/empty
+     */
+    public static String ensureLeadingSlash(String v) {
+        if (v == null || v.isEmpty()) {
+            return "/";
+        }
+        return v.startsWith("/") ? v : "/" + v;
+    }
     
 }
