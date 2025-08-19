@@ -163,7 +163,7 @@ public class AzureGatewayDeployer implements GatewayDeployer {
         }
         //replace {context} placeHolder with actual context
         JsonObject root = JsonParser.parseString(externalReference).getAsJsonObject();
-        String context = root.get(AzureConstants.AZURE_EXTERNAL_REFERENCE_PATH).getAsString();
+        String context = root.get(AzureConstants.AZURE_EXTERNAL_REFERENCE_CONTEXT).getAsString();
         start = resolvedUrl.indexOf(AzureConstants.AZURE_API_EXECUTION_URL_TEMPLATE_CONTEXT_PLACEHOLDER);
         if (start != -1) {
             resolvedUrl.replace(start, start +

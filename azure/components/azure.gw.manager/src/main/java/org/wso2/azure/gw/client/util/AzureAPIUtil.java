@@ -25,12 +25,15 @@ import com.azure.core.http.HttpPipeline;
 import com.azure.core.http.HttpRequest;
 import com.azure.core.http.HttpResponse;
 import com.azure.core.util.Context;
+import com.azure.core.util.IterableStream;
 import com.azure.resourcemanager.apimanagement.ApiManagementManager;
 import com.azure.resourcemanager.apimanagement.fluent.models.PolicyContractInner;
 import com.azure.resourcemanager.apimanagement.models.ApiContract;
+import com.azure.resourcemanager.apimanagement.models.ApiOperationPoliciesCreateOrUpdateResponse;
 import com.azure.resourcemanager.apimanagement.models.ApiPoliciesCreateOrUpdateResponse;
 import com.azure.resourcemanager.apimanagement.models.ApiVersionSetContract;
 import com.azure.resourcemanager.apimanagement.models.ContentFormat;
+import com.azure.resourcemanager.apimanagement.models.OperationContract;
 import com.azure.resourcemanager.apimanagement.models.PolicyContentFormat;
 import com.azure.resourcemanager.apimanagement.models.PolicyIdName;
 import com.azure.resourcemanager.apimanagement.models.VersioningScheme;
@@ -55,6 +58,7 @@ import org.wso2.carbon.apimgt.api.model.APIIdentifier;
 import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.api.model.OperationPolicy;
 import org.wso2.carbon.apimgt.api.model.Tier;
+import org.wso2.carbon.apimgt.api.model.URITemplate;
 import org.xml.sax.InputSource;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -99,7 +103,8 @@ public class AzureAPIUtil {
                 throw new APIManagementException("Endpoint configuration is empty for API: " + api.getId());
             }
             JsonObject endpointConfigJson = JsonParser.parseString(endpointConfig).getAsJsonObject();
-            JsonObject prodEndpoints = endpointConfigJson.has("production_endpoints") &&
+            JsonObject prodEndpoints = endpointConfigJson != null &&
+                      endpointConfigJson.has("production_endpoints") &&
                       endpointConfigJson.get("production_endpoints").isJsonObject()
                     ? endpointConfigJson.getAsJsonObject("production_endpoints")
                     : null;
@@ -109,7 +114,6 @@ public class AzureAPIUtil {
                     ? prodEndpoints.get("url").getAsString()
                     : null;
             if (productionEndpoint == null) {
-                log.error("Production endpoint URL is null for API: " + api.getId());
                 throw new APIManagementException("Production endpoint URL is null for API: " + api.getId());
             }
             productionEndpoint = productionEndpoint.endsWith("/") ?
@@ -121,7 +125,7 @@ public class AzureAPIUtil {
                     .withVersioningScheme(VersioningScheme.SEGMENT).create();
 
             ApiContract apiContract = manager.apis()
-                    .define(api.getUuid())
+                    .define(api.getUuid()) // Use UUID as the API name since name needs to be unique
                     .withExistingService(resourceGroup, serviceName)
                     .withDisplayName(api.getId().getApiName())
                     .withPath(getContextWithoutVersion(api.getContext(), api.getId().getVersion()))
@@ -150,7 +154,7 @@ public class AzureAPIUtil {
                 }
             }
 
-            //configure OAuth2 policy
+            //configure API level OAuth2 policy
             List<OperationPolicy> apiPolicies = api.getApiPolicies();
             if (apiPolicies != null) {
                 for (OperationPolicy policy : apiPolicies) {
@@ -165,7 +169,8 @@ public class AzureAPIUtil {
                                 throw new APIManagementException("JWT Policy file not found");
                             }
                             jwtPolicyContent = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-                            jwtPolicyContent = jwtPolicyContent.replace("${openIdURL}", openIdURL);
+                            jwtPolicyContent = jwtPolicyContent.replace(
+                                    AzureConstants.AZURE_JWT_OPERATION_POLICY_OPENID_URL_PLACEHOLDER, openIdURL);
                             if (jwtPolicyContent.isEmpty()) {
                                 throw new APIManagementException("JWT policy content is empty for API: " + api.getId());
                             }
@@ -179,6 +184,54 @@ public class AzureAPIUtil {
                             }
                         }
                         break;
+                    }
+                }
+            }
+
+            String jwtPolicyContent = null;
+            try (InputStream inputStream = AzureGatewayConfiguration.class.getClassLoader()
+                    .getResourceAsStream(AzureConstants.AZURE_RESOURCE_LEVEL_JWT_POLICY_FILENAME)) {
+
+                if (inputStream == null) {
+                    throw new APIManagementException("Resource level JWT Policy file not found");
+                }
+                jwtPolicyContent = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+                if (jwtPolicyContent.isEmpty()) {
+                    throw new APIManagementException("Resource level JWT policy content is empty for API: "
+                            + api.getId());
+                }
+            }
+
+            IterableStream<OperationContract> operationContracts =
+                    manager.apiOperations().listByApi(resourceGroup, serviceName, apiContract.name());
+
+            for (URITemplate resource : api.getUriTemplates()) {
+                for (OperationPolicy policy : resource.getOperationPolicies()) {
+                    if (policy.getPolicyName().equals(AzureConstants.AZURE_OPERATION_POLICY_NAME)) {
+                        String openIdURL = policy.getParameters()
+                                .get(AzureConstants.AZURE_OPERATION_POLICY_PARAMETER_OPENID_URL).toString();
+                        jwtPolicyContent = jwtPolicyContent.replace(
+                                AzureConstants.AZURE_JWT_OPERATION_POLICY_OPENID_URL_PLACEHOLDER, openIdURL);
+                        PolicyContractInner resourceLevelJWTPolicy = new PolicyContractInner()
+                                .withFormat(PolicyContentFormat.XML)
+                                .withValue(jwtPolicyContent);
+
+                        String operationId = null;
+                        for (OperationContract operationContract : operationContracts) {
+                            if (operationContract.method().equals(resource.getHTTPVerb()) &&
+                                operationContract.urlTemplate().equals(resource.getUriTemplate())) {
+                                operationId = operationContract.name();
+                            }
+                        }
+                        if (operationId == null) {
+                            throw new APIManagementException("Azure API operation not found for resource: " +
+                                    resource.getUriTemplate());
+                        }
+
+                        ApiOperationPoliciesCreateOrUpdateResponse response = manager.serviceClient()
+                                .getApiOperationPolicies().createOrUpdateWithResponse(resourceGroup, serviceName,
+                                        apiContract.name(), operationId, PolicyIdName.POLICY, resourceLevelJWTPolicy,
+                                        "*", Context.NONE);
                     }
                 }
             }
@@ -202,7 +255,20 @@ public class AzureAPIUtil {
 
             JsonObject referenceArtifact = new JsonObject();
             referenceArtifact.addProperty(AzureConstants.AZURE_EXTERNAL_REFERENCE_UUID, api.getUuid());
-            referenceArtifact.addProperty(AzureConstants.AZURE_EXTERNAL_REFERENCE_PATH, api.getContext());
+            referenceArtifact.addProperty(AzureConstants.AZURE_EXTERNAL_REFERENCE_CONTEXT, api.getContext());
+            referenceArtifact.addProperty(AzureConstants.AZURE_EXTERNAL_REFERENCE_ID, apiContract.id());
+            referenceArtifact.addProperty(AzureConstants.AZURE_EXTERNAL_REFERENCE_ARTIFACT_TYPE, apiContract.type());
+            referenceArtifact.addProperty(AzureConstants.AZURE_EXTERNAL_REFERENCE_DISPLAY_NAME,
+                    apiContract.displayName());
+            referenceArtifact.addProperty(AzureConstants.AZURE_EXTERNAL_REFERENCE_VERSION, apiContract.apiVersion());
+            referenceArtifact.addProperty(AzureConstants.AZURE_EXTERNAL_REFERENCE_PATH, apiContract.path());
+            referenceArtifact.addProperty(AzureConstants.AZURE_EXTERNAL_REFERENCE_SERVICE_URL,
+                    apiContract.serviceUrl());
+            referenceArtifact.addProperty(AzureConstants.AZURE_EXTERNAL_REFERENCE_VERSION_SET_ID,
+                    apiContract.apiVersionSetId());
+            referenceArtifact.addProperty(
+                    AzureConstants.AZURE_EXTERNAL_REFERENCE_VERSIONING_SCHEME,
+                    versionSetContract.versioningScheme().toString());
             Gson gson = new Gson();
             return gson.toJson(referenceArtifact);
         } catch (Exception e) {
