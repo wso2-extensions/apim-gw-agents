@@ -1,0 +1,66 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  annotations:
+    konghq.com/plugins: api-jwt-553a334beabb750498bd5deeda870753e33042d9-780d341c-20f0-44e4-aa42-4cff613b9d50-api,api-acl-adaf9bf18ed1c6c07acdc951f3a7449758c084ce-780d341c-20f0-44e4-aa42-4cff613b9d50-api-sandbox
+    konghq.com/strip-path: "true"
+  labels:
+    apiName: APIResourceEndpoint
+    apiUUID: 780d341c-20f0-44e4-aa42-4cff613b9d50
+    environment: sandbox
+    organization: 2e14f1a627e0f7388df2efa85fba6816ac25f094
+    routeType: api
+  name: a1bf6720c628f2045fb83ba478eed39dd06dff4a-sandbox-httproute-0
+  namespace: kong
+spec:
+  hostnames:
+  - sandbox.kong.wso2.com
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: kong
+  rules:
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: backend-807288cfe58368ddaad4cf4c79cd7a7c68baef1a
+      port: 443
+      weight: 1
+    filters:
+    - requestHeaderModifier:
+        set:
+        - name: Host
+          value: httpbin.org
+      type: RequestHeaderModifier
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          replaceFullPath: /get
+          type: ReplaceFullPath
+    matches:
+    - method: GET
+      path:
+        type: RegularExpression
+        value: /httpbin/1.0.0/get
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: backend-807288cfe58368ddaad4cf4c79cd7a7c68baef1a
+      port: 443
+      weight: 1
+    filters:
+    - requestHeaderModifier:
+        set:
+        - name: Host
+          value: httpbin.org
+      type: RequestHeaderModifier
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          replaceFullPath: /post
+          type: ReplaceFullPath
+    matches:
+    - method: POST
+      path:
+        type: RegularExpression
+        value: /httpbin/1.0.0/post
