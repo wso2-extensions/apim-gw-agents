@@ -18,12 +18,12 @@
 package kongAgent
 
 import (
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/config"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/eventhub/types"
-	msg "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/messaging"
-	"github.com/wso2-extensions/apim-gw-agents/kong/gateway-connector/internal/agent"
-	"github.com/wso2-extensions/apim-gw-agents/kong/gateway-connector/internal/events"
-	"github.com/wso2-extensions/apim-gw-agents/kong/gateway-connector/internal/loggers"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/eventhub/types"
+	msg "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/messaging"
+	"github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/internal/agent"
+	"github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/internal/events"
+	"github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/internal/loggers"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"

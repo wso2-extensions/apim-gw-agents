@@ -26,12 +26,12 @@ package synchronizer
 import (
 	"fmt"
 
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/config"
-	sync "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/synchronizer"
-	transformer "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/transformer"
-	logger "github.com/wso2-extensions/apim-gw-agents/kong/gateway-connector/internal/loggers"
-	mapperUtil "github.com/wso2-extensions/apim-gw-agents/kong/gateway-connector/internal/mapper"
-	kongTransformer "github.com/wso2-extensions/apim-gw-agents/kong/gateway-connector/pkg/transformer"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
+	sync "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/synchronizer"
+	transformer "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/transformer"
+	logger "github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/internal/loggers"
+	mapperUtil "github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/internal/mapper"
+	kongTransformer "github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/pkg/transformer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

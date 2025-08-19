@@ -23,8 +23,8 @@ import (
 	"os"
 
 	"github.com/cucumber/godog"
-	"github.com/wso2-extensions/apim-gw-agents/kong/gateway-connector/tests/pkg/utils"
-	"github.com/wso2-extensions/apim-gw-agents/kong/gateway-connector/tests/steps"
+	"github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/tests/pkg/utils"
+	"github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/tests/steps"
 )
 
 func runTestSuite(ctx *utils.SharedContext, path string) int {

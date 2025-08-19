@@ -24,10 +24,10 @@
 package mapper
 
 import (
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/config"
-	internalk8sClient "github.com/wso2-extensions/apim-gw-agents/kong/gateway-connector/internal/k8sClient"
-	logger "github.com/wso2-extensions/apim-gw-agents/kong/gateway-connector/internal/loggers"
-	"github.com/wso2-extensions/apim-gw-agents/kong/gateway-connector/pkg/transformer"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
+	internalk8sClient "github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/internal/k8sClient"
+	logger "github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/internal/loggers"
+	"github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/pkg/transformer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

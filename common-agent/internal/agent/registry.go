@@ -51,5 +51,5 @@ var agentReg = &agentRegistry{
 // init function registers the default gateway agents when the package is initialized.
 func init() {
 	agentReg.RegisterAgent("apk", &apkAgent.Agent{})
-	// agentReg.RegisterAgent("kong", &kongAgent.Agent{})
+	agentReg.RegisterAgent("kong", &kongAgent.Agent{})
 }

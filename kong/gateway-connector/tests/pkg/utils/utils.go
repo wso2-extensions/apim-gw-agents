@@ -30,7 +30,7 @@ import (
 	"strings"
 
 	"github.com/tidwall/gjson"
-	"github.com/wso2-extensions/apim-gw-agents/kong/gateway-connector/tests/pkg/constants"
+	"github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/tests/pkg/constants"
 )
 
 // GetConfigGeneratorURL returns the API configuration generator URL.

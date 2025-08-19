@@ -24,8 +24,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/k8s-resource-lib/types"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/loggers"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/k8s-resource-lib/types"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/loggers"
 )
 
 var allowedTimeUnits = map[string]string{"min": "minute", "hours": "hour", "days": "day", "Minute": "minute", "Hour": "hour", "Day": "day"}

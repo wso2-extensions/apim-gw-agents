@@ -21,7 +21,7 @@ package loggers
 
 import (
 	"github.com/sirupsen/logrus"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/logging"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/logging"
 )
 
 /* loggers should be initiated only for the main packages

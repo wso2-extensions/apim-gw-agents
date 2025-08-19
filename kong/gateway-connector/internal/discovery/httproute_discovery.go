@@ -32,9 +32,9 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	discoverPkg "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/discovery"
-	loggers "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/loggers"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/managementserver"
+	discoverPkg "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/discovery"
+	loggers "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/loggers"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/managementserver"
 )
 
 // InitializeHTTPRoutesState fetches all existing HTTPRoutes and populates discoverPkg.APIMap

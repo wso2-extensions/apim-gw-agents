@@ -20,9 +20,9 @@ package discovery
 import (
 	"sync"
 
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/config"
-	discoveryPkg "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/discovery"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/loggers"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
+	discoveryPkg "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/discovery"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/loggers"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
