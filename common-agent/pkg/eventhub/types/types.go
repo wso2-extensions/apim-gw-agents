@@ -228,6 +228,6 @@ type KeyManagerConfig struct {
 
 // Claim for struct
 type Claim struct {
-	RemoteClaim string `json:"remoteClaim"`
-	LocalClaim  string `json:"localClaim"`
+	RemoteClaim string `json:"remoteClaim" yaml:"remoteClaim"`
+	LocalClaim  string `json:"localClaim" yaml:"localClaim"`
 }
