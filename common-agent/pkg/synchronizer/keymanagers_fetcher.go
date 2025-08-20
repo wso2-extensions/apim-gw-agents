@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
+ *  Copyright (c) 2025, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -31,12 +31,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/config"
-	pkgAuth "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/auth"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/eventhub"
-	eventhubTypes "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/eventhub/types"
-	logger "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/loggers"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/tlsutils"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
+	pkgAuth "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/auth"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/eventhub"
+	eventhubTypes "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/eventhub/types"
+	logger "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/loggers"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/tlsutils"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -117,7 +117,7 @@ func FetchKeyManagersOnStartUp(c client.Client) ([]eventhubTypes.ResolvedKeyMana
 			errorMsg := fmt.Sprintf("Error occurred while unmarshelling Key Managers event data %v", err)
 			return nil, errorMsg
 		}
-		logger.LoggerSync.Infof("Key Managers received: %+v", keyManagers)
+		logger.LoggerSync.Debugf("Key Managers received: %+v", keyManagers)
 		resolvedKeyManagers := eventhub.MarshalKeyManagers(&keyManagers)
 		return resolvedKeyManagers, ""
 	}

@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
+ *  Copyright (c) 2025, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 
 package eventhub
 
-import "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/eventhub/types"
+import "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/eventhub/types"
 
 // MarshalKeyManagers is used to update the key managers during the startup where
 // multiple key managers are pulled at once. And then it returns the KeyManagerMap.
@@ -117,7 +117,7 @@ func marshalClaimMappings(claimMappings []interface{}) []types.Claim {
 			// Extract the remoteClaim and localClaim values from the map
 			remoteClaim, hasRemote := claimMap["remoteClaim"].(string)
 			localClaim, hasLocal := claimMap["localClaim"].(string)
-			
+
 			if hasRemote && hasLocal {
 				resolvedClaim := types.Claim{
 					RemoteClaim: remoteClaim,

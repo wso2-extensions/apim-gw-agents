@@ -7,7 +7,7 @@ import (
 	"os"
 	"reflect"
 
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/k8s-resource-lib/types"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/k8s-resource-lib/types"
 	"gopkg.in/yaml.v2"
 )
 

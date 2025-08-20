@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
+ *  Copyright (c) 2025, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -19,12 +19,12 @@
 package messaging
 
 import (
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/config"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/agent"
-	msg "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/messaging"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/agent"
+	msg "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/messaging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	logger "github.com/wso2-extensions/apim-gw-agents/common-agent/internal/loggers"
+	logger "github.com/wso2-extensions/apim-gw-connectors/common-agent/internal/loggers"
 )
 
 // ProcessEvents to pass event consumption

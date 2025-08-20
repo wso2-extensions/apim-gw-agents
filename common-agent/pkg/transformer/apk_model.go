@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
+ *  Copyright (c) 2025, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 
 package transformer
 
-import "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/eventhub/types"
+import "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/eventhub/types"
 
 // SecretInfo holds the info related to the created secret upon enabling the endpoint security options like basic auth
 type SecretInfo struct {
@@ -151,9 +151,9 @@ type AIProvider struct {
 
 // KeyManager represents the properties of a particular key manager.
 type KeyManager struct {
-    Name        string `json:"name" yaml:"name"`
-    Issuer      string `json:"issuer" yaml:"issuer"`
-    JWKSEndpoint string `json:"JWKSEndpoint" yaml:"JWKSEndpoint"`
+	Name         string        `json:"name" yaml:"name"`
+	Issuer       string        `json:"issuer" yaml:"issuer"`
+	JWKSEndpoint string        `json:"JWKSEndpoint" yaml:"JWKSEndpoint"`
 	ClaimMapping []types.Claim `json:"claimMappings" yaml:"claimMappings"`
 }
 

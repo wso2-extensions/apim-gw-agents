@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
+ *  Copyright (c) 2025, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -31,11 +31,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/internal/constants"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/cache"
-	eventHub "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/eventhub/types"
-	logger "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/loggers"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/managementserver"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/internal/constants"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/cache"
+	eventHub "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/eventhub/types"
+	logger "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/loggers"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/managementserver"
 
 	"gopkg.in/yaml.v2"
 )
@@ -981,28 +981,28 @@ func mapKeyManagers(keyManagers []string) []KeyManager {
 			// Add all the key manager settings to the km details
 			for _, km := range kmList {
 				newkmConfig := KeyManager{
-					Name: km.Name,
-					Issuer: km.KeyManagerConfig.Issuer,
+					Name:         km.Name,
+					Issuer:       km.KeyManagerConfig.Issuer,
 					JWKSEndpoint: km.KeyManagerConfig.CertificateValue,
 					ClaimMapping: km.KeyManagerConfig.ClaimMappings,
 				}
 				kmListForAPI = append(kmListForAPI, newkmConfig)
 			}
 			break
-		} 
+		}
 		// Otherwise add only the specific key manager settings to the km details
 		for _, km := range kmList {
 			if keyManager == km.Name {
 				newkmConfig := KeyManager{
-					Name: km.Name,
-					Issuer: km.KeyManagerConfig.Issuer,
+					Name:         km.Name,
+					Issuer:       km.KeyManagerConfig.Issuer,
 					JWKSEndpoint: km.KeyManagerConfig.CertificateValue,
 					ClaimMapping: km.KeyManagerConfig.ClaimMappings,
 				}
 				kmListForAPI = append(kmListForAPI, newkmConfig)
 			}
 		}
-		
+
 	}
 	return kmListForAPI
 }
