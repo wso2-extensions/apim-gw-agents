@@ -113,8 +113,18 @@ func marshalGrantTypes(grantTypes []interface{}) []string {
 func marshalClaimMappings(claimMappings []interface{}) []types.Claim {
 	resolvedClaimMappings := make([]types.Claim, 0)
 	for _, claim := range claimMappings {
-		if resolvedClaim, ok := claim.(types.Claim); ok {
-			resolvedClaimMappings = append(resolvedClaimMappings, resolvedClaim)
+		if claimMap, ok := claim.(map[string]interface{}); ok {
+			// Extract the remoteClaim and localClaim values from the map
+			remoteClaim, hasRemote := claimMap["remoteClaim"].(string)
+			localClaim, hasLocal := claimMap["localClaim"].(string)
+			
+			if hasRemote && hasLocal {
+				resolvedClaim := types.Claim{
+					RemoteClaim: remoteClaim,
+					LocalClaim:  localClaim,
+				}
+				resolvedClaimMappings = append(resolvedClaimMappings, resolvedClaim)
+			}
 		}
 	}
 	return resolvedClaimMappings
