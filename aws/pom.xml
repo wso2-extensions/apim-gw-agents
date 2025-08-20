@@ -107,9 +107,9 @@
         </snapshotRepository>
     </distributionManagement>
     <scm>
-        <connection>scm:git:https://github.com/wso2-extensions/apim-gw-agents.git</connection>
-        <url>https://github.com/wso2-extensions/apim-gw-agents.git</url>
-        <developerConnection>scm:git:https://github.com/wso2-extensions/apim-gw-agents.git</developerConnection>
+        <connection>scm:git:https://github.com/wso2-extensions/apim-gw-connectors.git</connection>
+        <url>https://github.com/wso2-extensions/apim-gw-connectors.git</url>
+        <developerConnection>scm:git:https://github.com/wso2-extensions/apim-gw-connectors.git</developerConnection>
         <tag>HEAD</tag>
     </scm>
 

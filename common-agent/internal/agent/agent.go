@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
+ *  Copyright (c) 2025, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -31,13 +31,13 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/config"
-	logger "github.com/wso2-extensions/apim-gw-agents/common-agent/internal/loggers"
-	logging "github.com/wso2-extensions/apim-gw-agents/common-agent/internal/logging"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/internal/messaging"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/health"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/managementserver"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/metrics"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
+	logger "github.com/wso2-extensions/apim-gw-connectors/common-agent/internal/loggers"
+	logging "github.com/wso2-extensions/apim-gw-connectors/common-agent/internal/logging"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/internal/messaging"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/health"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/managementserver"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/metrics"
 	"github.com/wso2/apk/common-go-libs/loggers"
 	"github.com/wso2/apk/common-go-libs/pkg/discovery/api/wso2/discovery/service/apkmgt"
 	"google.golang.org/grpc"

@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
+ *  Copyright (c) 2025, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -32,14 +32,14 @@ import (
 	"strconv"
 	"strings"
 
-	logger "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/loggers"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/config"
-	pkgAuth "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/auth"
-	eventhubTypes "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/eventhub/types"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/managementserver"
-	sync "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/synchronizer"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/tlsutils"
-	k8sclient "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/k8sClient"
+	logger "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/loggers"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
+	pkgAuth "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/auth"
+	eventhubTypes "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/eventhub/types"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/managementserver"
+	sync "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/synchronizer"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/tlsutils"
+	k8sclient "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/k8sClient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	dpv2alpha1 "github.com/wso2/apk/common-go-libs/apis/dp/v2alpha1"
@@ -126,7 +126,7 @@ func FetchAIProvidersOnEvent(aiProviderName string, aiProviderVersion string, or
 		return
 	}
 	responseBytes, err := io.ReadAll(resp.Body)
-	logger.LoggerSynchronizer.Infof("Response String received for AI Providers: %v", string(responseBytes))
+	logger.LoggerSynchronizer.Debugf("Response String received for AI Providers: %v", string(responseBytes))
 
 	if err != nil {
 		errorMsg = "Error occurred while reading the response received for: " + aiProviderEndpoint
@@ -141,7 +141,7 @@ func FetchAIProvidersOnEvent(aiProviderName string, aiProviderVersion string, or
 			logger.LoggerSynchronizer.Errorf("Error occurred while unmarshelling AI Provider event data %v", err)
 			return
 		}
-		logger.LoggerSynchronizer.Infof("AI Providers received: %+v", aiProviderList.AIProviders)
+		logger.LoggerSynchronizer.Debugf("AI Providers received: %+v", aiProviderList.AIProviders)
 		var aiProviders []eventhubTypes.AIProvider = aiProviderList.AIProviders
 
 		if cleanupDeletedProviders {
@@ -174,9 +174,7 @@ func FetchAIProvidersOnEvent(aiProviderName string, aiProviderVersion string, or
 			// Generate the AI Provider CR
 			crAIProviderRP := createAIProviderRoutePolicy(&aiProvider)
 			// Deploy the AI Provider CR
-			// !!!TODO: NEED TO ADD THE LOGIC
-			ownerRef := &metav1.OwnerReference{} // Passing an empty owner ref
-			k8sclient.DeployRoutePolicyCR(&crAIProviderRP, ownerRef, c)
+			k8sclient.DeployRoutePolicyCR(&crAIProviderRP, nil, c)
 			logger.LoggerSynchronizer.Info("AI Provider RoutePolicy CR Deployed Successfully")
 		}
 	} else {
@@ -189,7 +187,7 @@ func FetchAIProvidersOnEvent(aiProviderName string, aiProviderVersion string, or
 
 // createAIProvider creates the AI provider CR
 func createAIProviderRoutePolicy(aiProvider *eventhubTypes.AIProvider) dpv2alpha1.RoutePolicy {
-	logger.LoggerSynchronizer.Infof("AI Provider event data: %+v", aiProvider)
+	logger.LoggerSynchronizer.Debugf("AI Provider event data: %+v", aiProvider)
 	conf, _ := config.ReadConfigs()
 	sha1ValueofAIProviderName := GetSha1Value(aiProvider.Name)
 	sha1ValueOfOrganization := GetSha1Value(aiProvider.Organization)

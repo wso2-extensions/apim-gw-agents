@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
+ *  Copyright (c) 2025, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -24,10 +24,10 @@
 package mapper
 
 import (
-	internalk8sClient "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/k8sClient"
-	logger "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/loggers"
-	"github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/pkg/transformer"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/config"
+	internalk8sClient "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/k8sClient"
+	logger "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/loggers"
+	"github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/pkg/transformer"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )

@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
+ *  Copyright (c) 2025, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ package loggers
 
 import (
 	"github.com/sirupsen/logrus"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/logging"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/logging"
 )
 
 /* loggers should be initiated only for the main packages
@@ -32,15 +32,15 @@ When you add a new logger instance add the related package name as a constant
 
 // package name constants
 const (
-	pkgMsg         = "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/messaging"
-	pkgHealth      = "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/health"
-	pkgTLSUtils    = "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/tlsutils"
-	pkgUtils       = "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/utils"
-	pkgMgtServer   = "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/managementserver"
-	pkgTransformer = "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/transformer"
-	pkgSync        = "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/synchronizer"
-	pkgWatcher     = "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/discovery"
-	pkgCache       = "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/cache"
+	pkgMsg         = "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/messaging"
+	pkgHealth      = "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/health"
+	pkgTLSUtils    = "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/tlsutils"
+	pkgUtils       = "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/utils"
+	pkgMgtServer   = "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/managementserver"
+	pkgTransformer = "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/transformer"
+	pkgSync        = "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/synchronizer"
+	pkgWatcher     = "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/discovery"
+	pkgCache       = "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/cache"
 )
 
 // logger package references

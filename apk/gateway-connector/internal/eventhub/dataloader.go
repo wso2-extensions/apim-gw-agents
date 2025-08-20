@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
+ *  Copyright (c) 2025, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -26,14 +26,14 @@ import (
 	"strconv"
 	"time"
 
-	internalk8sClient "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/k8sClient"
-	logger "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/loggers"
-	internalutils "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/utils"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/config"
-	pkgAuth "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/auth"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/eventhub/types"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/tlsutils"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/utils"
+	internalk8sClient "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/k8sClient"
+	logger "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/loggers"
+	internalutils "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/utils"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
+	pkgAuth "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/auth"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/eventhub/types"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/tlsutils"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/utils"
 	dpv2alpha1 "github.com/wso2/apk/common-go-libs/apis/dp/v2alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -106,12 +106,12 @@ func LoadInitialData(configFile *config.Config, client client.Client) {
 			data := <-responseChannel
 			logger.LoggerEventhub.Info("Receiving subscription data for an environment")
 			if data.Payload != nil {
-				logger.LoggerEventhub.Info("Payload data information received" + string(data.Payload))
+				logger.LoggerEventhub.Debug("Payload data information received" + string(data.Payload))
 				retrieveDataFromResponseChannel(data)
 				break
 			} else if data.ErrorCode >= 400 && data.ErrorCode < 500 {
 				//Error handle
-				logger.LoggerEventhub.Info("Error data information received")
+				logger.LoggerEventhub.Error("Error data information received")
 				//health.SetControlPlaneRestAPIStatus(false)
 			} else {
 				// Keep the iteration going on until a response is received.

@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
+ *  Copyright (c) 2025, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -26,10 +26,10 @@ package synchronizer
 import (
 	"time"
 
-	logger "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/loggers"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/config"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/cache"
-	sync "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/synchronizer"
+	logger "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/loggers"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/cache"
+	sync "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/synchronizer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

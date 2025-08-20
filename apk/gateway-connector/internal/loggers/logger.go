@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
+ *  Copyright (c) 2025, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ package loggers
 
 import (
 	"github.com/sirupsen/logrus"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/logging"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/logging"
 )
 
 /* loggers should be initiated only for the main packages
@@ -32,13 +32,13 @@ When you add a new logger instance add the related package name as a constant
 
 // package name constants
 const (
-	pkgAgent        = "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/agent"
-	pkgK8sClient    = "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/k8sclient"
-	pkgMapper       = "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/mapper"
-	pkgMessaging    = "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/messaging"
-	pkgSynchronizer = "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/synchronizer"
-	pkgUtils        = "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/utils"
-	pkgEventhub     = "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/eventhub"
+	pkgAgent        = "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/agent"
+	pkgK8sClient    = "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/k8sclient"
+	pkgMapper       = "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/mapper"
+	pkgMessaging    = "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/messaging"
+	pkgSynchronizer = "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/synchronizer"
+	pkgUtils        = "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/utils"
+	pkgEventhub     = "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/eventhub"
 )
 
 // logger package references

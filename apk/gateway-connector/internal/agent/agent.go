@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
+ *  Copyright (c) 2025, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -21,11 +21,11 @@ package agent
 import (
 	"flag"
 
-	"github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/eventhub"
-	"github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/loggers"
-	"github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/synchronizer"
-	"github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/pkg/managementserver"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/config"
+	"github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/eventhub"
+	"github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/loggers"
+	"github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/synchronizer"
+	"github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/pkg/managementserver"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
 
 	gatewayv1alpha1 "github.com/envoyproxy/gateway/api/v1alpha1"
 	cpv1alpha2 "github.com/wso2/apk/common-go-libs/apis/cp/v1alpha2"

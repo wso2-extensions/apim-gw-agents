@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
+ *  Copyright (c) 2025, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -146,9 +146,9 @@ type DefaultLimit struct {
 	} `json:"requestCount"`
 	Bandwidth  interface{} `json:"bandwidth"`
 	EventCount struct {
-		TimeUnit     string `json:"timeUnit"`
-		UnitTime     int    `json:"unitTime"`
-		EventCount   int    `json:"eventCount"`
+		TimeUnit   string `json:"timeUnit"`
+		UnitTime   int    `json:"unitTime"`
+		EventCount int    `json:"eventCount"`
 	} `json:"eventCount"`
 }
 

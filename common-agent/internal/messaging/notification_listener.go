@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
+ *  Copyright (c) 2025, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -23,12 +23,12 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/config"
-	logger "github.com/wso2-extensions/apim-gw-agents/common-agent/internal/loggers"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/agent"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/eventhub/constants"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/eventhub/types"
-	msg "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/messaging"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
+	logger "github.com/wso2-extensions/apim-gw-connectors/common-agent/internal/loggers"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/agent"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/eventhub/constants"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/eventhub/types"
+	msg "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/messaging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

@@ -22,8 +22,8 @@ import (
 	"strings"
 	"sync"
 
-	eventhubTypes "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/eventhub/types"
-	logger "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/loggers"
+	eventhubTypes "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/eventhub/types"
+	logger "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/loggers"
 )
 
 // KeyManagerCache singleton instance for managing Key Manager details in-memory
