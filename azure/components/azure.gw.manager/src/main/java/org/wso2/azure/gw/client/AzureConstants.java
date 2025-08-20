@@ -53,10 +53,14 @@ public class AzureConstants {
     public static final String AZURE_OPERATION_POLICY_PARAMETER_OPENID_URL = "openIdURL";
     public static final String AZURE_JWT_OPERATION_POLICY_OPENID_URL_PLACEHOLDER = "${openIdURL}";
 
+    public static final String AZURE_CORS_POLICY_ALLOWED_ORIGINS = "allowed-origins";
+    public static final String AZURE_CORS_POLICY_ALLOWED_METHODS = "allowed-methods";
+    public static final String AZURE_CORS_POLICY_ALLOWED_HEADERS = "allowed-headers";
+
     public static final String GATEWAY_FEATURE_CATALOG_FILENAME = "GatewayFeatureCatalog.json";
-    public static final String AZURE_CORS_POLICY_FILENAME = "AzureAPILevelCORSPolicy.xml";
-    public static final String AZURE_JWT_POLICY_FILENAME = "AzureJWTPolicy.xml";
-    public static final String AZURE_RESOURCE_LEVEL_JWT_POLICY_FILENAME = "AzureResourceLevelJWTPolicy.xml";
+    public static final String AZURE_CORS_POLICY_FILENAME = "policies/cors.xml";
+    public static final String AZURE_JWT_POLICY_FILENAME = "policies/jwt.xml";
+    public static final String AZURE_BASE_POLICY_FILENAME = "policies/base.xml";
 
     // Environment related constants
     public static final String AZURE_ENVIRONMENT_TENANT_ID = "tenant_id";
