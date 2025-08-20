@@ -42,7 +42,6 @@ controlPlane:
   # internalKeyIssuer: https://am.wso2.com:443/oauth2/token
 dataPlane:
   enabled: true
-  k8ResourceEndpoint: https://apk-wso2-apk-config-ds-service.apk.svc.cluster.local:9443/api/configurator/apis/generate-k8s-resources
   namespace: apk
 metrics:
   enabled: false
