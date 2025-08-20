@@ -29,7 +29,7 @@ const (
 	ConsumerKeyClaim           = "azp"
 	ScopesClaim                = "scope"
 	InternalKeyTokenIssuerName = "Internal Key TokenIssuer"
-	InternalKeySecretName      = "apim-apk-issuer-cert"
+	InternalKeySecretName      = "apim-common-agent-issuer-cert"
 	InternalKeySecretKey       = "wso2.crt"
 	InternalKeySuffix          = "-internal-key-issuer"
 )

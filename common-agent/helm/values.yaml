@@ -42,6 +42,7 @@ controlPlane:
   # internalKeyIssuer: https://am.wso2.com:443/oauth2/token
 dataPlane:
   enabled: true
+  k8ResourceEndpoint: https://apk-wso2-apk-config-ds-service.apk.svc.cluster.local:9443/api/configurator/apis/generate-k8s-resources
   namespace: apk
 metrics:
   enabled: false
@@ -55,3 +56,13 @@ serviceAccount:
   enableClusterRoleCreation: true
   serviceAccountName: wso2agent-platform
   roleName: wso2agent-role
+logging:
+  level: "INFO" # LogLevels can be "DEBG", "FATL", "ERRO", "WARN", "INFO", "PANC"
+  format: "TEXT" # Values can be "JSON", "TEXT"
+# certificates:
+#   issuerCertName: apim-common-agent-issuer-cert
+#   serverCertName: apim-common-agent-server-cert
+#   serverCertSecretName: common-agent-server-cert
+# issuers:
+#   selfsignedIssuerName: common-agent-selfsigned-issuer
+#   selfsignedIssuerSecretName: common-agent-root-certificate
