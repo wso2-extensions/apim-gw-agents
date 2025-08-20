@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
+ *  Copyright (c) 2025, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ import (
 
 	toml "github.com/pelletier/go-toml"
 	logger "github.com/sirupsen/logrus"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/internal/loggers"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/internal/loggers"
 	pkgconf "github.com/wso2/apk/adapter/pkg/config"
 	"github.com/wso2/apk/adapter/pkg/logging"
 	corev1 "k8s.io/api/core/v1"

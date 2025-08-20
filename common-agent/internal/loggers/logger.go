@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
+ *  Copyright (c) 2025, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ package loggers
 
 import (
 	"github.com/sirupsen/logrus"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/logging"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/logging"
 
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -35,9 +35,9 @@ When you add a new logger instance add the related package name as a constant
 
 // package name constants
 const (
-	pkgAgent     = "github.com/wso2-extensions/apim-gw-agents/common-agent/internal/agent"
-	pkgMessaging = "github.com/wso2-extensions/apim-gw-agents/common-agent/internal/messaging"
-	pkgUtils     = "github.com/wso2-extensions/apim-gw-agents/common-agent/internal/utils"
+	pkgAgent     = "github.com/wso2-extensions/apim-gw-connectors/common-agent/internal/agent"
+	pkgMessaging = "github.com/wso2-extensions/apim-gw-connectors/common-agent/internal/messaging"
+	pkgUtils     = "github.com/wso2-extensions/apim-gw-connectors/common-agent/internal/utils"
 )
 
 // logger package references

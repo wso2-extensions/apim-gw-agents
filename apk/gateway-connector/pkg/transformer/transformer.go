@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
+ *  Copyright (c) 2025, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -39,8 +39,8 @@ import (
 	"net/http"
 
 	gatewayv1alpha1 "github.com/envoyproxy/gateway/api/v1alpha1"
-	eventHub "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/eventhub/types"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/transformer"
+	eventHub "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/eventhub/types"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/transformer"
 
 	dpv2alpha1 "github.com/wso2/apk/common-go-libs/apis/dp/v2alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -49,7 +49,7 @@ import (
 	gwapiv1a2 "sigs.k8s.io/gateway-api/apis/v1alpha2"
 	gwapiv1a3 "sigs.k8s.io/gateway-api/apis/v1alpha3"
 
-	logger "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/pkg/loggers"
+	logger "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/pkg/loggers"
 	k8Yaml "sigs.k8s.io/yaml"
 
 	"gopkg.in/yaml.v2"

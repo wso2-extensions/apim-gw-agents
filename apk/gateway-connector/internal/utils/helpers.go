@@ -26,7 +26,7 @@ package synchronizer
 import (
 	"fmt"
 
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/config"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
 )
 
 

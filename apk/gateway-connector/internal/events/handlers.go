@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
+ *  Copyright (c) 2025, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -24,20 +24,20 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/eventhub"
-	internalk8sClient "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/k8sClient"
-	k8sclient "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/k8sClient"
-	logger "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/loggers"
-	"github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/synchronizer"
-	internalutils "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/utils"
-	"github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/pkg/managementserver"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/config"
-	eventConstants "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/eventhub/constants"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/eventhub/types"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/logging"
-	mgtServer "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/managementserver"
-	msg "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/messaging"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/utils"
+	"github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/eventhub"
+	internalk8sClient "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/k8sClient"
+	k8sclient "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/k8sClient"
+	logger "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/loggers"
+	"github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/synchronizer"
+	internalutils "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/utils"
+	"github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/pkg/managementserver"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
+	eventConstants "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/eventhub/constants"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/eventhub/types"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/logging"
+	mgtServer "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/managementserver"
+	msg "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/messaging"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/utils"
 	"github.com/wso2/apk/common-go-libs/constants"
 	event "github.com/wso2/apk/common-go-libs/pkg/discovery/api/wso2/discovery/subscription"
 	"sigs.k8s.io/controller-runtime/pkg/client"

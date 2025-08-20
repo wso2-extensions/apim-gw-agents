@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
+ *  Copyright (c) 2025, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ import (
 	"io"
 	"strings"
 
-	logger "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/loggers"
+	logger "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/loggers"
 )
 
 // DecodeAPIArtifact decodes a zip-encoded API payload, extracting API details like JSON, Swagger, and deployment configuration.

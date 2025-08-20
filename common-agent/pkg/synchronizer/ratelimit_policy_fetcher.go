@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
+ *  Copyright (c) 2025, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -30,12 +30,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/config"
-	pkgAuth "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/auth"
-	eventhub "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/eventhub/types"
-	logger "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/loggers"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/managementserver"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/tlsutils"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
+	pkgAuth "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/auth"
+	eventhub "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/eventhub/types"
+	logger "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/loggers"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/managementserver"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/tlsutils"
 )
 
 const (
@@ -132,7 +132,7 @@ func FetchRateLimitPoliciesOnEvent(ratelimitName string, organization string) ([
 			logger.LoggerSync.Errorf("Error occurred while unmarshelling RateLimit Policies event data %v", err)
 			return nil, ""
 		}
-		logger.LoggerSync.Infof("Ratelimit Policies received: %+v", rateLimitPolicyList.List)
+		logger.LoggerSync.Debugf("Ratelimit Policies received: %+v", rateLimitPolicyList.List)
 		var rateLimitPolicies []eventhub.RateLimitPolicy = rateLimitPolicyList.List
 		for _, policy := range rateLimitPolicies {
 			if policy.DefaultLimit.RequestCount.TimeUnit == "min" {
@@ -228,7 +228,7 @@ func FetchSubscriptionRateLimitPoliciesOnEvent(ratelimitName string, organizatio
 			logger.LoggerSync.Errorf("Error occurred while unmarshelling Subscription RateLimit Policies event data %v", err)
 			return nil, ""
 		}
-		logger.LoggerSync.Infof("Subscription Ratelimit Policies received: %+v", rateLimitPolicyList.List)
+		logger.LoggerSync.Debugf("Subscription Ratelimit Policies received: %+v", rateLimitPolicyList.List)
 		var rateLimitPolicies []eventhub.SubscriptionPolicy = rateLimitPolicyList.List
 		for _, policy := range rateLimitPolicies {
 			if policy.QuotaType == "aiApiQuota" {

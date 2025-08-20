@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
+ *  Copyright (c) 2025, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -20,9 +20,9 @@ package agent
 import (
 	"fmt"
 
-	apkAgent "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/agent"
-	// kongAgent "github.com/wso2-extensions/apim-gw-agents/kong/gateway-connector"
+	apkAgent "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/agent"
+	// kongAgent "github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector"
 )
 
 // agentRegistry is a registry that holds different gateway agents.

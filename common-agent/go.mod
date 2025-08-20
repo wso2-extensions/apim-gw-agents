@@ -1,4 +1,4 @@
-module github.com/wso2-extensions/apim-gw-agents/common-agent
+module github.com/wso2-extensions/apim-gw-connectors/common-agent
 
 go 1.24.6
 
@@ -7,7 +7,7 @@ require (
 	github.com/pelletier/go-toml v1.9.5
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
-	github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector v0.0.0-00010101000000-000000000000
+	github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector v0.0.0-00010101000000-000000000000
 	github.com/wso2/apk/common-go-libs v0.0.0-20250314094404-6780641d86ad
 	google.golang.org/grpc v1.74.2
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
@@ -111,10 +111,10 @@ require (
 	golang.org/x/sys v0.34.0 // indirect
 )
 
-replace github.com/wso2-extensions/apim-gw-agents/common-agent => ./
+replace github.com/wso2-extensions/apim-gw-connectors/common-agent => ./
 
-replace github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector => ../apk/gateway-connector
+replace github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector => ../apk/gateway-connector
 
-replace github.com/wso2-extensions/apim-gw-agents/kong/gateway-connector => ../kong/gateway-connector
+replace github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector => ../kong/gateway-connector
 
 replace github.com/wso2/apk/common-go-libs => github.com/wso2/apk/common-go-libs v0.0.0-20250806134522-f0b15f322dd1

@@ -14,7 +14,7 @@ This Go library provides a framework for generating Kubernetes Gateway API-speci
 To use the library, include it in your Go project by running the following command:
 
 ```bash
-go get -u "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/k8s-resource-lib"
+go get -u "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/k8s-resource-lib"
 ```
 
 Ensure that the library and its dependencies are properly vendored in your project.
@@ -28,7 +28,7 @@ Ensure that the library and its dependencies are properly vendored in your proje
 Create an instance of the HTTPRoute generator:
 
 ```go
-import http_generator "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/k8s-resource-lib/pkg/generators/http"
+import http_generator "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/k8s-resource-lib/pkg/generators/http"
 
 gen := http_generator.Generator()
 ```
@@ -38,7 +38,7 @@ gen := http_generator.Generator()
 Create an instance of the gRPC generator:
 
 ```go
-import grpc_generator "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/k8s-resource-lib/pkg/generators/grpc"
+import grpc_generator "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/k8s-resource-lib/pkg/generators/grpc"
 
 gen := grpc_generator.Generator()
 ```

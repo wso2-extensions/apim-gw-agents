@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
+ *  Copyright (c) 2025, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -27,11 +27,11 @@ import (
 	"strings"
 
 	gatewayv1alpha1 "github.com/envoyproxy/gateway/api/v1alpha1"
-	"github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/constants"
-	"github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/loggers"
-	"github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector/internal/logging"
-	"github.com/wso2-extensions/apim-gw-agents/common-agent/config"
-	eventhubTypes "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/eventhub/types"
+	"github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/constants"
+	"github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/loggers"
+	"github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/logging"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
+	eventhubTypes "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/eventhub/types"
 	dpv2alpha1 "github.com/wso2/apk/common-go-libs/apis/dp/v2alpha1"
 	corev1 "k8s.io/api/core/v1"
 	k8error "k8s.io/apimachinery/pkg/api/errors"
@@ -1143,26 +1143,16 @@ func getSha1Value(input string) string {
 func RetrieveAllRouteMetasFromK8s(k8sClient client.Client, nextToken string) ([]dpv2alpha1.RouteMetadata, string, error) {
 	conf, _ := config.ReadConfigs()
 	routeMetaList := dpv2alpha1.RouteMetadataList{}
-	resolvedRouteMetadataList := make([]dpv2alpha1.RouteMetadata, 0)
-	var err error
-	if nextToken == "" {
-		err = k8sClient.List(context.Background(), &routeMetaList, &client.ListOptions{Namespace: conf.DataPlane.Namespace})
-	} else {
-		err = k8sClient.List(context.Background(), &routeMetaList, &client.ListOptions{Namespace: conf.DataPlane.Namespace, Continue: nextToken})
-	}
+	err := k8sClient.List(context.Background(), &routeMetaList, &client.ListOptions{
+		Namespace: conf.DataPlane.Namespace,
+	})
+	
 	if err != nil {
-		loggers.LoggerK8sClient.ErrorC(logging.PrintError(logging.Error1102, logging.CRITICAL, "Failed to get application from k8s %v", err.Error()))
+		loggers.LoggerK8sClient.ErrorC(logging.PrintError(logging.Error1102, logging.CRITICAL, "Failed to get application from k8s %+v", err.Error()))
 		return nil, "", err
 	}
-	resolvedRouteMetadataList = append(resolvedRouteMetadataList, routeMetaList.Items...)
-	if routeMetaList.Continue != "" {
-		tempRouteMetaList, _, err := RetrieveAllRouteMetasFromK8s(k8sClient, routeMetaList.Continue)
-		if err != nil {
-			return nil, "", err
-		}
-		resolvedRouteMetadataList = append(resolvedRouteMetadataList, tempRouteMetaList...)
-	}
-	return resolvedRouteMetadataList, routeMetaList.Continue, nil
+
+	return routeMetaList.Items, "", nil
 }
 
 // !!!TODO: Change this because now we have RoutePolicy CRs instead of AIProvider CRs.
@@ -1170,26 +1160,16 @@ func RetrieveAllRouteMetasFromK8s(k8sClient client.Client, nextToken string) ([]
 func RetrieveAllAIProvidersFromK8s(k8sClient client.Client, nextToken string) ([]dpv2alpha1.RoutePolicy, string, error) {
 	conf, _ := config.ReadConfigs()
 	aiProviderRPList := dpv2alpha1.RoutePolicyList{}
-	resolvedAIProviderRPList := make([]dpv2alpha1.RoutePolicy, 0)
-	var err error
-	if nextToken == "" {
-		err = k8sClient.List(context.Background(), &aiProviderRPList, &client.ListOptions{Namespace: conf.DataPlane.Namespace})
-	} else {
-		err = k8sClient.List(context.Background(), &aiProviderRPList, &client.ListOptions{Namespace: conf.DataPlane.Namespace, Continue: nextToken})
-	}
+	err := k8sClient.List(context.Background(), &aiProviderRPList, &client.ListOptions{
+		Namespace: conf.DataPlane.Namespace,
+	})
+	
 	if err != nil {
-		loggers.LoggerK8sClient.ErrorC(logging.PrintError(logging.Error1102, logging.CRITICAL, "Failed to get ai provider route policies from k8s %v", err.Error()))
+		loggers.LoggerK8sClient.ErrorC(logging.PrintError(logging.Error1102, logging.CRITICAL, "Failed to get ai provider route policies from k8s %+v", err.Error()))
 		return nil, "", err
 	}
-	resolvedAIProviderRPList = append(resolvedAIProviderRPList, aiProviderRPList.Items...)
-	if aiProviderRPList.Continue != "" {
-		tempAIProviderList, _, err := RetrieveAllAIProvidersFromK8s(k8sClient, aiProviderRPList.Continue)
-		if err != nil {
-			return nil, "", err
-		}
-		resolvedAIProviderRPList = append(resolvedAIProviderRPList, tempAIProviderList...)
-	}
-	return resolvedAIProviderRPList, aiProviderRPList.Continue, nil
+	
+	return aiProviderRPList.Items, "", nil
 }
 
 // !!!TODO: Change this becuase now we support this via BackendTrafficPolicy CRs.

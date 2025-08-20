@@ -1,4 +1,4 @@
-module github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector
+module github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector
 
 go 1.24.6
 
@@ -8,7 +8,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
-	github.com/wso2-extensions/apim-gw-agents/common-agent v0.0.0-00010101000000-000000000000
+	github.com/wso2-extensions/apim-gw-connectors/common-agent v0.0.0-00010101000000-000000000000
 	github.com/wso2/apk/common-go-libs v0.0.0-20250314094404-6780641d86ad
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.33.3
@@ -104,8 +104,8 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.7.0 // indirect
 )
 
-replace github.com/wso2-extensions/apim-gw-agents/common-agent => ../../common-agent
+replace github.com/wso2-extensions/apim-gw-connectors/common-agent => ../../common-agent
 
-replace github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector => ./
+replace github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector => ./
 
 replace github.com/wso2/apk/common-go-libs => github.com/wso2/apk/common-go-libs v0.0.0-20250805060817-2e66a7bcb379

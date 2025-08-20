@@ -8,7 +8,7 @@ In the **Common Agent** codebase, modify `internal/agent/registry.go` to import 
 ```go
 import (
     // ... Import other agents
-    apkAgent "github.com/wso2-extensions/apim-gw-agents/apk/gateway-connector"
+    apkAgent "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector"
 )
 ```
 

@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2023, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
+ *  Copyright (c) 2025, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ package logging
 import (
 	"fmt"
 
-	pkgLogging "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/logging"
+	pkgLogging "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/logging"
 )
 
 // GetErrorMessageByCode retrieve the error message corresponds to the provided error code
