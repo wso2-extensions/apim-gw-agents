@@ -18,6 +18,8 @@
 package cache
 
 import (
+	"regexp"
+	"strings"
 	"sync"
 
 	eventhubTypes "github.com/wso2-extensions/apim-gw-agents/common-agent/pkg/eventhub/types"
@@ -55,7 +57,7 @@ func (kmc *KeyManagerCache) AddOrUpdateKeyManager(km *eventhubTypes.ResolvedKeyM
 
 	kmc.mu.Lock()
 	defer kmc.mu.Unlock()
-
+	km.Name = sanitizeKeyManagerName(km.Name)
 	kmc.keyManagers[km.Name] = km
 	logger.LoggerCache.Infof("KeyManager '%s' added/updated in cache", km.Name)
 }
@@ -142,4 +144,11 @@ func (kmc *KeyManagerCache) IsKeyManagerEnabled(kmName string) bool {
 		return km.Enabled
 	}
 	return false
+}
+
+func sanitizeKeyManagerName(input string) string {
+	lower := strings.ToLower(input)
+	reg := regexp.MustCompile(`[^a-z0-9]+`)
+	sanitized := reg.ReplaceAllString(lower, "")
+	return sanitized
 }

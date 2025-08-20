@@ -64,6 +64,9 @@ func Run(conf *config.Config, mgr manager.Manager) {
 
 	go managementserver.StartInternalServer(restPort)
 
+	// Load initial KM data from control plane
+	synchronizer.FetchKeyManagersOnStartUp(mgr.GetClient())
+
 	if AgentMode == "CPtoDP" {
 		// Load initial Policy data from control plane
 		synchronizer.FetchRateLimitPoliciesOnEvent("", "", mgr.GetClient())
@@ -75,7 +78,4 @@ func Run(conf *config.Config, mgr manager.Manager) {
 
 	// Load initial data from control plane
 	eventhub.LoadInitialData(conf, mgr.GetClient())
-
-	// Load initial KM data from control plane
-	synchronizer.FetchKeyManagersOnStartUp(mgr.GetClient())
 }
