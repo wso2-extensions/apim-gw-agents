@@ -18,12 +18,6 @@
 
 package org.wso2.azure.gw.client.policy;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import javax.xml.parsers.DocumentBuilder;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.wso2.azure.gw.client.AzureConstants;
@@ -31,7 +25,16 @@ import org.wso2.azure.gw.client.AzureGatewayConfiguration;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.model.CORSConfiguration;
 import org.xml.sax.SAXException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import javax.xml.parsers.DocumentBuilder;
 
+/**
+ * This class manages the Azure API Management CORS policy.
+ */
 public class AzureCORSPolicy extends AzurePolicy {
 
     CORSConfiguration corsConfiguration;
@@ -81,7 +84,8 @@ public class AzureCORSPolicy extends AzurePolicy {
         readCORSPolicy(documentBuilder);
 
         // Allowed Origins
-        Element allowOrigins = AzurePolicyUtil.firstElementByTagName(this.root, AzureConstants.AZURE_CORS_POLICY_ALLOWED_ORIGINS);
+        Element allowOrigins = AzurePolicyUtil.firstElementByTagName(this.root,
+                AzureConstants.AZURE_CORS_POLICY_ALLOWED_ORIGINS);
         if (allowOrigins == null) {
             throw new APIManagementException("CORS policy does not contain allowed-origins element");
         }
@@ -96,7 +100,8 @@ public class AzureCORSPolicy extends AzurePolicy {
         }
 
         // Allowed Methods
-        Element allowedMethods = AzurePolicyUtil.firstChildElementByTagName(this.root, AzureConstants.AZURE_CORS_POLICY_ALLOWED_METHODS);
+        Element allowedMethods = AzurePolicyUtil.firstChildElementByTagName(this.root,
+                AzureConstants.AZURE_CORS_POLICY_ALLOWED_METHODS);
         if (allowedMethods == null) {
             throw new APIManagementException("CORS policy does not contain allowed-methods element");
         }
@@ -114,7 +119,8 @@ public class AzureCORSPolicy extends AzurePolicy {
         }
 
         // Allowed Headers
-        Element allowedHeaders = AzurePolicyUtil.firstChildElementByTagName(this.root, AzureConstants.AZURE_CORS_POLICY_ALLOWED_HEADERS);
+        Element allowedHeaders = AzurePolicyUtil.firstChildElementByTagName(this.root,
+                AzureConstants.AZURE_CORS_POLICY_ALLOWED_HEADERS);
         if (allowedHeaders == null) {
             throw new APIManagementException("CORS policy does not contain allowed-headers element");
         }

@@ -18,35 +18,21 @@
 
 package org.wso2.azure.gw.client.policy;
 
-import java.io.StringWriter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import javax.xml.XMLConstants;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.OutputKeys;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerConfigurationException;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
 import org.wso2.azure.gw.client.AzureConstants;
 import org.wso2.azure.gw.client.AzureGatewayConfiguration;
-import org.wso2.balana.utils.policy.PolicyBuilder;
 import org.wso2.carbon.apimgt.api.APIManagementException;
-
+import org.xml.sax.SAXException;
 import java.io.IOException;
 import java.io.InputStream;
-import org.wso2.carbon.apimgt.api.model.CORSConfiguration;
-import org.xml.sax.SAXException;
+import javax.xml.XMLConstants;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+
 
 /**
  * This class manages the Azure API Management policies, specifically the base policy.
@@ -94,6 +80,6 @@ public class AzurePolicyBuilderFactory {
     }
 
     public AzurePolicyBuilder newPolicyBuilder() {
-        return new AzurePolicyBuilder(documentBuilder, (Element)basePolicyRoot.cloneNode(true));
+        return new AzurePolicyBuilder(documentBuilder, (Element) basePolicyRoot.cloneNode(true));
     }
 }

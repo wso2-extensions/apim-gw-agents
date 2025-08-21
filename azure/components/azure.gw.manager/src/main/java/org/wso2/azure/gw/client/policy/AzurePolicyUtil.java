@@ -22,6 +22,9 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
+/**
+ * Utility class for handling Azure policy XML documents.
+ */
 public class AzurePolicyUtil {
     public static Element firstElementByTagName(Element parent, String name) {
         NodeList nl = parent.getElementsByTagName(name);

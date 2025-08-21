@@ -18,16 +18,19 @@
 
 package org.wso2.azure.gw.client.policy;
 
-import java.io.IOException;
-import java.io.InputStream;
-import javax.xml.parsers.DocumentBuilder;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.wso2.azure.gw.client.AzureConstants;
 import org.wso2.azure.gw.client.AzureGatewayConfiguration;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.xml.sax.SAXException;
+import java.io.IOException;
+import java.io.InputStream;
+import javax.xml.parsers.DocumentBuilder;
 
+/**
+ * This class manages the Azure API Management JWT policy.
+ */
 public class AzureJWTPolicy extends AzurePolicy {
 
     String openIdURL;
@@ -66,7 +69,8 @@ public class AzureJWTPolicy extends AzurePolicy {
         this.root = jwtPolicyDocument.getDocumentElement();
     }
 
-    private void setOpenIdURLToJWTPolicy(DocumentBuilder documentBuilder, String openIdURL) throws APIManagementException {
+    private void setOpenIdURLToJWTPolicy(DocumentBuilder documentBuilder, String openIdURL)
+            throws APIManagementException {
         readJWTPolicy(documentBuilder);
 
         Element openIdConfig = AzurePolicyUtil.firstChildElementByTagName(this.root, "openid-config");

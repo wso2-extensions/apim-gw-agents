@@ -18,6 +18,9 @@
 
 package org.wso2.azure.gw.client.policy;
 
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.wso2.carbon.apimgt.api.APIManagementException;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,10 +31,10 @@ import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.wso2.carbon.apimgt.api.APIManagementException;
 
+/**
+ * This class is responsible for building Azure API Management policies.
+ */
 public class AzurePolicyBuilder {
     private final DocumentBuilder documentBuilder;
     private Element basePolicyRoot;

@@ -18,10 +18,13 @@
 
 package org.wso2.azure.gw.client.policy;
 
-import javax.xml.parsers.DocumentBuilder;
 import org.w3c.dom.Element;
 import org.wso2.carbon.apimgt.api.APIManagementException;
+import javax.xml.parsers.DocumentBuilder;
 
+/**
+ * Abstract class representing an Azure policy.
+ */
 public abstract class AzurePolicy {
     AzurePolicyType type;
     Element root = null;
