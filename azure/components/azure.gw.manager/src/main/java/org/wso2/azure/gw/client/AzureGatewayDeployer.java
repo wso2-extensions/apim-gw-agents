@@ -59,28 +59,40 @@ public class AzureGatewayDeployer implements GatewayDeployer {
      */
     @Override
     public void init(Environment environment) throws APIManagementException {
-        String tenantId = environment.getAdditionalProperties().get(AzureConstants.AZURE_ENVIRONMENT_TENANT_ID);
-        String clientId = environment.getAdditionalProperties().get(AzureConstants.AZURE_ENVIRONMENT_CLIENT_ID);
-        String clientSecret = environment.getAdditionalProperties().get(AzureConstants.AZURE_ENVIRONMENT_CLIENT_SECRET);
-        String subscriptionId = environment.getAdditionalProperties()
-                .get(AzureConstants.AZURE_ENVIRONMENT_SUBSCRIPTION_ID);
+        try {
+            String tenantId = environment.getAdditionalProperties().get(AzureConstants.AZURE_ENVIRONMENT_TENANT_ID);
+            String clientId = environment.getAdditionalProperties().get(AzureConstants.AZURE_ENVIRONMENT_CLIENT_ID);
+            String clientSecret = environment.getAdditionalProperties()
+                    .get(AzureConstants.AZURE_ENVIRONMENT_CLIENT_SECRET);
+            String subscriptionId = environment.getAdditionalProperties()
+                    .get(AzureConstants.AZURE_ENVIRONMENT_SUBSCRIPTION_ID);
+            resourceGroup = environment.getAdditionalProperties().get(AzureConstants.AZURE_ENVIRONMENT_RESOURCE_GROUP);
+            serviceName = environment.getAdditionalProperties().get(AzureConstants.AZURE_ENVIRONMENT_SERVICE_NAME);
+            hostName = environment.getAdditionalProperties().get(AzureConstants.AZURE_ENVIRONMENT_HOSTNAME);
 
-        HttpClient httpClient = new NettyAsyncHttpClientBuilder().build();
+            if (tenantId == null || clientId == null || clientSecret == null ||
+                subscriptionId == null || resourceGroup == null || serviceName == null || hostName == null ||
+                tenantId.isEmpty() || clientId.isEmpty() || clientSecret.isEmpty() ||
+                subscriptionId.isEmpty() || resourceGroup.isEmpty() || serviceName.isEmpty() || hostName.isEmpty()) {
 
-        TokenCredential cred = new ClientSecretCredentialBuilder()
-                .httpClient(httpClient)
-                .tenantId(tenantId)
-                .clientId(clientId)
-                .clientSecret(clientSecret)
-                .authorityHost(AzureEnvironment.AZURE.getActiveDirectoryEndpoint())
-                .build();
+                throw new APIManagementException("Missing required Azure environment properties.");
+            }
 
-        AzureProfile profile = new AzureProfile(tenantId, subscriptionId, AzureEnvironment.AZURE);
-        manager = ApiManagementManager.configure().withHttpClient(httpClient).authenticate(cred, profile);
+            HttpClient httpClient = new NettyAsyncHttpClientBuilder().build();
 
-        resourceGroup = environment.getAdditionalProperties().get(AzureConstants.AZURE_ENVIRONMENT_RESOURCE_GROUP);
-        serviceName = environment.getAdditionalProperties().get(AzureConstants.AZURE_ENVIRONMENT_SERVICE_NAME);
-        hostName = environment.getAdditionalProperties().get(AzureConstants.AZURE_ENVIRONMENT_HOSTNAME);
+            TokenCredential cred = new ClientSecretCredentialBuilder()
+                    .httpClient(httpClient)
+                    .tenantId(tenantId)
+                    .clientId(clientId)
+                    .clientSecret(clientSecret)
+                    .authorityHost(AzureEnvironment.AZURE.getActiveDirectoryEndpoint())
+                    .build();
+
+            AzureProfile profile = new AzureProfile(tenantId, subscriptionId, AzureEnvironment.AZURE);
+            manager = ApiManagementManager.configure().withHttpClient(httpClient).authenticate(cred, profile);
+        }  catch (Exception e) {
+            throw new APIManagementException("Error initializing Azure Gateway Deployer.", e);
+        }
     }
 
     /**

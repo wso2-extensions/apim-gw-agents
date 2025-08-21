@@ -302,14 +302,20 @@ public class AzureAPIUtil {
     public static API restAPItoAPI(ApiContract apiContract, String apiDefinition, String organization,
                                    Environment environment) {
         APIIdentifier apiIdentifier = new APIIdentifier("admin", apiContract.displayName(),
-                apiContract.apiVersion() != null ? apiContract.apiVersion() : "default");
+                apiContract.apiVersion() != null ? apiContract.apiVersion() : "1.0.0");
 
         API api = new API(apiIdentifier);
+
+        String context = "/";
+        context += apiContract.path().isEmpty() ? api.getId().getApiName() : apiContract.path();
+        String contextTemplate = context + "/{version}";
+        context += "/" + apiIdentifier.getVersion();
+
         api.setDisplayName(apiContract.displayName());
         api.setUuid(UUID.randomUUID().toString());
         api.setDescription(apiContract.description());
-        api.setContext("/" + apiContract.path() + "/" + apiIdentifier.getVersion());
-        api.setContextTemplate("/" + apiContract.path() + "/{version}");
+        api.setContext(context);
+        api.setContextTemplate(contextTemplate);
         api.setOrganization(organization);
         api.setSwaggerDefinition(apiDefinition);
         api.setRevision(false);
