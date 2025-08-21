@@ -154,13 +154,19 @@ func RetrievePathPrefix(operation string, basePath string) string {
 	splitValues := strings.Split(operation, "/")
 	generatedPath := ""
 
+	if operation == "/*" {
+		return "/(.*)"
+	} else if operation == "/" {
+		return "/"
+	}
+
 	re := regexp.MustCompile(`\{.*\}`)
 	for _, pathPart := range splitValues {
 		trimmedPathPart := strings.TrimSpace(pathPart)
 		if len(trimmedPathPart) > 0 {
 			// Path contains path param
 			if re.MatchString(trimmedPathPart) {
-				generatedPath += "/" + re.ReplaceAllString(trimmedPathPart, "([^/]+)")
+				generatedPath += "/" + re.ReplaceAllString(trimmedPathPart, "(.*)")
 			} else {
 				generatedPath += "/" + trimmedPathPart
 			}
@@ -169,7 +175,7 @@ func RetrievePathPrefix(operation string, basePath string) string {
 
 	if strings.HasSuffix(generatedPath, "/*") {
 		lastSlashIndex := strings.LastIndex(generatedPath[:len(generatedPath)-1], "/")
-		generatedPath = generatedPath[:lastSlashIndex] + "([^/]+)"
+		generatedPath = generatedPath[:lastSlashIndex] + "(.*)"
 	}
 	generatedPath = strings.TrimSpace(generatedPath)
 	paths := []string{"", ExtractPath(basePath), ExtractPath(generatedPath)}
@@ -188,16 +194,15 @@ func GeneratePrefixMatch(endpointToUse []types.EndpointDetails, operation types.
 	pathParamCount := 1
 
 	if target == "/*" {
-		generatedPath = "/$(uri_captures[1])"
+		generatedPath = "\\1"
 	} else if target == "/" {
 		generatedPath = "/"
 	} else {
 		for _, value := range splitValues {
 			trimmedValue := strings.TrimSpace(value)
 			if len(trimmedValue) > 0 {
-				if matched, _ := regexp.MatchString(`\{.*\}`, trimmedValue); matched {
-					replacement := "$(uri_captures[" + strconv.Itoa(pathParamCount) + "])"
-					generatedPath += "/" + regexp.MustCompile(`\{.*\}`).ReplaceAllString(trimmedValue, replacement)
+				if matched, _ := regexp.MatchString("\\{.*\\}", trimmedValue); matched {
+					generatedPath += "/" + regexp.MustCompile("\\{.*\\}").ReplaceAllString(trimmedValue, "\\"+strconv.Itoa(pathParamCount))
 					pathParamCount++
 				} else {
 					generatedPath += "/" + trimmedValue
@@ -208,25 +213,12 @@ func GeneratePrefixMatch(endpointToUse []types.EndpointDetails, operation types.
 
 	if strings.HasSuffix(generatedPath, "/*") {
 		lastSlashIndex := strings.LastIndex(generatedPath, "/")
-		generatedPath = generatedPath[:lastSlashIndex] + "///$(uri_captures[" + strconv.Itoa(pathParamCount) + "])"
+		generatedPath = generatedPath[:lastSlashIndex] + "///" + strconv.Itoa(pathParamCount)
 	}
 	if len(endpointToUse) > 0 && endpointToUse[0].ServiceEntry {
 		generatedPath = strings.TrimSpace(generatedPath)
 	}
-
-	if target == "/*" {
-		if basePath == "/" {
-			result := "/$(uri_captures[1])"
-			return result
-		} else if strings.HasSuffix(basePath, "/*") {
-			basePathWithoutWildcard := basePath[:len(basePath)-2]
-			result := basePathWithoutWildcard + "/$(uri_captures[1])"
-			return result
-		}
-	}
-
-	result := basePath + generatedPath
-	return result
+	return basePath + generatedPath
 }
 
 // GetHostNames retrieves the host names from the provided APK configuration.
@@ -286,9 +278,9 @@ func createEndpoints(endpointConfigs *types.EndpointConfigurations, endpointType
 			})
 		}
 	}
-	if endpointType == constants.SandboxType || sandboxEndpointConfigs != nil {
-		if createdEndpoints[constants.SandboxType] == nil {
-			createdEndpoints[constants.SandboxType] = make([]types.EndpointDetails, 0)
+	if endpointType == constants.SanboxType || sandboxEndpointConfigs != nil {
+		if createdEndpoints[constants.SanboxType] == nil {
+			createdEndpoints[constants.SanboxType] = make([]types.EndpointDetails, 0)
 		}
 		for _, sandboxEndpointConfig := range *sandboxEndpointConfigs {
 			var endpointURL string
@@ -296,7 +288,7 @@ func createEndpoints(endpointConfigs *types.EndpointConfigurations, endpointType
 				endpointURL = string(url)
 			}
 
-			createdEndpoints[constants.SandboxType] = append(createdEndpoints[constants.SandboxType], types.EndpointDetails{
+			createdEndpoints[constants.SanboxType] = append(createdEndpoints[constants.SanboxType], types.EndpointDetails{
 				Name:         GetHost(sandboxEndpointConfig.Endpoint),
 				Path:         GetPath(endpointURL),
 				URL:          ConstructURLFromK8sService(sandboxEndpointConfig.Endpoint),

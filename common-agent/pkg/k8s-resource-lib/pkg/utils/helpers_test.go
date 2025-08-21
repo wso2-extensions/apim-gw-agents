@@ -113,9 +113,9 @@ func TestRetrievePathPrefix(t *testing.T) {
 		basePath  string
 		expected  string
 	}{
-		{"Root operation", "/", "/base", "/base/"},
-		{"Wildcard operation", "/*", "/base", "/base/([^/]+)"},
-		{"Path with param", "/resource/{id}", "/base", "/base/resource/([^/]+)"},
+		{"Root operation", "/", "/base", "/"},
+		{"Wildcard operation", "/*", "/base", "/(.*)"},
+		{"Path with param", "/resource/{id}", "/base", "/base/resource/(.*)"},
 	}
 
 	for _, tt := range tests {
@@ -134,9 +134,9 @@ func TestGeneratePrefixMatch(t *testing.T) {
 		operation      types.Operation
 		expectedPrefix string
 	}{
-		{"Wildcard operation", "/", []types.EndpointDetails{types.EndpointDetails{ServiceEntry: false}}, types.Operation{Target: "/*"}, "/$(uri_captures[1])"},
-		{"Wildcard operation", "/*", []types.EndpointDetails{types.EndpointDetails{ServiceEntry: false}}, types.Operation{Target: "/*"}, "/$(uri_captures[1])"},
-		{"Path with param", "/anything/get", []types.EndpointDetails{types.EndpointDetails{ServiceEntry: false}}, types.Operation{Target: "/resource/{id}"}, "/anything/get/resource/$(uri_captures[1])"},
+		{"Root operation", "/anything", []types.EndpointDetails{types.EndpointDetails{ServiceEntry: false}}, types.Operation{Target: "/"}, "/anything/"},
+		{"Wildcard operation", "/", []types.EndpointDetails{types.EndpointDetails{ServiceEntry: false}}, types.Operation{Target: "/*"}, "/\\1"},
+		{"Path with param", "/anything/get", []types.EndpointDetails{types.EndpointDetails{ServiceEntry: false}}, types.Operation{Target: "/resource/{id}"}, "/anything/get/resource/\\1"},
 	}
 
 	for _, tt := range tests {

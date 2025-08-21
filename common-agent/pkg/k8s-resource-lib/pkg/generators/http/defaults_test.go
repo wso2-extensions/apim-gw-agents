@@ -216,7 +216,7 @@ func TestGenerateHTTPBackEndRef(t *testing.T) {
 	endpoint := []types.EndpointDetails{types.EndpointDetails{Name: "test-endpoint"}}
 	operation := types.Operation{}
 	k8sArtifacts := K8sArtifacts{Name: "api-name", Version: "v1", OrganizationID: "", Services: make(map[string]*v1.Service)}
-	endpointType := constants.SandboxType
+	endpointType := constants.SanboxType
 
 	httpBackEndRefs := g.GenerateHTTPBackEndRef(&k8sArtifacts, endpoint, operation, endpointType)
 	if len(httpBackEndRefs) == 0 {

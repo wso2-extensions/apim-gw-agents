@@ -22,7 +22,7 @@ import (
 
 	apkAgent "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector"
 	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/agent"
-	kongAgent "github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector"
+	// kongAgent "github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector"
 )
 
 // agentRegistry is a registry that holds different gateway agents.
@@ -51,5 +51,5 @@ var agentReg = &agentRegistry{
 // init function registers the default gateway agents when the package is initialized.
 func init() {
 	agentReg.RegisterAgent("apk", &apkAgent.Agent{})
-	agentReg.RegisterAgent("kong", &kongAgent.Agent{})
+	// agentReg.RegisterAgent("kong", &kongAgent.Agent{})
 }

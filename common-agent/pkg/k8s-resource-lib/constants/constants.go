@@ -17,8 +17,8 @@
 
 package constants
 
-// SandboxType is the type of the sandbox environment
-const SandboxType = "sandbox"
+// SanboxType is the type of the sandbox environment
+const SanboxType = "sandbox"
 
 // ProductionType is the type of the production environment
 const ProductionType = "production"

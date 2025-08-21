@@ -97,17 +97,17 @@ func (g *HTTPRouteGenerator) generateHTTPBackEndRef(k8sArtifacts *K8sArtifacts, 
 		httpBackEndRef := gwapiv1.HTTPBackendRef{
 			BackendRef: gwapiv1.BackendRef{},
 		}
-		port := int32(utils.GetPort(endpoint.URL))
 		if endpoint.ServiceEntry {
-			portNumber := gwapiv1.PortNumber(port)
+			portNumber := gwapiv1.PortNumber(int32(utils.GetPort(endpoint.URL)))
 			httpBackEndRef.BackendRef.BackendObjectReference = gwapiv1.BackendObjectReference{
 				Kind: &kind,
 				Name: gwapiv1.ObjectName(utils.GetHost(types.EndpointURL(endpoint.URL))),
 				Port: &portNumber,
 			}
 		} else {
+			// Generate and append new service to artifacts
 			service := g.GenerateService(k8sArtifacts, endpoint, operation, endpointType)
-			portNumber := gwapiv1.PortNumber(port)
+			portNumber := gwapiv1.PortNumber(80)
 			httpBackEndRef.BackendRef.BackendObjectReference = gwapiv1.BackendObjectReference{
 				Kind: &kind,
 				Name: gwapiv1.ObjectName(service.Name),
@@ -131,7 +131,7 @@ func (g *HTTPRouteGenerator) generateService(k8sArtifacts *K8sArtifacts, endpoin
 			ExternalName: utils.GetHost(types.EndpointURL(endpoint.URL)),
 			Ports: []corev1.ServicePort{
 				{
-					Port:     int32(utils.GetPort(endpoint.URL)),
+					Port:     int32(80),
 					Protocol: "TCP",
 				},
 			},
@@ -171,22 +171,9 @@ func (g *HTTPRouteGenerator) generateHTTPRouteFilters(k8sArtifacts *K8sArtifacts
 		}
 	}
 	if !hasRedirectPolicy {
-		requestHeaderFilter := gwapiv1.HTTPRouteFilter{
-			Type: gwapiv1.HTTPRouteFilterRequestHeaderModifier,
-			RequestHeaderModifier: &gwapiv1.HTTPHeaderFilter{
-				Set: []gwapiv1.HTTPHeader{
-					{
-						Name:  gwapiv1.HTTPHeaderName("Host"),
-						Value: utils.GetHost(types.EndpointURL(endpointToUse[0].URL)),
-					},
-				},
-			},
-		}
-		routeFilters = append(routeFilters, requestHeaderFilter)
-
 		generatedPath := utils.GeneratePrefixMatch(endpointToUse, operation, endpointToUse[0].Path)
 		replacePathFilter := gwapiv1.HTTPRouteFilter{
-			Type: gwapiv1.HTTPRouteFilterURLRewrite,
+			Type: "URLRewrite",
 			URLRewrite: &gwapiv1.HTTPURLRewriteFilter{
 				Path: &gwapiv1.HTTPPathModifier{
 					Type:            gwapiv1.FullPathHTTPPathModifier,
