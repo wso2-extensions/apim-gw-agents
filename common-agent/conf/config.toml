@@ -1,0 +1,14 @@
+[controlPlane]
+enabled = true
+environmentLabels = ["Default"]
+internalKeyIssuer = "http://am.wso2.com:443/token"
+password = "admin"
+serviceURL = "https://wso2apim:9443/"
+skipSSLVerification = true
+username = "admin"
+[controlPlane.brokerConnectionParameters]
+eventListeningEndpoints = ["amqp://admin:admin@wso2apim:5672?retries='10'&connectdelay='30'"]
+
+[dataPlane]
+enabled = true
+k8ResourceEndpoint = "https://localhost:9443/api/configurator/apis/generate-k8s-resources"

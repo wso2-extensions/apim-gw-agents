@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-log-conf
+  namespace: {{ .Release.Namespace }}
+data:
+  config.toml: |
+    [controlPlane]
+      enabled = {{ .Values.controlPlane.enabled }}
+      serviceURL = "{{ .Values.controlPlane.serviceURL }}"
+      username = "{{ .Values.controlPlane.username }}"
+      password = "{{ .Values.controlPlane.password }}"
+      clientID = "{{ .Values.controlPlane.clientID }}"
+      clientSecret = "{{ .Values.controlPlane.clientSecret }}"
+      provider = "{{ .Values.controlPlane.provider | default "admin" }}"
+      environmentLabels = ["{{ .Values.controlPlane.environmentLabels }}"]
+      skipSSLVerification = {{ .Values.controlPlane.skipSSLVerification }}
+      internalKeyIssuer = "{{ .Values.controlPlane.internalKeyIssuer | default "http://am.wso2.com:443/token" }}"
+      [controlPlane.brokerConnectionParameters]
+      eventListeningEndpoints = ["{{ .Values.controlPlane.eventListeningEndpoints }}"]
+    
+    [dataPlane]
+      enabled = {{ .Values.dataPlane.enabled }}
+      k8ResourceEndpoint = "{{ .Values.dataPlane.k8ResourceEndpoint }}"
+      namespace = "{{ .Values.dataPlane.namespace }}"
+
+    [metrics]
+      enabled = {{.Values.metrics.enabled}}
+      type = "{{.Values.metrics.type| default "prometheus" }}"
+      port = 18006
+    
+    [agent]
+        mode = "{{ .Values.agent.mode }}"
+        gateway = "{{ .Values.agent.gateway }}"
+
+    [gatewayAgent]
+    {{- range $key, $value := .Values.gatewayAgent }}
+      {{ $key }} = "{{ $value }}"
+    {{- end }}
+
+  log_config.toml: |
+    # The logging configuration for Agent
+      
+      logLevel = "{{ .Values.logging.level }}"
+      LogFormat = "{{ .Values.logging.format }}"
+      
+      [rotation]
+      MaxSize = 10    # In MegaBytes (MB)
+      MaxBackups = 3
+      MaxAge =  2   # In days
+      Compress = true
+    
+    ## Adapter package Level configurations
+      
+      [[pkg]]
+      name = "github.com/wso2/apk/adapter/internal/adapter"
+      logLevel = "INFO" # LogLevels can be "DEBG", "FATL", "ERRO", "WARN", "INFO", "PANC"
+      
+      [[pkg]]
+      name = "github.com/wso2/apk/adapter/internal/oasparser"
+      logLevel = "INFO"
+    
+    
+    # The logging configuration for Router
+      
+      [accessLogs]
+      enable = false
+      format = "[%START_TIME%] '%REQ(:METHOD)% %DYNAMIC_METADATA(envoy.filters.http.ext_authz:originalPath)% %REQ(:PATH)% %PROTOCOL%' %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED% %BYTES_SENT% %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% '%REQ(X-FORWARDED-FOR)%' '%REQ(USER-AGENT)%' '%REQ(X-REQUEST-ID)%' '%REQ(:AUTHORITY)%' '%UPSTREAM_HOST%'\n"
+      
+      [wireLogs]
+      enable = false
+      include = ["Headers", "Body", "Trailers"]
+    
+    # [[pkg]]
+    # name = "github.com/wso2/apk/Adapter/pkg/xds"
+    # logLevel = "INFO"
