@@ -50,8 +50,8 @@ var defaultConfig = &Config{
 	Agent: agent{
 		Enabled: true,
 		Keystore: keystore{
-			KeyPath:  "/home/wso2/security/keystore/apk-agent.key",
-			CertPath: "/home/wso2/security/keystore/apk-agent.crt",
+			KeyPath:  "/home/wso2/security/keystore/common-agent.key",
+			CertPath: "/home/wso2/security/keystore/common-agent.crt",
 		},
 		TrustStore: truststore{
 			Location: "/home/wso2/security/truststore",

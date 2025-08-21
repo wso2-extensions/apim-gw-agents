@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Secret
 metadata:
-  name: apim-apk-issuer-cert
+  name: {{ if .Values.certificates }}{{ .Values.certificates.issuerCertName | default "apim-common-agent-issuer-cert" }}{{ else }}"apim-common-agent-issuer-cert"{{ end }}
 type: Opaque
 data:
   wso2.crt: |

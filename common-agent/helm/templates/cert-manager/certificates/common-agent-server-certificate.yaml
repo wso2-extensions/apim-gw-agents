@@ -20,21 +20,21 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: apim-common-agent-server-cert
+  name: {{ if .Values.certificates }}{{ .Values.certificates.serverCertName | default "apim-common-agent-server-cert" }}{{ else }}"apim-common-agent-server-cert"{{ end }}
   namespace: {{ .Release.Namespace }}
 spec:
-  commonName: apim-common-agent-service
+  commonName: {{ .Values.service.name }}
   privateKey:
     algorithm: RSA
     encoding: PKCS8
     size: 2048
   
   dnsNames:
-  - apim-common-agent-service.{{ .Release.Namespace }}.svc
-  - apim-common-agent-service.{{ .Release.Namespace }}.svc.cluster.local
+  - {{ .Values.service.name }}.{{ .Release.Namespace }}.svc
+  - {{ .Values.service.name }}.{{ .Release.Namespace }}.svc.cluster.local
   issuerRef:
     kind: "ClusterIssuer"
-    name: "apk-agent-selfsigned-issuer"
-  secretName: apk-agent-server-cert
+    name: {{ if .Values.issuers }}{{ .Values.issuers.selfsignedIssuerName | default "common-agent-selfsigned-issuer" }}{{ else }}"common-agent-selfsigned-issuer"{{ end }}
+  secretName: {{ if .Values.certificates }}{{ .Values.certificates.serverCertSecretName | default "common-agent-server-cert" }}{{ else }}"common-agent-server-cert"{{ end }}
 
-
+  

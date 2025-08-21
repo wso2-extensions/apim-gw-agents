@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Secret
 metadata:
-  name: apk-agent-root-certificate
+  name: {{ if .Values.issuers }}{{ .Values.issuers.selfsignedIssuerSecretName | default "common-agent-root-certificate" }}{{ else }}"common-agent-root-certificate"{{ end }}
   namespace: {{ .Release.Namespace }}
 type: kubernetes.io/tls
 data:

@@ -17,7 +17,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Chart.Name }}
+  name: {{ template "common-agent-helm.resource.prefix" . }}-common-agent-deployment
   labels:
     app.kubernetes.io/app: "apim-common-agent"
     helm.sh/chart: {{ .Chart.Name }}
@@ -26,20 +26,20 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/app: "apim-common-agent"
-      app.kubernetes.io/name: {{ .Chart.Name }}
+      app.kubernetes.io/name: {{ template "common-agent-helm.resource.prefix" . }}-common-deployment
       app.kubernetes.io/instance: {{ .Release.Name }}
   template:
     metadata:
       labels:
         app.kubernetes.io/app: "apim-common-agent"
-        app.kubernetes.io/name: {{ .Chart.Name }}
+        app.kubernetes.io/name: {{ template "common-agent-helm.resource.prefix" . }}-common-deployment
         app.kubernetes.io/instance: {{ .Release.Name }}
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/log-conf.yaml") . | sha256sum }}
     spec:
       serviceAccountName: wso2agent-platform
       containers:
-        - name: {{ .Chart.Name }}
+        - name: {{ template "common-agent-helm.resource.prefix" . }}-common-deployment
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
@@ -53,24 +53,24 @@ spec:
             {{ end }}
           env:
             - name: APIM_AGENT_PRIVATE_KEY_PATH
-              value: /home/wso2/security/keystore/apk-agent.key
+              value: /home/wso2/security/keystore/common-agent.key
             - name: APIM_AGENT_PUBLIC_CERT_PATH
-              value: /home/wso2/security/keystore/apk-agent.crt
+              value: /home/wso2/security/keystore/common-agent.crt
             - name: APIM_AGENT_SERVER_NAME
-              value: apim-common-agent-service.{{ .Release.Namespace }}.svc
+              value: {{ .Values.service.name }}.{{ .Release.Namespace }}.svc
             - name: APIM_AGENT_GRPC_PORT
               value: "18000"
           volumeMounts:
             - name: log-conf-volume
               mountPath: /home/wso2/conf/
-            - name: apk-agent-certificates
-              mountPath: /home/wso2/security/keystore/apk-agent.key
+            - name: common-agent-certificates
+              mountPath: /home/wso2/security/keystore/common-agent.key
               subPath: tls.key
-            - name: apk-agent-certificates
-              mountPath: /home/wso2/security/keystore/apk-agent.crt
+            - name: common-agent-certificates
+              mountPath: /home/wso2/security/keystore/common-agent.crt
               subPath: tls.crt
-            - name: apk-agent-certificates
-              mountPath: /home/wso2/security/truststore/apk-agent-ca.crt
+            - name: common-agent-certificates
+              mountPath: /home/wso2/security/truststore/common-agent-ca.crt
               subPath: ca.crt
           readinessProbe:
             exec:
@@ -99,6 +99,6 @@ spec:
         - name: log-conf-volume
           configMap:
             name: {{ .Release.Name }}-log-conf
-        - name: apk-agent-certificates
+        - name: common-agent-certificates
           secret:
-            secretName: apk-agent-server-cert
+            secretName: {{ if .Values.certificates }}{{ .Values.certificates.serverCertSecretName | default "common-agent-server-cert" }}{{ else }}"common-agent-server-cert"{{ end }}
