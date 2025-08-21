@@ -17,7 +17,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ template "common-agent-helm.resource.prefix" . }}-common-deployment
+  name: {{ template "common-agent-helm.resource.prefix" . }}-common-agent-deployment
   labels:
     app.kubernetes.io/app: "apim-common-agent"
     helm.sh/chart: {{ .Chart.Name }}
