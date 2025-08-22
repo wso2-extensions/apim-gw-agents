@@ -18,8 +18,6 @@
 
 package org.wso2.kong.client;
 
-import com.google.gson.JsonObject;
-
 import feign.Feign;
 import feign.RequestInterceptor;
 
@@ -58,12 +56,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
-
-import static org.wso2.carbon.apimgt.impl.importexport.ImportExportConstants.DEPLOYMENT_NAME;
-import static org.wso2.carbon.apimgt.impl.importexport.ImportExportConstants.DEPLOYMENT_VHOST;
-import static org.wso2.carbon.apimgt.impl.importexport.ImportExportConstants.DISPLAY_ON_DEVPORTAL_OPTION;
-
-
 /**
  * This class implements the FederatedAPIDiscovery interface to discover APIs from Kong Konnect.
  */
@@ -77,17 +69,14 @@ public class KongFederatedAPIDiscovery implements FederatedAPIDiscovery {
     private String adminURL;
     private String controlPlaneId;
     private String authToken;
-    private JsonObject deploymentConfigObject;
-    private List<String> apisDeployedInGatewayEnv;
 
     @Override
     public void init(Environment environment, String organization)
             throws APIManagementException {
-        log.debug("Initializing AWS Gateway Deployer for environment: " + environment.getName());
+        log.debug("Initializing Kong Gateway Federation for environment: " + environment.getName());
         try {
             this.environment = environment;
             this.organization = organization;
-            this.apisDeployedInGatewayEnv = apisDeployedInGatewayEnv;
             this.adminURL = environment.getAdditionalProperties().get(KongConstants.KONG_ADMIN_URL);
             this.controlPlaneId = environment.getAdditionalProperties().get(KongConstants.KONG_CONTROL_PLANE_ID);
             this.authToken = environment.getAdditionalProperties().get(KongConstants.KONG_AUTH_TOKEN);
@@ -108,12 +97,6 @@ public class KongFederatedAPIDiscovery implements FederatedAPIDiscovery {
                 .logger(new Slf4jLogger(KongKonnectApi.class))
                 .requestInterceptor(auth)
                 .target(KongKonnectApi.class, adminURL);
-
-            // Initialize the deployment configuration object
-            this.deploymentConfigObject = new JsonObject();
-            deploymentConfigObject.addProperty(DEPLOYMENT_NAME, environment.getName());
-            deploymentConfigObject.addProperty(DEPLOYMENT_VHOST, environment.getVhosts().get(0).getHost());
-            deploymentConfigObject.addProperty(DISPLAY_ON_DEVPORTAL_OPTION, true);
             log.debug("Initialization completed Kong Gateway Deployer for environment: " + environment.getName());
         } catch (Exception e) {
             throw new APIManagementException("Error occurred while initializing Kong Gateway Deployer", e);
@@ -123,12 +106,12 @@ public class KongFederatedAPIDiscovery implements FederatedAPIDiscovery {
     @Override
     public List<API> discoverAPI() {
         // List APIs (V3)
-        KongListResponse<KongAPI> apisResp = apiGatewayClient.listAPIs(100);
+        KongListResponse<KongAPI> apisResp = apiGatewayClient.listAPIs(1000);
         List<KongAPI> apis = (apisResp != null && apisResp.getData() != null)
                 ? apisResp.getData() : Collections.<KongAPI>emptyList();
 
         // List implementations (api_id -> service link)
-        KongListResponse<KongAPIImplementation> implResp = apiGatewayClient.listAPIImplementations(100);
+        KongListResponse<KongAPIImplementation> implResp = apiGatewayClient.listAPIImplementations(1000);
         List<KongAPIImplementation> implementations = (implResp != null && implResp.getData() != null)
                 ? implResp.getData() : Collections.<KongAPIImplementation>emptyList();
 
@@ -245,7 +228,7 @@ public class KongFederatedAPIDiscovery implements FederatedAPIDiscovery {
         }
 
         // If there are Services without APIs, we can still retrieve them as APIs
-        PagedResponse<KongService> servicesResp = apiGatewayClient.listServices(controlPlaneId, 100);
+        PagedResponse<KongService> servicesResp = apiGatewayClient.listServices(controlPlaneId, 1000);
         List<KongService> services;
         if (servicesResp != null && servicesResp.getData() != null) {
             services = servicesResp.getData();
@@ -258,7 +241,7 @@ public class KongFederatedAPIDiscovery implements FederatedAPIDiscovery {
             if (linkedServices.contains(svc.getId())) {
                 continue;
             }
-            PagedResponse<KongRoute> resp = apiGatewayClient.listRoutesByServiceId(controlPlaneId, svc.getId(), 100);
+            PagedResponse<KongRoute> resp = apiGatewayClient.listRoutesByServiceId(controlPlaneId, svc.getId(), 1000);
             List<KongRoute> routes = (resp != null && resp.getData() != null) ?
                     resp.getData() : java.util.Collections.emptyList();
 
