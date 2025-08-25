@@ -54,6 +54,15 @@ jobs:
           gh pr checkout ${{ github.event.number }} -b pr-${{ github.event.number }}
           git checkout pr-${{ github.event.number }}
           git merge origin/main
+      - name: Clean workspace before release
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.release_version != '' && github.event.inputs.next_version != ''
+        run: |
+          find . -name ".gradle" -type d -exec rm -rf {} + 2>/dev/null || true
+          find . -name "build" -type d -exec rm -rf {} + 2>/dev/null || true
+          find . -name "*.out" -delete 2>/dev/null || true
+          git clean -fd
+          echo "Repository status after cleanup:"
+          git status --porcelain
       - name: Run Release Gradle build
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.release_version != '' && github.event.inputs.next_version != ''   
         run: |
