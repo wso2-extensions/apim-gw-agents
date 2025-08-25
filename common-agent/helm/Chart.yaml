@@ -18,10 +18,10 @@ apiVersion: v2
 name: apim-common-agent
 description: A Helm chart for deploying apim-common-agent
 type: application
-version: 1.3.0
-appVersion: "1.3.0"
+version: 2.0.0
+appVersion: "2.0.0"
 dependencies:
   - name: cert-manager
-    version: "v1.16.0"
+    version: "v1.18.2"
     repository: "https://charts.jetstack.io"
     condition: certmanager.enabled
