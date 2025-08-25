@@ -19,9 +19,9 @@ wso2:
     imagePullSecrets: ""
 replicaCount: 1
 image:
-  repository: apim-agent
-  tag: 1.3.0-SNAPSHOT
-  pullPolicy: IfNotPresent
+  repository: wso2/apim-agent
+  tag: 2.0.0-alpha
+  pullPolicy: Always
 service:
   name: apim-agent-service
 resources:
