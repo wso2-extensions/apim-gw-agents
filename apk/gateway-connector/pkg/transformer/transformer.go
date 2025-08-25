@@ -318,7 +318,7 @@ func replaceVhost(k8sArtifact *K8sArtifacts, vhost string, deploymentType string
 		for _, rule := range httproute.Spec.Rules {
 			for _, filter := range rule.Filters {
 				if filter.Type == "ExtensionRef" && filter.ExtensionRef != nil && filter.ExtensionRef.Kind == "RouteMetadata" {
-					if filter.ExtensionRef.Name == "sandbox" {
+					if httproute.Annotations["gateway.envoyproxy.io/kgw-envtype"] == "sandbox" {
 						httproute.Spec.Hostnames = []gwapiv1.Hostname{gwapiv1.Hostname("sandbox." + vhost)}
 					} else {
 						httproute.Spec.Hostnames = []gwapiv1.Hostname{gwapiv1.Hostname(vhost)}
