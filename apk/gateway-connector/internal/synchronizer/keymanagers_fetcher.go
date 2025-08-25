@@ -26,6 +26,7 @@ package synchronizer
 import (
 	"time"
 
+	k8sclient "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/k8sClient"
 	logger "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/loggers"
 	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
 	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/cache"
@@ -64,7 +65,20 @@ func FetchKeyManagersOnStartUp(c client.Client) {
 			// Populate cache with initial data
 			for _, km := range resolvedKeyManagers {
 				kmCache.AddOrUpdateKeyManager(&km)
+				// !!![+] This need to be updated with a logic similar to the existing logic
+				kmBackendCR := k8sclient.GenerateKMBackendCR(km)
+				logger.LoggerSynchronizer.Infof("Generated KM Backend CR: %+v\n", kmBackendCR)
+				kmBackendTLSCR, kmBackendSecretCR := k8sclient.GenerateKMBackendTLSCR(km) 
+				logger.LoggerSynchronizer.Infof("Generated KM Backend TLS CR: %+v\n", kmBackendTLSCR)
+				logger.LoggerSynchronizer.Infof("Generated KM Backend Secret CR: %+v\n", kmBackendSecretCR)
+				
+				k8sclient.DeployBackendCR(kmBackendCR, nil, c)
+				k8sclient.DeployBackendTLSPolicyCR(kmBackendTLSCR, nil, c)
+				if kmBackendSecretCR != nil {
+					k8sclient.DeploySecretCR(kmBackendSecretCR, nil, c)
+				}
 			}
+
 			logger.LoggerSynchronizer.Infof("Populated KM cache with %d entries on startup", len(resolvedKeyManagers))
 			// applyAllKeyManagerConfiguration(c, resolvedKeyManagers)
 		}

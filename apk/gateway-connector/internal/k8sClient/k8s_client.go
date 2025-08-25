@@ -24,6 +24,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/url"
+	"strconv"
 	"strings"
 
 	gatewayv1alpha1 "github.com/envoyproxy/gateway/api/v1alpha1"
@@ -41,6 +43,7 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gwapiv1 "sigs.k8s.io/gateway-api/apis/v1"
+	v1 "sigs.k8s.io/gateway-api/apis/v1"
 	gwapiv1a2 "sigs.k8s.io/gateway-api/apis/v1alpha2"
 	gwapiv1a3 "sigs.k8s.io/gateway-api/apis/v1alpha3"
 )
@@ -1146,7 +1149,7 @@ func RetrieveAllRouteMetasFromK8s(k8sClient client.Client, nextToken string) ([]
 	err := k8sClient.List(context.Background(), &routeMetaList, &client.ListOptions{
 		Namespace: conf.DataPlane.Namespace,
 	})
-	
+
 	if err != nil {
 		loggers.LoggerK8sClient.ErrorC(logging.PrintError(logging.Error1102, logging.CRITICAL, "Failed to get application from k8s %+v", err.Error()))
 		return nil, "", err
@@ -1163,12 +1166,12 @@ func RetrieveAllAIProvidersFromK8s(k8sClient client.Client, nextToken string) ([
 	err := k8sClient.List(context.Background(), &aiProviderRPList, &client.ListOptions{
 		Namespace: conf.DataPlane.Namespace,
 	})
-	
+
 	if err != nil {
 		loggers.LoggerK8sClient.ErrorC(logging.PrintError(logging.Error1102, logging.CRITICAL, "Failed to get ai provider route policies from k8s %+v", err.Error()))
 		return nil, "", err
 	}
-	
+
 	return aiProviderRPList.Items, "", nil
 }
 
@@ -1289,4 +1292,135 @@ func getFormattedTimeUnit(timeUnit string) string {
 		loggers.LoggerK8sClient.Errorf("Unexpected timeunit %s", timeUnit)
 		return timeUnit
 	}
+}
+
+// GenerateKMBackendCR create the backend for the Key Manager
+func GenerateKMBackendCR(km eventhubTypes.ResolvedKeyManager) *gatewayv1alpha1.Backend {
+	backendName := getSha1Value(fmt.Sprintf("%s-%s", km.Name, km.Organization))
+	conf, _ := config.ReadConfigs()
+	// Extract server URL from the Key Manager config
+	issuerURL := km.KeyManagerConfig.Issuer
+	loggers.LoggerK8sClient.Infof("Issuer URL: %s", issuerURL)
+	hostname, port, err := extractHostnameAndPort(issuerURL)
+	if err != nil || port < 0{
+		loggers.LoggerK8sClient.ErrorC(logging.PrintError(logging.Error1102, logging.CRITICAL, "Failed to extract hostname and port from the key manager config %v", err.Error()))
+		return nil
+	}
+	loggers.LoggerK8sClient.Infof("Hostname: %s || Port: %d", hostname, port)
+	// Create Backend resource
+	backend := &gatewayv1alpha1.Backend{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      backendName,
+			Namespace: conf.DataPlane.Namespace,
+			Labels: map[string]string{
+				"km.wso2.com/name":         km.Name,
+				"km.wso2.com/organization": km.Organization,
+				"InitiatedFromCP":          "true",
+			},
+		},
+		Spec: gatewayv1alpha1.BackendSpec{
+			Endpoints: []gatewayv1alpha1.BackendEndpoint{
+				{
+					FQDN: &gatewayv1alpha1.FQDNEndpoint{
+						Hostname: hostname,
+						Port:     int32(port),
+					},
+				},
+			},
+		},
+	}
+	return backend
+}
+
+// GenerateKMBackendTLSCR create the backend TLS policy for the Key Manager
+func GenerateKMBackendTLSCR(km eventhubTypes.ResolvedKeyManager) (*gwapiv1a3.BackendTLSPolicy, *corev1.Secret) {
+	backendName := getSha1Value(fmt.Sprintf("%s-%s", km.Name, km.Organization))
+	conf, _ := config.ReadConfigs()
+	// Extract server URL from the Key Manager config
+	issuerURL := km.KeyManagerConfig.Issuer
+	hostname, _, err := extractHostnameAndPort(issuerURL)
+	if err != nil {
+		loggers.LoggerK8sClient.ErrorC(logging.PrintError(logging.Error1102, logging.CRITICAL, "Failed to extract hostname and port from the key manager config %v", err.Error()))
+		return nil, nil
+	}
+	loggers.LoggerK8sClient.Infof("Hostname: %s", hostname)
+	var validation gwapiv1a3.BackendTLSPolicyValidation
+	var secret *corev1.Secret
+
+	if km.KeyManagerConfig.CertificateType == "JWKS" {
+		loggers.LoggerK8sClient.Info("JWKS Certificate Type")
+		validation = gwapiv1a3.BackendTLSPolicyValidation{
+			Hostname:                v1.PreciseHostname(hostname),
+			WellKnownCACertificates: ptr.To(gwapiv1a3.WellKnownCACertificatesType("System")),
+		}
+	} else if km.KeyManagerConfig.CertificateType == "PEM" {
+		loggers.LoggerK8sClient.Info("PEM Certificate Type")
+		// Define the Secret object
+		secret = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf(backendName + "-cert-secret"),
+				Namespace: conf.DataPlane.Namespace,
+				Labels: map[string]string{
+					"km.wso2.com/name":         km.Name,
+					"km.wso2.com/organization": km.Organization,
+					"InitiatedFromCP":          "true",
+				},
+			},
+			Type: corev1.SecretTypeOpaque, // Use Opaque for generic data
+			Data: map[string][]byte{
+				"certificateKey": []byte(km.KeyManagerConfig.CertificateValue),
+			},
+		}
+
+		validation = gwapiv1a3.BackendTLSPolicyValidation{
+			Hostname: v1.PreciseHostname(hostname),
+			CACertificateRefs: []v1.LocalObjectReference{
+				{
+					Group: "",
+					Kind:  "Secret",
+					Name:  gwapiv1a2.ObjectName(backendName + "-cert-secret"),
+				},
+			},
+		}
+	}
+
+	backendTLSPolicy := &gwapiv1a3.BackendTLSPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      backendName,
+			Namespace: conf.DataPlane.Namespace,
+			Labels: map[string]string{
+				"km.wso2.com/name":         km.Name,
+				"km.wso2.com/organization": km.Organization,
+				"InitiatedFromCP":          "true",
+			},
+		},
+		Spec: gwapiv1a3.BackendTLSPolicySpec{
+			TargetRefs: []gwapiv1a2.LocalPolicyTargetReferenceWithSectionName{
+				{
+					LocalPolicyTargetReference: gwapiv1a2.LocalPolicyTargetReference{
+						Group: "",
+						Kind:  "Backend",
+						Name:  gwapiv1a2.ObjectName(backendName),
+					},
+				},
+			},
+			Validation: validation,
+		},
+	}
+	return backendTLSPolicy, secret
+}
+
+// Helper function to extract hostname and port from URL
+func extractHostnameAndPort(serverURL string) (string, int, error) {
+	u, err := url.Parse(serverURL)
+	if err != nil {
+		return "", -1, err
+	}
+	
+	host, port := u.Hostname(), u.Port()
+	portInt, err := strconv.Atoi(port)
+	if err != nil{
+		return "", -1, err
+	}
+	return host, portInt, nil
 }

@@ -46,19 +46,23 @@ func HandleKMConfiguration(keyManager *types.KeyManager, notification msg.EventK
 			// Delete SecurityPolicy CRs(Not sure whether this is needed because now SPs are created per API so when the API is deleted the SPs should be deleted)
 			k8sclient.DeleteKMSecurityPolicyCRs(notification.Event.PayloadData.Name, notification.Event.PayloadData.TenantDomain, c)
 			logger.LoggerMessaging.Debugf("Deleting TokenIssuer CR: %v", notification.Event.PayloadData.Name)
+			// [+] Add the new backend and backendTLS deletion logic
 		} else if keyManager != nil {
 			if strings.EqualFold(msg.ActionAdd, notification.Event.PayloadData.Action) ||
 				strings.EqualFold(msg.ActionUpdate, notification.Event.PayloadData.Action) {
 				resolvedKeyManager := eventhub.MarshalKeyManager(keyManager)
 				// Add/Update in cache during runtime
+				logger.LoggerMessaging.Infof("Key Manager details(from runtime event): %+v", resolvedKeyManager)
 				kmCache.AddOrUpdateKeyManager(&resolvedKeyManager)
 				logger.LoggerMessaging.Infof("KeyManager '%s' updated in cache during runtime event", resolvedKeyManager.Name)
 				if strings.EqualFold(msg.ActionAdd, notification.Event.PayloadData.Action) {
 					// Now the config-ds is responsible for creating the security policy CRs for KMs
 					// No need to create the security policy CRs here
 					logger.LoggerMessaging.Debugf("New KeyManager is added from the CP: %+v", resolvedKeyManager)
+					// [+] Add the new backend and backendTLS creation logic
 				} else {
 					//Update SecurityPolicy CR
+					// [+] Add the new backend and backendTLS updation logic
 					err := k8sclient.UpdateSecurityPolicyCR(resolvedKeyManager, c)
 					if err != nil {
 						logger.LoggerMessaging.Errorf("Error updating SecurityPolicy CR: %v", err)
