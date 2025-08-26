@@ -19,7 +19,7 @@ wso2:
     imagePullSecrets: ""
 replicaCount: 1
 image:
-  repository: wso2/apim-agent
+  repository: wso2/apim-k8s-gw-connector
   tag: 2.0.0-alpha
   pullPolicy: Always
 service:
