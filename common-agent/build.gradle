@@ -23,7 +23,7 @@ apply from: "$rootDir/../common-gradle-scripts/docker.gradle"
 apply from: "$rootDir/../common-gradle-scripts/go.gradle"
 
 release {
-    tagTemplate = 'apim-agent-$version'
+    tagTemplate = 'apim-k8s-gw-connector-$version'
 
     git {
         requireBranch = project.hasProperty('releaseBranch') ? project.releaseBranch : 'master'
