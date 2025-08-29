@@ -149,12 +149,20 @@ type AIProvider struct {
 //     RemoteClaim string `json:"remoteClaim" yaml:"remoteClaim"`
 // }
 
+// K8sBackendConfig represents the configuration for the k8s backend
+type K8sBackendConfig struct {
+	Name      string `json:"name" yaml:"name"`
+	Port      int    `json:"port" yaml:"port"`
+	Namespace string `json:"namespace" yaml:"namespace"`
+}
+
 // KeyManager represents the properties of a particular key manager.
 type KeyManager struct {
-	Name         string        `json:"name" yaml:"name"`
-	Issuer       string        `json:"issuer" yaml:"issuer"`
-	JWKSEndpoint string        `json:"JWKSEndpoint" yaml:"JWKSEndpoint"`
-	ClaimMapping []types.Claim `json:"claimMappings" yaml:"claimMappings"`
+	Name         string            `json:"name" yaml:"name"`
+	Issuer       string            `json:"issuer" yaml:"issuer"`
+	JWKSEndpoint string            `json:"JWKSEndpoint" yaml:"JWKSEndpoint"`
+	ClaimMapping []types.Claim     `json:"claimMappings" yaml:"claimMappings"`
+	K8sBackend   *K8sBackendConfig `json:"k8sBackend" yaml:"k8sBackend"`
 }
 
 // API represents an main API type definition

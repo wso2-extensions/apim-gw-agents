@@ -29,7 +29,15 @@ import (
 // KeyManagerCache singleton instance for managing Key Manager details in-memory
 type KeyManagerCache struct {
 	mu          sync.RWMutex
-	keyManagers map[string]*eventhubTypes.ResolvedKeyManager // map[kmName]*ResolvedKeyManager
+	keyManagers map[string]*KMCacheObject // map[kmName]*KMCacheObject
+}
+
+// KMCacheObject represents the resolved Key Manager details along with the backend, backendTLS details in the cache
+type KMCacheObject struct {
+	ResolvedKM *eventhubTypes.ResolvedKeyManager
+	K8sBackendName string
+	K8sBackendNamespace string
+	K8sBackendPort int
 }
 
 var (
@@ -41,7 +49,7 @@ var (
 func GetKeyManagerCacheInstance() *KeyManagerCache {
 	once.Do(func() {
 		kmCacheInstance = &KeyManagerCache{
-			keyManagers: make(map[string]*eventhubTypes.ResolvedKeyManager),
+			keyManagers: make(map[string]*KMCacheObject),
 		}
 		logger.LoggerCache.Info("KeyManager cache singleton instance created")
 	})
@@ -49,7 +57,7 @@ func GetKeyManagerCacheInstance() *KeyManagerCache {
 }
 
 // AddOrUpdateKeyManager adds or updates a Key Manager in the cache
-func (kmc *KeyManagerCache) AddOrUpdateKeyManager(km *eventhubTypes.ResolvedKeyManager) {
+func (kmc *KeyManagerCache) AddOrUpdateKeyManager(km *KMCacheObject) {
 	if km == nil {
 		logger.LoggerCache.Warn("Attempted to add nil KeyManager to cache")
 		return
@@ -57,13 +65,13 @@ func (kmc *KeyManagerCache) AddOrUpdateKeyManager(km *eventhubTypes.ResolvedKeyM
 
 	kmc.mu.Lock()
 	defer kmc.mu.Unlock()
-	km.Name = sanitizeKeyManagerName(km.Name)
-	kmc.keyManagers[km.Name] = km
-	logger.LoggerCache.Infof("KeyManager '%s' added/updated in cache", km.Name)
+	km.ResolvedKM.Name = sanitizeKeyManagerName(km.ResolvedKM.Name)
+	kmc.keyManagers[km.ResolvedKM.Name] = km
+	logger.LoggerCache.Infof("KeyManager '%s' added/updated in cache", km.ResolvedKM.Name)
 }
 
 // GetKeyManager retrieves a Key Manager by name from the cache
-func (kmc *KeyManagerCache) GetKeyManager(kmName string) (*eventhubTypes.ResolvedKeyManager, bool) {
+func (kmc *KeyManagerCache) GetKeyManager(kmName string) (*KMCacheObject, bool) {
 	kmc.mu.RLock()
 	defer kmc.mu.RUnlock()
 
@@ -77,12 +85,12 @@ func (kmc *KeyManagerCache) GetKeyManager(kmName string) (*eventhubTypes.Resolve
 }
 
 // GetAllKeyManagers returns a copy of all Key Managers in the cache
-func (kmc *KeyManagerCache) GetAllKeyManagers() map[string]*eventhubTypes.ResolvedKeyManager {
+func (kmc *KeyManagerCache) GetAllKeyManagers() map[string]*KMCacheObject {
 	kmc.mu.RLock()
 	defer kmc.mu.RUnlock()
 
 	// Create a copy to avoid external modifications
-	result := make(map[string]*eventhubTypes.ResolvedKeyManager)
+	result := make(map[string]*KMCacheObject)
 	for name, km := range kmc.keyManagers {
 		result[name] = km
 	}
@@ -119,7 +127,7 @@ func (kmc *KeyManagerCache) ClearCache() {
 	defer kmc.mu.Unlock()
 
 	count := len(kmc.keyManagers)
-	kmc.keyManagers = make(map[string]*eventhubTypes.ResolvedKeyManager)
+	kmc.keyManagers = make(map[string]*KMCacheObject)
 	logger.LoggerCache.Infof("KeyManager cache cleared. Removed %d entries", count)
 }
 
@@ -141,7 +149,7 @@ func (kmc *KeyManagerCache) IsKeyManagerEnabled(kmName string) bool {
 	defer kmc.mu.RUnlock()
 
 	if km, exists := kmc.keyManagers[kmName]; exists {
-		return km.Enabled
+		return km.ResolvedKM.Enabled
 	}
 	return false
 }

@@ -36,10 +36,13 @@ controlPlane:
   serviceURL: https://apim-wso2am-acp-1-service.default.svc.cluster.local:9443/ # change the ns to the appropriate ns
   username: admin
   password: admin
-  environmentLabels: Default_APK
+  environmentLabels: Default
   skipSSLVerification: true
   eventListeningEndpoints: amqp://admin:admin@apim-wso2am-acp-1-service.default.svc.cluster.local:5672?retries='10'&connectdelay='30'  # change the ns to the appropriate ns
   # internalKeyIssuer: http://am.wso2.com:443/token
+  certificates:
+    # -- APIM CA certificate secret name
+    caCertSecretName: "apim-ca-certificate" 
 dataPlane:
   enabled: true
   k8ResourceEndpoint: https://apk-wso2-kgw-config-ds-service.default.svc.cluster.local:9443/api/configurator/apis/generate-k8s-resources # change the ns to the appropriate ns
@@ -59,3 +62,6 @@ serviceAccount:
   enableClusterRoleCreation: true
   serviceAccountName: wso2agent-platform
   roleName: wso2agent-role
+gatewayAgent:
+  sandboxURLLabel: "sandbox"
+  productionURLLabel: ""

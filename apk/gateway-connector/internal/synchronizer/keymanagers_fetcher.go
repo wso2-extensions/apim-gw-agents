@@ -24,14 +24,19 @@
 package synchronizer
 
 import (
+	"fmt"
 	"time"
 
 	k8sclient "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/k8sClient"
 	logger "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/loggers"
+	synchronizer "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/utils"
 	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
 	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/cache"
+	eventhubTypes "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/eventhub/types"
 	sync "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/synchronizer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -64,18 +69,18 @@ func FetchKeyManagersOnStartUp(c client.Client) {
 		} else {
 			// Populate cache with initial data
 			for _, km := range resolvedKeyManagers {
-				kmCache.AddOrUpdateKeyManager(&km)
-				// !!![+] This need to be updated with a logic similar to the existing logic
-				kmBackendCR := k8sclient.GenerateKMBackendCR(km)
-				logger.LoggerSynchronizer.Infof("Generated KM Backend CR: %+v\n", kmBackendCR)
-				kmBackendTLSCR, kmBackendSecretCR := k8sclient.GenerateKMBackendTLSCR(km) 
-				logger.LoggerSynchronizer.Infof("Generated KM Backend TLS CR: %+v\n", kmBackendTLSCR)
-				logger.LoggerSynchronizer.Infof("Generated KM Backend Secret CR: %+v\n", kmBackendSecretCR)
-				
-				k8sclient.DeployBackendCR(kmBackendCR, nil, c)
-				k8sclient.DeployBackendTLSPolicyCR(kmBackendTLSCR, nil, c)
-				if kmBackendSecretCR != nil {
-					k8sclient.DeploySecretCR(kmBackendSecretCR, nil, c)
+				backendName, hostname, backendPort, namespace := synchronizer.GetBackendConfigForKM(km)
+
+				kmCache.AddOrUpdateKeyManager(&cache.KMCacheObject{
+					ResolvedKM:          &km,
+					K8sBackendName:      backendName,
+					K8sBackendPort:      backendPort,
+					K8sBackendNamespace: namespace,
+				})
+				//!!!TODO: Update the logic to sync with KM and dataplane
+				err := CreateOrUpdateBackendAndBackendTLSForKMs(km, backendPort, backendName, namespace, hostname, c)
+				if err != nil {
+					logger.LoggerSynchronizer.Errorf("Error creating backend and backend TLS for KM: %+v", err)
 				}
 			}
 
@@ -95,6 +100,36 @@ func retryFetchData(conf *config.Config, errorMessage string, c client.Client) {
 		logger.LoggerSynchronizer.Error(errorMessage)
 		return
 	}
+}
+
+// CreateBackendAndBackendTLSForKMs creates the backend and backend TLS for the given key manager
+func CreateOrUpdateBackendAndBackendTLSForKMs(km eventhubTypes.ResolvedKeyManager, backendPort int, backendName, namespace, hostname string, c client.Client) error {
+	kmBackendCR := k8sclient.GenerateKMBackendCR(km, backendPort, backendName, namespace, hostname)
+	logger.LoggerSynchronizer.Debugf("Generated KM Backend CR: %+v\n", kmBackendCR)
+	if kmBackendCR == nil {
+		return fmt.Errorf("failed to generate KM Backend CR for KM: %+v", km)
+	}
+	// Deploy Backend CR and get its UID
+	backendUID, err := k8sclient.DeployBackendCR(kmBackendCR, nil, c)
+	if err != nil {
+		return fmt.Errorf("failed to deploy Backend CR for KM %s: %v", km.Name, err)
+	}
+	ownerRef := &metav1.OwnerReference{
+		APIVersion: "gateway.envoyproxy.io/v1alpha1",
+		Kind:       "Backend",
+		Name:       backendName,
+		UID:        backendUID,
+	}
+
+	kmBackendTLSCR, kmBackendSecretCR := k8sclient.GenerateKMBackendTLSCR(km, backendName, namespace, hostname)
+	logger.LoggerSynchronizer.Debugf("Generated KM Backend TLS CR: %+v\n", kmBackendTLSCR)
+	logger.LoggerSynchronizer.Debugf("Generated KM Backend Secret CR: %+v\n", kmBackendSecretCR)
+	k8sclient.DeployBackendTLSPolicyCR(kmBackendTLSCR, ownerRef, c)
+	if kmBackendSecretCR != nil {
+		k8sclient.DeploySecretCR(kmBackendSecretCR, ownerRef, c)
+	}
+	logger.LoggerSynchronizer.Infof("Successfully created backend and backend TLS for KM: %+v", km.Name)
+	return nil
 }
 
 // func applyAllKeyManagerConfiguration(c client.Client, resolvedKeyManagers []eventhubTypes.ResolvedKeyManager) error {
