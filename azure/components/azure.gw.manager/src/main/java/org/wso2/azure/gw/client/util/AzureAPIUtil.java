@@ -36,6 +36,7 @@ import com.azure.resourcemanager.apimanagement.models.ContentFormat;
 import com.azure.resourcemanager.apimanagement.models.OperationContract;
 import com.azure.resourcemanager.apimanagement.models.PolicyContentFormat;
 import com.azure.resourcemanager.apimanagement.models.PolicyIdName;
+import com.azure.resourcemanager.apimanagement.models.Protocol;
 import com.azure.resourcemanager.apimanagement.models.VersioningScheme;
 import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.BlobClientBuilder;
@@ -60,6 +61,8 @@ import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.api.model.OperationPolicy;
 import org.wso2.carbon.apimgt.api.model.Tier;
 import org.wso2.carbon.apimgt.api.model.URITemplate;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
@@ -105,6 +108,15 @@ public class AzureAPIUtil {
             productionEndpoint = productionEndpoint.endsWith("/") ?
                     productionEndpoint.substring(0, productionEndpoint.length() - 1) : productionEndpoint;
 
+            List<String> wso2Transports = Arrays.asList(api.getTransports().split(","));
+            List<Protocol> azureTransports = new ArrayList<>();
+            if (wso2Transports.contains("http")) {
+                azureTransports.add(Protocol.HTTP);
+            }
+            if (wso2Transports.contains("https")) {
+                azureTransports.add(Protocol.HTTPS);
+            }
+
             String versionSetId = AzureConstants.AZURE_VERSION_SET_ID_PREFIX + api.getId().getApiName();
             ApiVersionSetContract versionSetContract = manager.apiVersionSets().define(versionSetId)
                     .withExistingService(resourceGroup, serviceName).withDisplayName(versionSetId)
@@ -121,6 +133,7 @@ public class AzureAPIUtil {
                     .withApiVersionSetId(versionSetContract.id())
                     .withApiVersion(api.getId().getVersion())
                     .withSubscriptionRequired(false)
+                    .withProtocols(azureTransports)
                     .create();
             if (log.isDebugEnabled()) {
                 log.debug("API deployed successfully to Azure Gateway: " + api.getUuid());
