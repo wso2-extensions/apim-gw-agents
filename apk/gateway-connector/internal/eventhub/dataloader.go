@@ -28,7 +28,7 @@ import (
 
 	internalk8sClient "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/k8sClient"
 	logger "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/loggers"
-	internalutils "github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/utils"
+	"github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/synchronizer"
 	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
 	pkgAuth "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/auth"
 	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/eventhub/types"
@@ -237,7 +237,7 @@ func FetchAPIsOnStartUp(conf *config.Config, k8sClient client.Client) {
 	if err != nil {
 		logger.LoggerEventhub.Errorf("Error occurred while fetching RouteMetadata from K8s %v", err)
 	}
-	apis, err := internalutils.FetchAPIsOnEvent(conf, nil, k8sClient)
+	apis, err := synchronizer.FetchAPIsOnEvent(conf, nil, k8sClient)
 	if err != nil {
 		logger.LoggerEventhub.Errorf("Error occurred while fetching APIs from control plane %v", err)
 	}

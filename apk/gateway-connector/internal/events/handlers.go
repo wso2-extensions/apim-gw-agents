@@ -119,7 +119,7 @@ func HandleAPIEvents(data []byte, eventType string, conf *config.Config, c clien
 
 	//Per each revision, synchronization should happen.
 	if strings.EqualFold(eventConstants.DeployAPIToGateway, apiEvent.Event.Type) {
-		go internalutils.FetchAPIsOnEvent(conf, &apiEvent.UUID, c)
+		go synchronizer.FetchAPIsOnEvent(conf, &apiEvent.UUID, c)
 	}
 
 	for _, env := range apiEvent.GatewayLabels {

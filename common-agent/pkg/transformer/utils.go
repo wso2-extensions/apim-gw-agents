@@ -210,3 +210,10 @@ func getAPIType(protocolType string) string {
 	}
 	return apiType
 }
+
+func getSha1Value(input string) string {
+	hasher := sha1.New()
+	hasher.Write([]byte(input))
+	hashBytes := hasher.Sum(nil)
+	return hex.EncodeToString(hashBytes)
+}

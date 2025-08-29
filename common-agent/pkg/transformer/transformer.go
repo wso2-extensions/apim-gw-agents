@@ -278,12 +278,11 @@ func GenerateConf(APIJson string, certArtifact CertificateArtifact, endpoints st
 
 	apk.AdditionalProperties = &aditionalProperties
 
-	//!!!TODO: Add KeyManagers to the conf
 	// Since we only get the KM name, need to get the rest of the details from the internal map we keep
 	// after fetching the key managers from the control plane.
-	logger.LoggerTransformer.Infof("KeyManager data from yaml: %+v", apiYamlData.KeyManagers)
+	logger.LoggerTransformer.Debugf("KeyManager data from yaml: %+v", apiYamlData.KeyManagers)
 	kmData := mapKeyManagers(apiYamlData.KeyManagers)
-	logger.LoggerTransformer.Infof("KeyManager data after mapping: %+v", kmData)
+	logger.LoggerTransformer.Debugf("KeyManager data after mapping: %+v", kmData)
 	apk.KeyManagers = &kmData
 
 	c, marshalError := yaml.Marshal(apk)
@@ -981,10 +980,15 @@ func mapKeyManagers(keyManagers []string) []KeyManager {
 			// Add all the key manager settings to the km details
 			for _, km := range kmList {
 				newkmConfig := KeyManager{
-					Name:         km.Name,
-					Issuer:       km.KeyManagerConfig.Issuer,
-					JWKSEndpoint: km.KeyManagerConfig.CertificateValue,
-					ClaimMapping: km.KeyManagerConfig.ClaimMappings,
+					Name:         km.ResolvedKM.Name,
+					Issuer:       km.ResolvedKM.KeyManagerConfig.Issuer,
+					JWKSEndpoint: km.ResolvedKM.KeyManagerConfig.CertificateValue,
+					ClaimMapping: km.ResolvedKM.KeyManagerConfig.ClaimMappings,
+					K8sBackend: &K8sBackendConfig{
+						Name: km.K8sBackendName,
+						Port: km.K8sBackendPort,
+						Namespace: km.K8sBackendNamespace,
+					},
 				}
 				kmListForAPI = append(kmListForAPI, newkmConfig)
 			}
@@ -992,12 +996,17 @@ func mapKeyManagers(keyManagers []string) []KeyManager {
 		}
 		// Otherwise add only the specific key manager settings to the km details
 		for _, km := range kmList {
-			if keyManager == km.Name {
+			if keyManager == km.ResolvedKM.Name {
 				newkmConfig := KeyManager{
-					Name:         km.Name,
-					Issuer:       km.KeyManagerConfig.Issuer,
-					JWKSEndpoint: km.KeyManagerConfig.CertificateValue,
-					ClaimMapping: km.KeyManagerConfig.ClaimMappings,
+					Name:         km.ResolvedKM.Name,
+					Issuer:       km.ResolvedKM.KeyManagerConfig.Issuer,
+					JWKSEndpoint: km.ResolvedKM.KeyManagerConfig.CertificateValue,
+					ClaimMapping: km.ResolvedKM.KeyManagerConfig.ClaimMappings,
+					K8sBackend: &K8sBackendConfig{
+						Name: km.K8sBackendName,
+						Port: km.K8sBackendPort,
+						Namespace: km.K8sBackendNamespace,
+					},
 				}
 				kmListForAPI = append(kmListForAPI, newkmConfig)
 			}

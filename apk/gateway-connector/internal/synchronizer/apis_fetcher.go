@@ -104,6 +104,7 @@ func FetchAPIsOnEvent(conf *config.Config, apiUUID *string, k8sClient client.Cli
 						logger.LoggerUtils.Errorf("Error occured in receiving the updated CRDs: %+v", err)
 						return nil, err
 					}
+					logger.LoggerUtils.Debugf("\nAPK Conf: \n%+v\n", apkConf)
 					apkTransformer.UpdateCRS(crResponse, apiDeployment.Environments, apiDeployment.OrganizationID, apiUUID, fmt.Sprint(revisionID), "namespace", configuredRateLimitPoliciesMap)
 					mapperUtil.MapAndCreateCR(*crResponse, k8sClient)
 					apis = append(apis, apiUUID)

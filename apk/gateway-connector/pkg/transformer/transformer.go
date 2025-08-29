@@ -39,6 +39,7 @@ import (
 	"net/http"
 
 	gatewayv1alpha1 "github.com/envoyproxy/gateway/api/v1alpha1"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
 	eventHub "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/eventhub/types"
 	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/transformer"
 
@@ -80,7 +81,7 @@ func GenerateCRs(apkConf string, apiDefinition string, certContainer transformer
 		logger.LoggerTransformer.Errorf("Error creating form file for apkConfiguration: %+v", err)
 		return nil, err
 	}
-	_ , err = io.Copy(apkPart, strings.NewReader(apkConf))
+	_, err = io.Copy(apkPart, strings.NewReader(apkConf))
 	if err != nil {
 		logger.LoggerTransformer.Errorf("Error writing apkConfiguration content: %v", err)
 		return nil, err
@@ -183,7 +184,7 @@ func GenerateCRs(apkConf string, apiDefinition string, certContainer transformer
 				continue
 			}
 			k8sArtifact.HTTPRoutes[httpRoute.ObjectMeta.Name] = &httpRoute
-		
+
 		case "HTTPRouteFilter":
 			var httpRouteFilter gatewayv1alpha1.HTTPRouteFilter
 			err = k8Yaml.Unmarshal(yamlData, &httpRouteFilter)
@@ -312,16 +313,25 @@ func UpdateCRS(k8sArtifact *K8sArtifacts, environments *[]transformer.Environmen
 }
 
 func replaceVhost(k8sArtifact *K8sArtifacts, vhost string, deploymentType string) {
-	// Append sandbox. part to available vhost to generate sandbox vhost
-	// Need to check whether the httproute refer to sandbox routemeta or production routemeta
+	// Get the sandbox and production labels from the config
+	conf, err := config.ReadConfigs()
+	if err != nil {
+		logger.LoggerTransformer.Errorf("Error reading configs: %v", err)
+	}
+	// Get URL segments from gatewayAgent configuration
+	sanboxLabel := getGatewayAgentString(conf, "sandboxURLLabel", "sandbox.")
+	productionLabel := getGatewayAgentString(conf, "productionURLLabel", "")
+	logger.LoggerTransformer.Debugf("Sandbox Label from config: %s", sanboxLabel)
+	logger.LoggerTransformer.Debugf("Production Label from config: %s", productionLabel)
+	
 	for _, httproute := range k8sArtifact.HTTPRoutes {
 		for _, rule := range httproute.Spec.Rules {
 			for _, filter := range rule.Filters {
 				if filter.Type == "ExtensionRef" && filter.ExtensionRef != nil && filter.ExtensionRef.Kind == "RouteMetadata" {
-					if httproute.Annotations["gateway.envoyproxy.io/kgw-envtype"] == "sandbox" {
-						httproute.Spec.Hostnames = []gwapiv1.Hostname{gwapiv1.Hostname("sandbox." + vhost)}
+					if httproute.Annotations["gateway.envoyproxy.io/kgw-envtype"] == "SANDBOX" {
+						httproute.Spec.Hostnames = []gwapiv1.Hostname{gwapiv1.Hostname(sanboxLabel + vhost)}
 					} else {
-						httproute.Spec.Hostnames = []gwapiv1.Hostname{gwapiv1.Hostname(vhost)}
+						httproute.Spec.Hostnames = []gwapiv1.Hostname{gwapiv1.Hostname(productionLabel + vhost)}
 					}
 				}
 			}
@@ -335,10 +345,10 @@ func replaceVhost(k8sArtifact *K8sArtifacts, vhost string, deploymentType string
 // the deploymemt descriptor
 func addOrganization(k8sArtifact *K8sArtifacts, organization string) {
 	organizationHash := generateSHA1Hash(organization)
-	
+
 	k8sArtifact.RouteMetadata.Spec.API.Organization = organization
 	k8sArtifact.RouteMetadata.ObjectMeta.Labels[k8sOrganizationField] = organizationHash
-	
+
 	for _, httproutes := range k8sArtifact.HTTPRoutes {
 		httproutes.ObjectMeta.Labels[k8sOrganizationField] = organizationHash
 	}
@@ -497,4 +507,22 @@ func getAPINameFromRouteMetadata(k8sArtifact *K8sArtifacts) string {
 		return k8sArtifact.RouteMetadata.Spec.API.Name
 	}
 	return "" // fallback if no RouteMetadata found
+}
+
+// Helper function to get string value from gatewayAgent config
+func getGatewayAgentString(conf *config.Config, key string, defaultValue string) string {
+	if value := conf.GatewayAgent.Get(key); value != nil {
+		if str, ok := value.(string); ok {
+			logger.LoggerTransformer.Debug("Label extracted from config")
+			if str != "" {
+				return str + "."
+			}
+			return str
+		}
+	}
+	logger.LoggerTransformer.Debug("Falling back to the default env label")
+	if defaultValue != "" {
+		return defaultValue + "."
+	}
+	return defaultValue
 }

@@ -20,8 +20,6 @@ package k8sclient
 
 import (
 	"context"
-	"crypto/sha1"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -30,7 +28,9 @@ import (
 	"github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/constants"
 	"github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/loggers"
 	"github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/logging"
+	"github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/utils"
 	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/cache"
 	eventhubTypes "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/eventhub/types"
 	dpv2alpha1 "github.com/wso2/apk/common-go-libs/apis/dp/v2alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -41,6 +41,7 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gwapiv1 "sigs.k8s.io/gateway-api/apis/v1"
+	v1 "sigs.k8s.io/gateway-api/apis/v1"
 	gwapiv1a2 "sigs.k8s.io/gateway-api/apis/v1alpha2"
 	gwapiv1a3 "sigs.k8s.io/gateway-api/apis/v1alpha3"
 )
@@ -205,7 +206,7 @@ func DeploySecretCR(secret *corev1.Secret, ownerRef *metav1.OwnerReference, k8sC
 }
 
 // DeployBackendCR applies the given Backend struct to the Kubernetes cluster.
-func DeployBackendCR(backends *gatewayv1alpha1.Backend, ownerRef *metav1.OwnerReference, k8sClient client.Client) {
+func DeployBackendCR(backends *gatewayv1alpha1.Backend, ownerRef *metav1.OwnerReference, k8sClient client.Client) (types.UID, error) {
 	if ownerRef != nil {
 		backends.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerRef}
 	}
@@ -213,18 +214,23 @@ func DeployBackendCR(backends *gatewayv1alpha1.Backend, ownerRef *metav1.OwnerRe
 	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: backends.ObjectMeta.Namespace, Name: backends.Name}, crBackends); err != nil {
 		if !k8error.IsNotFound(err) {
 			loggers.LoggerK8sClient.Error("Unable to get Backends CR: " + err.Error())
+			return "", err
 		}
 		if err := k8sClient.Create(context.Background(), backends); err != nil {
 			loggers.LoggerK8sClient.Error("Unable to create Backends CR: " + err.Error())
+			return "", err
 		} else {
 			loggers.LoggerK8sClient.Info("Backends CR created: " + backends.Name)
+			return backends.ObjectMeta.UID, nil
 		}
 	} else {
 		crBackends.Spec = backends.Spec
 		if err := k8sClient.Update(context.Background(), crBackends); err != nil {
 			loggers.LoggerK8sClient.Error("Unable to update Backends CR: " + err.Error())
+			return "", err
 		} else {
 			loggers.LoggerK8sClient.Info("Backends CR updated: " + backends.Name)
+			return crBackends.ObjectMeta.UID, nil
 		}
 	}
 }
@@ -470,8 +476,8 @@ func DeleteAIProviderCR(aiProviderName string, k8sClient client.Client) {
 // UpdateRateLimitPolicyCR applies the updated policy details to all the RateLimitPolicies struct which has the provided label to the Kubernetes cluster.
 func UpdateRateLimitPolicyCR(policy eventhubTypes.RateLimitPolicy, k8sClient client.Client) {
 	conf, _ := config.ReadConfigs()
-	policyName := getSha1Value(policy.Name)
-	policyOrganization := getSha1Value(policy.TenantDomain)
+	policyName := utils.GetSha1Value(policy.Name)
+	policyOrganization := utils.GetSha1Value(policy.TenantDomain)
 
 	// retrieve all RateLimitPolicies from the Kubernetes cluster with the provided label selector "rateLimitPolicyName"
 	rlBackendTrafficPolicyList := &gatewayv1alpha1.BackendTrafficPolicyList{}
@@ -764,8 +770,8 @@ func UndeploySubscriptionAIRateLimitPolicyCR(crName string, k8sClient client.Cli
 // // CreateAndUpdateTokenIssuersCR applies the given TokenIssuers struct to the Kubernetes cluster.
 // func CreateAndUpdateTokenIssuersCR(keyManager eventhubTypes.ResolvedKeyManager, k8sClient client.Client) error {
 // 	conf, _ := config.ReadConfigs()
-// 	sha1ValueofKmName := getSha1Value(keyManager.Name)
-// 	sha1ValueOfOrganization := getSha1Value(keyManager.Organization)
+// 	sha1ValueofKmName := GetSha1Value(keyManager.Name)
+// 	sha1ValueOfOrganization := GetSha1Value(keyManager.Organization)
 // 	labelMap := map[string]string{"name": sha1ValueofKmName,
 // 		"organization": sha1ValueOfOrganization,
 // 		"InitiateFrom": "CP",
@@ -873,8 +879,8 @@ func UndeploySubscriptionAIRateLimitPolicyCR(crName string, k8sClient client.Cli
 // // DeleteTokenIssuersCR deletes the TokenIssuers struct from the Kubernetes cluster.
 // func DeleteTokenIssuersCR(k8sClient client.Client, keymanagerName string, tenantDomain string) error {
 // 	conf, _ := config.ReadConfigs()
-// 	sha1ValueofKmName := getSha1Value(keymanagerName)
-// 	sha1ValueOfOrganization := getSha1Value(tenantDomain)
+// 	sha1ValueofKmName := GetSha1Value(keymanagerName)
+// 	sha1ValueOfOrganization := GetSha1Value(tenantDomain)
 // 	labelMap := map[string]string{"name": sha1ValueofKmName, "organization": sha1ValueOfOrganization}
 // 	// Create a list option with the label selector
 // 	listOption := &client.ListOptions{
@@ -901,13 +907,12 @@ func UndeploySubscriptionAIRateLimitPolicyCR(crName string, k8sClient client.Cli
 // }
 
 // DeleteSecurityPolicyCRs deletes the SecurityPolicy CRs for the given key manager.
-// !!!TODO: Need to change the logic because now we only have one SP for KM
-func DeleteKMSecurityPolicyCRs(keymanagerName string, tenantDomain string, k8sClient client.Client) error {
+// !!!TODO: Change the logic to remove the provider details from all the SPs if provider name is equal to the key manager name
+func UpdateSecurityPolicyCRs(keymanagerName string, tenantDomain string, k8sClient client.Client, removeProvider bool) error {
 	conf, _ := config.ReadConfigs()
-	sha1ValueofKmName := getSha1Value(keymanagerName)
-	sha1ValueOfOrganization := getSha1Value(tenantDomain)
-	labelMap := map[string]string{"name": sha1ValueofKmName, "organization": sha1ValueOfOrganization}
-	// Create a list option with the label selector
+	kmCache := cache.GetKeyManagerCacheInstance()
+	// SecurityPolicy CRs are filtered by organization
+	labelMap := map[string]string{"kgw.wso2.com/organization": tenantDomain}
 	listOption := &client.ListOptions{
 		Namespace:     conf.DataPlane.Namespace,
 		LabelSelector: labels.SelectorFromSet(labelMap),
@@ -919,15 +924,64 @@ func DeleteKMSecurityPolicyCRs(keymanagerName string, tenantDomain string, k8sCl
 		loggers.LoggerK8sClient.Error("Unable to list SecurityPolicy CR: " + err.Error())
 	}
 	if len(securityPolicyList.Items) == 0 {
-		loggers.LoggerK8sClient.Debug("No SecurityPolicy CR found for deletion")
+		loggers.LoggerK8sClient.Infof("No SecurityPolicy CR found for deletion")
 	}
 	for _, securitypolicy := range securityPolicyList.Items {
-		err := DeleteSecurityPolicyCR(k8sClient, securitypolicy)
-		if err != nil {
-			loggers.LoggerK8sClient.Error("Unable to delete SecurityPolicy CR: " + err.Error())
-			return err
+		providers := securitypolicy.Spec.JWT.Providers
+		updated := false    // Track if any changes were made
+		if removeProvider { // Remove the provider details from JWT segment in each CR
+			updatedProviders := []gatewayv1alpha1.JWTProvider{}
+			for _, provider := range providers {
+				if provider.Name != keymanagerName {
+					updatedProviders = append(updatedProviders, provider)
+				} else {
+					updated = true // Mark that we removed a provider
+				}
+			}
+			securitypolicy.Spec.JWT.Providers = updatedProviders
+			loggers.LoggerK8sClient.Infof("Removed the %s provider details from JWT segment in SecurityPolicy CR: %s", keymanagerName, securitypolicy.Name)
+		} else { // Update the provider details in the CRs
+			for i, provider := range providers {
+				if provider.Name == keymanagerName {
+					updatedKMFromAPIM, exists := kmCache.GetKeyManager(keymanagerName)
+
+					if !exists {
+						loggers.LoggerK8sClient.Errorf("KeyManager '%s' not found in cache", keymanagerName)
+						continue
+					}
+					// Update provider details
+					securitypolicy.Spec.JWT.Providers[i].Issuer = updatedKMFromAPIM.ResolvedKM.KeyManagerConfig.Issuer
+
+					if updatedKMFromAPIM.ResolvedKM.KeyManagerConfig.CertificateType == "JWKS" {
+						securitypolicy.Spec.JWT.Providers[i].RemoteJWKS.URI = updatedKMFromAPIM.ResolvedKM.KeyManagerConfig.CertificateValue
+					} else if updatedKMFromAPIM.ResolvedKM.KeyManagerConfig.CertificateType == "PEM" {
+						//!!! TODO: Currently the Envoy SecurityPolicy doesn't support mounting certificates.
+						// Hence the implementation is omitted for now.
+						loggers.LoggerK8sClient.Warnf("PEM certificates are not supported in the Envoy SecurityPolicy CRs. Hence skipping the new configuration.")
+					}
+					mappedClaims := []gatewayv1alpha1.ClaimToHeader{}
+					for _, claim := range updatedKMFromAPIM.ResolvedKM.KeyManagerConfig.ClaimMappings {
+						mappedClaims = append(mappedClaims, gatewayv1alpha1.ClaimToHeader{
+							Header: claim.LocalClaim,
+							Claim:  claim.RemoteClaim,
+						})
+					}
+					securitypolicy.Spec.JWT.Providers[i].ClaimToHeaders = mappedClaims
+					updated = true
+				}
+			}
+			loggers.LoggerK8sClient.Infof("Updated the provider details in the security policy CR: %s", securitypolicy.Name)
 		}
-		loggers.LoggerK8sClient.Debug("SecurityPolicy CR deleted: " + securitypolicy.Name)
+		// Update the SecurityPolicy CR in the cluster if any changes were made
+		if updated {
+			if err := k8sClient.Update(context.Background(), &securitypolicy); err != nil {
+				loggers.LoggerK8sClient.Errorf("Unable to update SecurityPolicy CR '%s': %v", securitypolicy.Name, err)
+				continue // Continue with other policies even if one fails
+			}
+			loggers.LoggerK8sClient.Infof("Successfully updated SecurityPolicy CR: %s", securitypolicy.Name)
+		} else {
+			loggers.LoggerK8sClient.Infof("No changes needed for SecurityPolicy CR: %s", securitypolicy.Name)
+		}
 	}
 	return nil
 }
@@ -949,8 +1003,8 @@ func DeleteSecurityPolicyCR(k8sClient client.Client, securityPolicy gatewayv1alp
 // // UpdateTokenIssuersCR applies the given TokenIssuers struct to the Kubernetes cluster.
 // func UpdateTokenIssuersCR(keyManager eventhubTypes.ResolvedKeyManager, k8sClient client.Client) error {
 // 	conf, _ := config.ReadConfigs()
-// 	sha1ValueofKmName := getSha1Value(keyManager.Name)
-// 	sha1ValueOfOrganization := getSha1Value(keyManager.Organization)
+// 	sha1ValueofKmName := GetSha1Value(keyManager.Name)
+// 	sha1ValueOfOrganization := GetSha1Value(keyManager.Organization)
 // labelMap := map[string]string{"name": sha1ValueofKmName, "organization": sha1ValueOfOrganization}
 // tokenIssuer := &dpv1alpha2.TokenIssuer{}
 // err := k8sClient.Get(context.Background(), client.ObjectKey{Name: keyManager.UUID, Namespace: conf.DataPlane.Namespace}, tokenIssuer)
@@ -983,8 +1037,8 @@ func DeleteSecurityPolicyCR(k8sClient client.Client, securityPolicy gatewayv1alp
 // UpdateSecurityPolicyCR updates the SecurityPolicy CR for the given key manager.
 func UpdateSecurityPolicyCR(keyManager eventhubTypes.ResolvedKeyManager, k8sClient client.Client) error {
 	conf, _ := config.ReadConfigs()
-	sha1ValueofKmName := getSha1Value(keyManager.Name)
-	sha1ValueOfOrganization := getSha1Value(keyManager.Organization)
+	sha1ValueofKmName := utils.GetSha1Value(keyManager.Name)
+	sha1ValueOfOrganization := utils.GetSha1Value(keyManager.Organization)
 
 	// Filter SecurityPolicies by Key Manager labels
 	labelMap := map[string]string{
@@ -1056,8 +1110,8 @@ func updateSecurityPolicyJWTConfig(securityPolicy *gatewayv1alpha1.SecurityPolic
 // New UpdateSecurityPolicyCR function which uses .Get()
 // func UpdateSecurityPolicyCR(keyManager eventhubTypes.ResolvedKeyManager, k8sClient client.Client) error {
 //     conf, _ := config.ReadConfigs()
-//     sha1ValueofKmName := getSha1Value(keyManager.Name)
-//     sha1ValueOfOrganization := getSha1Value(keyManager.Organization)
+//     sha1ValueofKmName := GetSha1Value(keyManager.Name)
+//     sha1ValueOfOrganization := GetSha1Value(keyManager.Organization)
 //     labelMap := map[string]string{"name": sha1ValueofKmName, "organization": sha1ValueOfOrganization}
 //     securityPolicy := &gatewayv1alpha1.SecurityPolicy{}
 //     err := k8sClient.Get(context.Background(), client.ObjectKey{Name: keyManager.UUID, Namespace: conf.DataPlane.Namespace}, securityPolicy)
@@ -1105,12 +1159,6 @@ func updateSecurityPolicyJWTConfig(securityPolicy *gatewayv1alpha1.SecurityPolic
 //		}
 //		return &resolvedClaimMappings
 //	}
-func getSha1Value(input string) string {
-	hasher := sha1.New()
-	hasher.Write([]byte(input))
-	hashBytes := hasher.Sum(nil)
-	return hex.EncodeToString(hashBytes)
-}
 
 // // !!!TODO: Change this because now there's now API CRs. We use RouteMetadata CRs instead.
 // // RetrieveAllAPISFromK8s retrieves all the API CRs from the Kubernetes cluster
@@ -1146,7 +1194,7 @@ func RetrieveAllRouteMetasFromK8s(k8sClient client.Client, nextToken string) ([]
 	err := k8sClient.List(context.Background(), &routeMetaList, &client.ListOptions{
 		Namespace: conf.DataPlane.Namespace,
 	})
-	
+
 	if err != nil {
 		loggers.LoggerK8sClient.ErrorC(logging.PrintError(logging.Error1102, logging.CRITICAL, "Failed to get application from k8s %+v", err.Error()))
 		return nil, "", err
@@ -1163,12 +1211,12 @@ func RetrieveAllAIProvidersFromK8s(k8sClient client.Client, nextToken string) ([
 	err := k8sClient.List(context.Background(), &aiProviderRPList, &client.ListOptions{
 		Namespace: conf.DataPlane.Namespace,
 	})
-	
+
 	if err != nil {
 		loggers.LoggerK8sClient.ErrorC(logging.PrintError(logging.Error1102, logging.CRITICAL, "Failed to get ai provider route policies from k8s %+v", err.Error()))
 		return nil, "", err
 	}
-	
+
 	return aiProviderRPList.Items, "", nil
 }
 
@@ -1222,7 +1270,7 @@ func RetrieveAllAIRatelimitPoliciesSFromK8s(aiRatelimitName string, organization
 
 // PrepareSubscritionPolicyCRName prepare the cr name for a given policy name and organization pair
 func PrepareSubscritionPolicyCRName(name, org string) string {
-	return getSha1Value(fmt.Sprintf("%s-%s", name, org))
+	return utils.GetSha1Value(fmt.Sprintf("%s-%s", name, org))
 }
 
 // getGatewayNameFromK8s gets the gateway name using the k8s client by selecting it using a label selector
@@ -1289,4 +1337,130 @@ func getFormattedTimeUnit(timeUnit string) string {
 		loggers.LoggerK8sClient.Errorf("Unexpected timeunit %s", timeUnit)
 		return timeUnit
 	}
+}
+
+// GenerateKMBackendCR create the backend for the Key Manager
+func GenerateKMBackendCR(km eventhubTypes.ResolvedKeyManager, backendPort int, backendName, namespace, hostname string) *gatewayv1alpha1.Backend {
+	if backendPort < 0 {
+		loggers.LoggerK8sClient.Errorf("Invalid backend port provided: %d", backendPort)
+		return nil
+	}
+	// Create Backend resource
+	backend := &gatewayv1alpha1.Backend{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      backendName,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"kgw.wso2.com/name":         km.Name,
+				"kgw.wso2.com/organization": km.Organization,
+				"kgw.wso2.com/cpInitiated": "true",
+			},
+		},
+		Spec: gatewayv1alpha1.BackendSpec{
+			Endpoints: []gatewayv1alpha1.BackendEndpoint{
+				{
+					FQDN: &gatewayv1alpha1.FQDNEndpoint{
+						Hostname: hostname,
+						Port:     int32(backendPort),
+					},
+				},
+			},
+		},
+	}
+	return backend
+}
+
+// GenerateKMBackendTLSCR create the backend TLS policy for the Key Manager
+func GenerateKMBackendTLSCR(km eventhubTypes.ResolvedKeyManager, backendName, namespace, hostname string) (*gwapiv1a3.BackendTLSPolicy, *corev1.Secret) {
+	var validation gwapiv1a3.BackendTLSPolicyValidation
+	var secret *corev1.Secret
+
+	if km.KeyManagerConfig.CertificateType == "JWKS" {
+		loggers.LoggerK8sClient.Info("JWKS Certificate Type")
+		validation = gwapiv1a3.BackendTLSPolicyValidation{
+			Hostname: v1.PreciseHostname(hostname),
+			CACertificateRefs: []v1.LocalObjectReference{
+				{
+					Group: "",
+					Kind:  "Secret",
+					Name:  gwapiv1a2.ObjectName("apim-ca-certificate"),
+				},
+			},
+		}
+	} else if km.KeyManagerConfig.CertificateType == "PEM" {
+		loggers.LoggerK8sClient.Info("PEM Certificate Type")
+		// Define the Secret object
+		secret = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf(backendName + "-cert-secret"),
+				Namespace: namespace,
+				Labels: map[string]string{
+					"kgw.wso2.com/name":         km.Name,
+					"kgw.wso2.com/organization": km.Organization,
+					"kgw.wso2.com/cpInitiated":  "true",
+				},
+			},
+			Type: corev1.SecretTypeOpaque, // Use Opaque for generic data
+			Data: map[string][]byte{
+				"certificateKey": []byte(km.KeyManagerConfig.CertificateValue),
+			},
+		}
+
+		validation = gwapiv1a3.BackendTLSPolicyValidation{
+			Hostname: v1.PreciseHostname(hostname),
+			CACertificateRefs: []v1.LocalObjectReference{
+				{
+					Group: "",
+					Kind:  "Secret",
+					Name:  gwapiv1a2.ObjectName(backendName + "-cert-secret"),
+				},
+			},
+		}
+	}
+
+	backendTLSPolicy := &gwapiv1a3.BackendTLSPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      backendName,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"kgw.wso2.com/name":         km.Name,
+				"kgw.wso2.com/organization": km.Organization,
+				"kgw.wso2.com/cpInitiated": "true",
+			},
+		},
+		Spec: gwapiv1a3.BackendTLSPolicySpec{
+			TargetRefs: []gwapiv1a2.LocalPolicyTargetReferenceWithSectionName{
+				{
+					LocalPolicyTargetReference: gwapiv1a2.LocalPolicyTargetReference{
+						Group: "gateway.envoyproxy.io",
+						Kind:  "Backend",
+						Name:  gwapiv1a2.ObjectName(backendName),
+					},
+				},
+			},
+			Validation: validation,
+		},
+	}
+	return backendTLSPolicy, secret
+}
+
+// DeleteBackendCRByName removes a specific Backend CR by name
+func DeleteBackendCRByName(backendName, namespace string, k8sClient client.Client) error {
+	backend := &gatewayv1alpha1.Backend{}
+	err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: namespace, Name: backendName}, backend)
+	if err != nil {
+		if k8error.IsNotFound(err) {
+			loggers.LoggerK8sClient.Infof("Backend CR '%s' not found in namespace '%s'", backendName, namespace)
+			return nil // Not an error if already deleted
+		}
+		loggers.LoggerK8sClient.Errorf("Unable to get Backend CR '%s': %v", backendName, err)
+		return err
+	}
+	err = k8sClient.Delete(context.Background(), backend, &client.DeleteOptions{})
+	if err != nil {
+		loggers.LoggerK8sClient.Errorf("Unable to delete Backend CR '%s': %v", backendName, err)
+		return err
+	}
+	loggers.LoggerK8sClient.Infof("Successfully deleted Backend CR '%s'", backendName)
+	return nil
 }
