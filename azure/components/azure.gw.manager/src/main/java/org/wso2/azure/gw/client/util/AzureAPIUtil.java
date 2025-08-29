@@ -37,6 +37,8 @@ import com.azure.resourcemanager.apimanagement.models.OperationContract;
 import com.azure.resourcemanager.apimanagement.models.PolicyContentFormat;
 import com.azure.resourcemanager.apimanagement.models.PolicyIdName;
 import com.azure.resourcemanager.apimanagement.models.VersioningScheme;
+import com.azure.storage.blob.BlobClient;
+import com.azure.storage.blob.BlobClientBuilder;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
@@ -278,20 +280,18 @@ public class AzureAPIUtil {
         } catch (JsonProcessingException e) {
             throw new APIManagementException("Error parsing export response: " + e.getMessage(), e);
         }
-        String sasLink = envelope.getLink();
 
-        HttpRequest blobReq = new HttpRequest(HttpMethod.GET, sasLink)
-                .setHeaders(new HttpHeaders().set("Accept", "*/*"));
-        HttpResponse blobRes = httpClient.send(blobReq).block();
-        if (blobRes == null) {
-            throw new APIManagementException("No response while downloading OpenAPI from SAS link");
+        String content;
+        try {
+            String sasLink = envelope.getLink();
+            BlobClient blob = new BlobClientBuilder()
+                    .httpClient(httpClient)
+                    .endpoint(sasLink).
+                    buildClient();
+            content = blob.downloadContent().toString();
+        } catch (Exception e) {
+            throw new APIManagementException("Failed to download OpenAPI: " + e.getMessage(), e);
         }
-        if (blobRes.getStatusCode() / 100 != 2) {
-            String err = blobRes.getBodyAsString().block();
-            throw new APIManagementException("Failed to download OpenAPI: HTTP " + blobRes.getStatusCode() + " body="
-                    + err);
-        }
-        String content = blobRes.getBodyAsString().block();
         if (content == null) {
             throw new APIManagementException("Downloaded OpenAPI content was null");
         }
