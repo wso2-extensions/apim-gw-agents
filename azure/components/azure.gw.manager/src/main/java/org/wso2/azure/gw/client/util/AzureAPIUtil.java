@@ -135,6 +135,11 @@ public class AzureAPIUtil {
                     .withSubscriptionRequired(false)
                     .withProtocols(azureTransports)
                     .create();
+
+            if (api.getDescription() != null && !api.getDescription().isEmpty()) {
+                apiContract.update().withDescription(api.getDescription()).withIfMatch("*").apply();
+            }
+
             if (log.isDebugEnabled()) {
                 log.debug("API deployed successfully to Azure Gateway: " + api.getUuid());
             }
