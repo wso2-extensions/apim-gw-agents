@@ -3,12 +3,6 @@ kind: HTTPRoute
 metadata:
   annotations:
     konghq.com/strip-path: "true"
-  labels:
-    apiName: APIResourceEndpoint
-    apiUUID: 780d341c-20f0-44e4-aa42-4cff613b9d50
-    environment: sandbox
-    organization: 2e14f1a627e0f7388df2efa85fba6816ac25f094
-    routeType: options
   name: a1bf6720c628f2045fb83ba478eed39dd06dff4a-sandbox-httproute-0-options
   namespace: kong
 spec:

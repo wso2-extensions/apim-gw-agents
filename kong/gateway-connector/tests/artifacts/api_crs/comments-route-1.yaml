@@ -1,0 +1,38 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  annotations:
+    konghq.com/plugins: jwt-comments-api-plugin,acl-comments-api-plugin
+    konghq.com/strip-path: "true"
+  name: comments-api-route
+  namespace: kong
+spec:
+  hostnames:
+  - kong.wso2.com
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: kong
+  rules:
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: comments-api-service
+      port: 443
+      weight: 1
+    filters:
+    - requestHeaderModifier:
+        set:
+        - name: Host
+          value: 68870560071f195ca97eed8a.mockapi.io
+      type: RequestHeaderModifier
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          replaceFullPath: /api/v1/comments
+          type: ReplaceFullPath
+    matches:
+    - method: GET
+      path:
+        type: RegularExpression
+        value: /commentsApi/1/v1/comments

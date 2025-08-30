@@ -43,10 +43,13 @@ controlPlane:
 dataPlane:
   enabled: true
   namespace: kong
+  gatewayClassName: kong
+  GatewayHTTPSPort: 8443
+  GatewayHTTPPort: 8000
 metrics:
   enabled: false
 agent:
-  mode: CPtoDP
+  # mode: CPtoDP
   gateway: kong
 certmanager:
   enabled: true

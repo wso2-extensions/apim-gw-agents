@@ -38,16 +38,16 @@ Feature: Testing Ratelimit feature
     And the response body should contain "accessToken"
     Then I set headers
       | Authorization | Bearer ${accessToken} |
-    And I send "GET" request to "https://kong.wso2.com:8443/simple-rl/3.14/employee/" with body ""
+    And I send "GET" request to "https://kong.wso2.com:8443/simple-rl/3.14/employee" with body ""
     And I eventually receive 200 response code, not accepting
       | 429 |
       | 401 |
-    And I send "GET" request to "https://kong.wso2.com:8443/simple-rl/3.14/employee/" with body ""
+    And I send "GET" request to "https://kong.wso2.com:8443/simple-rl/3.14/employee" with body ""
     Then the response status code should be 200
-    And I send "GET" request to "https://kong.wso2.com:8443/simple-rl/3.14/employee/" with body ""
+    And I send "GET" request to "https://kong.wso2.com:8443/simple-rl/3.14/employee" with body ""
     Then the response status code should be 429
     Then I wait for next minute strictly
-    And I send "GET" request to "https://kong.wso2.com:8443/simple-rl/3.14/employee/" with body ""
+    And I send "GET" request to "https://kong.wso2.com:8443/simple-rl/3.14/employee" with body ""
     Then the response status code should be 200
 
   Scenario: Undeploy the created REST API
@@ -60,9 +60,9 @@ Feature: Testing Ratelimit feature
     Then I undeploy the selected API
     Then the response status code should be 200
     Then I wait for 10 seconds
-    And I send "GET" request to "https://kong.wso2.com:8443/simple-rl/3.14/employee/" with body ""
+    And I send "GET" request to "https://kong.wso2.com:8443/simple-rl/3.14/employee" with body ""
     Then the response status code should be 404
-    And I send "GET" request to "https://sandbox.kong.wso2.com:8443/simple-rl/3.14/employee/" with body ""
+    And I send "GET" request to "https://sandbox.kong.wso2.com:8443/simple-rl/3.14/employee" with body ""
     Then the response status code should be 404
     And I have a valid Adminportal access token
     Then I delete the created API throttling policy
@@ -103,26 +103,26 @@ Feature: Testing Ratelimit feature
     And the response body should contain "accessToken"
     Then I set headers
       | Authorization | Bearer ${accessToken} |
-    And I send "GET" request to "https://kong.wso2.com:8443/simple-rl-r/3.14/employee/" with body ""
+    And I send "GET" request to "https://kong.wso2.com:8443/simple-rl-r/3.14/employee" with body ""
     And I eventually receive 200 response code, not accepting
       | 429 |
       | 401 |
-    And I send "GET" request to "https://kong.wso2.com:8443/simple-rl-r/3.14/employee/" with body ""
+    And I send "GET" request to "https://kong.wso2.com:8443/simple-rl-r/3.14/employee" with body ""
     Then the response status code should be 200
-    And I send "GET" request to "https://kong.wso2.com:8443/simple-rl-r/3.14/employee/" with body ""
+    And I send "GET" request to "https://kong.wso2.com:8443/simple-rl-r/3.14/employee" with body ""
     Then the response status code should be 429
-    And I send "GET" request to "https://kong.wso2.com:8443/simple-rl-r/3.14/employee/" with body ""
+    And I send "GET" request to "https://kong.wso2.com:8443/simple-rl-r/3.14/employee" with body ""
     Then the response status code should be 429
-    And I send "GET" request to "https://kong.wso2.com:8443/simple-rl-r/3.14/withoutrl/" with body ""
+    And I send "GET" request to "https://kong.wso2.com:8443/simple-rl-r/3.14/withoutrl" with body ""
     Then the response status code should be 200
-    And I send "GET" request to "https://kong.wso2.com:8443/simple-rl-r/3.14/withoutrl/" with body ""
+    And I send "GET" request to "https://kong.wso2.com:8443/simple-rl-r/3.14/withoutrl" with body ""
     Then the response status code should be 200
-    And I send "GET" request to "https://kong.wso2.com:8443/simple-rl-r/3.14/withoutrl/" with body ""
+    And I send "GET" request to "https://kong.wso2.com:8443/simple-rl-r/3.14/withoutrl" with body ""
     Then the response status code should be 200
     Then I wait for next minute strictly
-    And I send "GET" request to "https://kong.wso2.com:8443/simple-rl-r/3.14/employee/" with body ""
+    And I send "GET" request to "https://kong.wso2.com:8443/simple-rl-r/3.14/employee" with body ""
     Then the response status code should be 200
-    And I send "GET" request to "https://kong.wso2.com:8443/simple-rl-r/3.14/employee/" with body ""
+    And I send "GET" request to "https://kong.wso2.com:8443/simple-rl-r/3.14/employee" with body ""
     Then the response status code should be 200
 
   Scenario: Undeploy the created REST API

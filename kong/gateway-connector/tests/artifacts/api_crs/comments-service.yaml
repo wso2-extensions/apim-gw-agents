@@ -3,10 +3,10 @@ kind: Service
 metadata:
   annotations:
     konghq.com/protocol: https
-  name: my-new-api
+  name: comments-api-service
   namespace: kong
 spec:
-  externalName: httpbin.org
+  externalName: 68870560071f195ca97eed8a.mockapi.io
   ports:
   - port: 443
     protocol: TCP

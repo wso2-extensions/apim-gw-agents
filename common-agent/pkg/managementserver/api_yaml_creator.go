@@ -14,20 +14,22 @@
  *  limitations under the License.
  *
  */
+package managementserver
 
-package constants
+// APIYamlCreator interface defines the contract for creating API YAML configurations
+type APIYamlCreator interface {
+	CreateAPIYaml(event *APICPEvent) (apiYaml string, definition string, endpointsYaml string)
+}
 
-// KongJwtSecretName jwt credential secret name
-const KongJwtSecretName = "jwt"
+// Global variable to hold the API YAML creator implementation
+var apiYamlCreator APIYamlCreator
 
-// MTLS authentication type
-const MTLS = "mTLS"
+// SetAPIYamlCreator sets the implementation for API YAML creation
+func SetAPIYamlCreator(creator APIYamlCreator) {
+	apiYamlCreator = creator
+}
 
-// JWT authentication type
-const JWT = "JWT"
-
-// OAuth2 authentication type
-const OAuth2 = "OAuth2"
-
-// APIKey authentication type
-const APIKey = "APIKey"
+// GetAPIYamlCreator returns the current API YAML creator implementation
+func GetAPIYamlCreator() APIYamlCreator {
+	return apiYamlCreator
+}

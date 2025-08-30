@@ -9,6 +9,6 @@ config:
   uri_param_names: []
 kind: KongPlugin
 metadata:
-  name: api-jwt-553a334beabb750498bd5deeda870753e33042d9-780d341c-20f0-44e4-aa42-4cff613b9d50-api
+  name: jwt-comments-api-plugin
   namespace: kong
 plugin: jwt

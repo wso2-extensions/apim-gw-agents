@@ -18,6 +18,7 @@
 package events
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -28,26 +29,35 @@ import (
 	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/k8s-resource-lib/constants"
 	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/managementserver"
 	msg "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/messaging"
+	kongConstants "github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/constants"
+	"github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/internal/discovery"
 	internalk8sClient "github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/internal/k8sClient"
 	logger "github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/internal/loggers"
+	"github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/internal/utils"
 	"github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/pkg/transformer"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // HandleSubscriptionEvents to process subscription related events
 func HandleSubscriptionEvents(data []byte, eventType string, c client.Client) {
-	logger.LoggerMessaging.Debugf("Starting subscription event processing|EventType:%s\n", eventType)
+	logger.LoggerEvents.Infof("Processing subscription event processing with EventType: %s, data length: %d bytes", eventType, len(data))
 
-	conf, _ := config.ReadConfigs()
-
-	var subscriptionEvent msg.SubscriptionEvent
-	subEventErr := json.Unmarshal([]byte(string(data)), &subscriptionEvent)
-	if subEventErr != nil {
-		logger.LoggerMessaging.Errorf("Error occurred while unmarshalling Subscription event data %v", subEventErr)
+	conf, errReadConfig := config.ReadConfigs()
+	if errReadConfig != nil {
+		logger.LoggerEvents.Errorf("Error reading configs: %v", errReadConfig)
 		return
 	}
+
+	var subscriptionEvent msg.SubscriptionEvent
+	if subEventErr := json.Unmarshal(data, &subscriptionEvent); subEventErr != nil {
+		logger.LoggerEvents.Errorf("%s: %v", kongConstants.UnmarshalErrorSubscription, subEventErr)
+		return
+	}
+
 	if !belongsToTenant(subscriptionEvent.TenantDomain) {
-		logger.LoggerMessaging.Debugf("Subscription event for the Application : %s and API %s is dropped due to having non related tenantDomain : %s",
+		logger.LoggerEvents.Debugf("Subscription event for the Application: %s and API %s is dropped due to having non related tenantDomain: %s",
 			subscriptionEvent.ApplicationUUID, subscriptionEvent.APIUUID, subscriptionEvent.TenantDomain)
 		return
 	}
@@ -56,69 +66,84 @@ func HandleSubscriptionEvents(data []byte, eventType string, c client.Client) {
 		return
 	}
 
-	logger.LoggerMessaging.Infof("Received Subscription Event: %+v", subscriptionEvent)
+	logger.LoggerEvents.Infof("Received Subscription Event: %+v", subscriptionEvent)
 	switch subscriptionEvent.Event.Type {
 	case eventConstants.SubscriptionCreate:
-		// create production consumer and acl credential
 		createSubscription(subscriptionEvent, c, conf, constants.ProductionType)
-		// create sandbox consumer and acl credential
 		createSubscription(subscriptionEvent, c, conf, constants.SandboxType)
 	case eventConstants.SubscriptionUpdate:
-		// update production consumer and configurations
 		updateSubscription(subscriptionEvent, c, conf, constants.ProductionType)
-		// update sandbox consumer and configurations
 		updateSubscription(subscriptionEvent, c, conf, constants.SandboxType)
 	case eventConstants.SubscriptionDelete:
-		// remove production ACL credentials and consumer
 		removeSubscription(subscriptionEvent, c, conf, constants.ProductionType)
-		// remove sandbox ACL credentials and consumer
 		removeSubscription(subscriptionEvent, c, conf, constants.SandboxType)
 	}
 }
 
 func createSubscription(subscriptionEvent msg.SubscriptionEvent, c client.Client, conf *config.Config, environment string) {
-	logger.LoggerMessaging.Debugf("Creating subscription|ApplicationUUID:%s Environment:%s\n", subscriptionEvent.ApplicationUUID, environment)
+	logger.LoggerEvents.Debugf("Creating subscription|ApplicationUUID:%s Environment:%s\n", subscriptionEvent.ApplicationUUID, environment)
 
 	addCredentials := []string{}
 	addAnnotations := []string{}
 
 	// create and deploy kong acl secret CR
+	aclGroupNames, err := generateACLGroupNameFromK8s(subscriptionEvent.APIName, environment, c, conf)
+	if err != nil {
+		logger.LoggerEvents.Debugf("Failed to generate ACL group names from K8s resources: %v", err)
+		logger.LoggerEvents.Infof("Generating the ACL group name using general method")
+		aclGroupNames = []string{transformer.GenerateACLGroupName(subscriptionEvent.APIName, environment)}
+	}
+
 	aclCredentialSecretConfig := map[string]string{
-		"group": transformer.GenerateACLGroupName(subscriptionEvent.APIName, environment),
+		kongConstants.GroupField: aclGroupNames[0],
 	}
 	subscriptionIdentifier := subscriptionEvent.APIUUID + environment
-	aclCredentialSecret := transformer.GenerateK8sCredentialSecret(subscriptionEvent.ApplicationUUID, subscriptionIdentifier, "acl", aclCredentialSecretConfig)
+	aclCredentialSecret := transformer.GenerateK8sCredentialSecret(subscriptionEvent.ApplicationUUID, subscriptionIdentifier, kongConstants.ACLCredentialType, aclCredentialSecretConfig)
 	aclCredentialSecret.Namespace = conf.DataPlane.Namespace
 	addCredentials = append(addCredentials, aclCredentialSecret.ObjectMeta.Name)
 	internalk8sClient.DeploySecretCR(aclCredentialSecret, c)
 
 	// update consumer subscription limit plugin annotation
 	subscriptionPolicy := managementserver.GetSubscriptionPolicy(subscriptionEvent.PolicyID, subscriptionEvent.TenantDomain)
-	logger.LoggerMessaging.Infof("Subscription Policy: %+v", subscriptionPolicy)
-	if subscriptionPolicy.Name != "" && subscriptionPolicy.Name != "Unlimited" {
-		rateLimitCRName := transformer.GeneratePolicyCRName(subscriptionPolicy.Name, subscriptionPolicy.TenantDomain, "rate-limiting", "subscription")
+	logger.LoggerEvents.Infof("Subscription Policy: %+v", subscriptionPolicy)
+	if subscriptionPolicy.Name != kongConstants.EmptyString && subscriptionPolicy.Name != kongConstants.UnlimitedPolicyName {
+		rateLimitCRName := transformer.GeneratePolicyCRName(subscriptionPolicy.Name, subscriptionPolicy.TenantDomain, kongConstants.RateLimitingPlugin, kongConstants.SubscriptionTypeKey)
 		addAnnotations = append(addAnnotations, rateLimitCRName)
 	}
 
 	// get available jwt credentials for the application
 	jwtSecretCredentials := internalk8sClient.GetK8sSecrets(map[string]string{
-		"applicationUUID":       subscriptionEvent.ApplicationUUID,
-		"environment":           environment,
-		"konghq.com/credential": "jwt",
+		kongConstants.ApplicationUUIDLabel: subscriptionEvent.ApplicationUUID,
+		kongConstants.EnvironmentLabel:     environment,
+		kongConstants.KongCredentialLabel:  kongConstants.JWTCredentialType,
 	}, c, conf)
 	for _, jwtSecretCredential := range jwtSecretCredentials {
 		addCredentials = append(addCredentials, jwtSecretCredential.Name)
 	}
 
-	// update consumers credentials
-	internalk8sClient.UpdateKongConsumerCredential(subscriptionEvent.ApplicationUUID, environment, c, conf, addCredentials, nil)
-	// update consumers annotations
-	internalk8sClient.UpdateKongConsumerPluginAnnotation(subscriptionEvent.ApplicationUUID, environment, c, conf, addAnnotations, nil)
+	if len(addCredentials) > 0 {
+		updateErr := utils.RetryKongCRUpdate(func() error {
+			return internalk8sClient.UpdateKongConsumerCredential(subscriptionEvent.ApplicationUUID, environment, c, conf, addCredentials, nil)
+		}, kongConstants.UpdateConsumerCredentialTask, kongConstants.MaxRetries)
+		if updateErr != nil {
+			logger.LoggerEvents.Errorf("Failed to update Kong consumer credentials: %v", updateErr)
+			return
+		}
+	}
 
+	if len(addAnnotations) > 0 {
+		updateErr := utils.RetryKongCRUpdate(func() error {
+			return internalk8sClient.UpdateKongConsumerPluginAnnotation(subscriptionEvent.ApplicationUUID, environment, c, conf, addAnnotations, nil)
+		}, kongConstants.UpdateConsumerPluginAnnotationTask, kongConstants.MaxRetries)
+		if updateErr != nil {
+			logger.LoggerEvents.Errorf("Failed to update Kong consumer plugin annotations: %v", updateErr)
+			return
+		}
+	}
 }
 
 func updateSubscription(subscriptionEvent msg.SubscriptionEvent, c client.Client, conf *config.Config, environment string) {
-	logger.LoggerMessaging.Debugf("Updating subscription|ApplicationUUID:%s Environment:%s\n", subscriptionEvent.ApplicationUUID, environment)
+	logger.LoggerEvents.Debugf("Updating subscription|ApplicationUUID:%s Environment:%s\n", subscriptionEvent.ApplicationUUID, environment)
 
 	var removeAnnotations []string
 	var addAnnotations []string
@@ -127,60 +152,227 @@ func updateSubscription(subscriptionEvent msg.SubscriptionEvent, c client.Client
 	consumer := internalk8sClient.GetKongConsumerCR(consumerName, c, conf)
 
 	if consumer == nil {
-		logger.LoggerMessaging.Infof("Kong consumer credential not found for %v", environment)
+		logger.LoggerEvents.Infof("Kong consumer credential not found for %v", environment)
 	} else {
 		subscriptionPolicy := managementserver.GetSubscriptionPolicy(subscriptionEvent.PolicyID, subscriptionEvent.TenantDomain)
-		rateLimitCRName := transformer.GeneratePolicyCRName(subscriptionPolicy.Name, subscriptionPolicy.TenantDomain, "rate-limiting", "subscription")
+		rateLimitCRName := transformer.GeneratePolicyCRName(subscriptionPolicy.Name, subscriptionPolicy.TenantDomain, kongConstants.RateLimitingPlugin, kongConstants.SubscriptionTypeKey)
 		// handle subscription rate limiting
-		if annotations, ok := consumer.Annotations["konghq.com/plugins"]; ok {
+		if annotations, ok := consumer.Annotations[kongConstants.KongPluginsAnnotation]; ok {
 			annotationsArr := strings.Split(annotations, ",")
 			if !slices.Contains(annotationsArr, rateLimitCRName) {
 				// remove old subscription policy name
 				for _, name := range annotationsArr {
-					if strings.Contains(name, "subscription") && strings.Contains(name, "rate-limiting") {
+					if strings.Contains(name, kongConstants.SubscriptionTypeKey) && strings.Contains(name, kongConstants.RateLimitingPlugin) {
 						removeAnnotations = append(removeAnnotations, name)
 						break
 					}
 				}
 
 				// updating new subscription policy name
-				if subscriptionPolicy.Name != "" && subscriptionPolicy.Name != "Unlimited" {
+				if subscriptionPolicy.Name != kongConstants.EmptyString && subscriptionPolicy.Name != kongConstants.UnlimitedPolicyName {
 					addAnnotations = append(addAnnotations, rateLimitCRName)
 				}
 
-				internalk8sClient.UpdateKongConsumerPluginAnnotation(subscriptionEvent.ApplicationUUID, environment, c, conf, addAnnotations, removeAnnotations)
+				err := utils.RetryKongCRUpdate(func() error {
+					return internalk8sClient.UpdateKongConsumerPluginAnnotation(subscriptionEvent.ApplicationUUID, environment, c, conf, addAnnotations, removeAnnotations)
+				}, kongConstants.UpdateConsumerPluginAnnotationTask, kongConstants.MaxRetries)
+				if err != nil {
+					logger.LoggerEvents.Errorf("Failed to update consumer plugin annotations: %v", err)
+					return
+				}
 			}
 		}
 
 		// handle subscription state
 		subscriptionIdentifier := subscriptionEvent.APIUUID + environment
-		aclCredentialSecretName := transformer.GenerateSecretName(subscriptionEvent.ApplicationUUID, subscriptionIdentifier, "acl")
+		aclCredentialSecretName := transformer.GenerateSecretName(subscriptionEvent.ApplicationUUID, subscriptionIdentifier, kongConstants.ACLCredentialType)
 		credentials := []string{aclCredentialSecretName}
+
 		switch subscriptionEvent.SubscriptionState {
-		case "BLOCKED":
-			internalk8sClient.UpdateKongConsumerCredential(subscriptionEvent.ApplicationUUID, constants.SandboxType, c, conf, nil, credentials)
-			internalk8sClient.UpdateKongConsumerCredential(subscriptionEvent.ApplicationUUID, constants.ProductionType, c, conf, nil, credentials)
-		case "PROD_ONLY_BLOCKED":
-			internalk8sClient.UpdateKongConsumerCredential(subscriptionEvent.ApplicationUUID, constants.SandboxType, c, conf, credentials, nil)
-			internalk8sClient.UpdateKongConsumerCredential(subscriptionEvent.ApplicationUUID, constants.ProductionType, c, conf, nil, credentials)
-		case "UNBLOCKED":
-			internalk8sClient.UpdateKongConsumerCredential(subscriptionEvent.ApplicationUUID, constants.SandboxType, c, conf, credentials, nil)
-			internalk8sClient.UpdateKongConsumerCredential(subscriptionEvent.ApplicationUUID, constants.ProductionType, c, conf, credentials, nil)
+		case kongConstants.SubscriptionStateBlocked:
+			if err := utils.RetryKongCRUpdate(func() error {
+				return internalk8sClient.UpdateKongConsumerCredential(subscriptionEvent.ApplicationUUID, environment, c, conf, nil, credentials)
+			}, kongConstants.UpdateConsumerCredentialBlockedTask+environment, kongConstants.MaxRetries); err != nil {
+				logger.LoggerEvents.Errorf("Failed to block %s credentials: %v", environment, err)
+				return
+			}
+		case kongConstants.SubscriptionStateProdOnlyBlocked:
+			if err := utils.RetryKongCRUpdate(func() error {
+				return internalk8sClient.UpdateKongConsumerCredential(subscriptionEvent.ApplicationUUID, environment, c, conf, credentials, nil)
+			}, kongConstants.UpdateConsumerCredentialProdBlockedTask+environment, kongConstants.MaxRetries); err != nil {
+				logger.LoggerEvents.Errorf("Failed to enable %s credentials for prod-only-blocked: %v", environment, err)
+				return
+			}
+		case kongConstants.SubscriptionStateUnblocked:
+			if err := utils.RetryKongCRUpdate(func() error {
+				return internalk8sClient.UpdateKongConsumerCredential(subscriptionEvent.ApplicationUUID, environment, c, conf, credentials, nil)
+			}, kongConstants.UpdateConsumerCredentialUnblockedTask+environment, kongConstants.MaxRetries); err != nil {
+				logger.LoggerEvents.Errorf("Failed to unblock %s credentials: %v", environment, err)
+				return
+			}
 		}
 	}
 
 }
 
 func removeSubscription(subscriptionEvent msg.SubscriptionEvent, c client.Client, conf *config.Config, environment string) {
-	logger.LoggerMessaging.Debugf("Removing subscription|ApplicationUUID:%s Environment:%s\n", subscriptionEvent.ApplicationUUID, environment)
+	logger.LoggerEvents.Debugf("Removing subscription|ApplicationUUID:%s Environment:%s\n", subscriptionEvent.ApplicationUUID, environment)
 
 	subscriptionIdentifier := subscriptionEvent.APIUUID + environment
-	aclSecretCredentialName := transformer.GenerateSecretName(subscriptionEvent.ApplicationUUID, subscriptionIdentifier, "acl")
+	aclSecretCredentialName := transformer.GenerateSecretName(subscriptionEvent.ApplicationUUID, subscriptionIdentifier, kongConstants.ACLCredentialType)
 
 	// remove secret from kong consumer CR
 	removeCredentials := []string{aclSecretCredentialName}
-	internalk8sClient.UpdateKongConsumerCredential(subscriptionEvent.ApplicationUUID, environment, c, conf, nil, removeCredentials)
+	err := utils.RetryKongCRUpdate(func() error {
+		return internalk8sClient.UpdateKongConsumerCredential(subscriptionEvent.ApplicationUUID, environment, c, conf, nil, removeCredentials)
+	}, kongConstants.UpdateConsumerCredentialRemoveTask, kongConstants.MaxRetries)
+	if err != nil {
+		logger.LoggerEvents.Errorf("Failed to remove Kong consumer credentials: %v", err)
+		return
+	}
 
 	// remove acl secret credential
 	internalk8sClient.UnDeploySecretCR(aclSecretCredentialName, c, conf)
+}
+
+// generateACLGroupNameFromK8s generates ACL group names by discovering services and their ACL plugins
+func generateACLGroupNameFromK8s(apiName, environment string, c client.Client, conf *config.Config) ([]string, error) {
+	service, err := findServiceByAPIName(apiName, c, conf)
+	if err != nil || service == nil {
+		return nil, fmt.Errorf("failed to find service for API %s: %v", apiName, err)
+	}
+
+	httpRoutes, err := getHTTPRoutesForService(service.Name, service.Namespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get HTTPRoutes for service %s: %v", service.Name, err)
+	}
+
+	allPluginNames := findAllPluginsFromHTTPRoutes(httpRoutes)
+
+	allowValues, err := extractACLAllowValues(allPluginNames, service.Namespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract ACL allow values: %v", err)
+	}
+
+	if len(allowValues) > 0 {
+		return allowValues, nil
+	}
+
+	fallbackGroup := transformer.GenerateACLGroupName(apiName, environment)
+	return []string{fallbackGroup}, nil
+}
+
+// findServiceByAPIName finds a service by API name in all namespaces
+func findServiceByAPIName(apiName string, c client.Client, conf *config.Config) (*corev1.Service, error) {
+	if apiName == kongConstants.EmptyString {
+		return nil, fmt.Errorf("API name cannot be empty")
+	}
+
+	namespace := conf.DataPlane.Namespace
+	serviceList := &corev1.ServiceList{}
+	ctx := context.Background()
+
+	err := c.List(ctx, serviceList, client.InNamespace(namespace))
+	if err != nil {
+		return nil, fmt.Errorf("failed to list services: %w", err)
+	}
+
+	for _, service := range serviceList.Items {
+		if service.Name == apiName {
+			return &service, nil
+		}
+	}
+
+	return nil, fmt.Errorf("service not found for API name: %s", apiName)
+}
+
+// getHTTPRoutesForService finds HTTPRoutes that reference the given service
+func getHTTPRoutesForService(serviceName, namespace string) ([]unstructured.Unstructured, error) {
+	httpRoutes := discovery.FetchAllHTTPRoutesWithServiceName(namespace, serviceName)
+
+	if len(httpRoutes) == 0 {
+		return nil, nil
+	}
+
+	result := make([]unstructured.Unstructured, 0, len(httpRoutes))
+	for _, route := range httpRoutes {
+		if route != nil {
+			result = append(result, *route)
+		}
+	}
+
+	return result, nil
+}
+
+// findAllPluginsFromHTTPRoutes extracts all plugin names from HTTPRoute annotations
+func findAllPluginsFromHTTPRoutes(httpRoutes []unstructured.Unstructured) []string {
+	if len(httpRoutes) == 0 {
+		return nil
+	}
+
+	var allPluginNames []string
+	pluginNameSet := make(map[string]bool)
+
+	for _, route := range httpRoutes {
+		annotations, found, err := unstructured.NestedStringMap(route.Object, kongConstants.MetadataField, kongConstants.AnnotationsField)
+		if !found || err != nil {
+			continue
+		}
+		for key, value := range annotations {
+			if strings.Contains(key, kongConstants.KongPluginsAnnotation) {
+				pluginNames := strings.Split(value, ",")
+				for _, pluginName := range pluginNames {
+					pluginName = strings.TrimSpace(pluginName)
+					if pluginName != kongConstants.EmptyString && !pluginNameSet[pluginName] {
+						pluginNameSet[pluginName] = true
+						allPluginNames = append(allPluginNames, pluginName)
+					}
+				}
+			}
+		}
+	}
+
+	return allPluginNames
+}
+
+// extractACLAllowValues gets ACL plugin resources and extracts config.allow values
+func extractACLAllowValues(allPluginNames []string, namespace string) ([]string, error) {
+	if len(allPluginNames) == 0 {
+		return nil, nil
+	}
+
+	var allowValues []string
+	allowValueSet := make(map[string]bool)
+
+	for _, pluginName := range allPluginNames {
+		plugin := discovery.FetchKongPlugin(namespace, pluginName)
+		if plugin == nil {
+			logger.LoggerEvents.Warnf("Failed to get KongPlugin %s", pluginName)
+			continue
+		}
+
+		pluginType, found, err := unstructured.NestedString(plugin.Object, kongConstants.PluginField)
+		if !found || err != nil || pluginType != kongConstants.ACLPlugin {
+			continue
+		}
+
+		config, found, err := unstructured.NestedMap(plugin.Object, kongConstants.ConfigField)
+		if !found || err != nil {
+			continue
+		}
+
+		allow, found, err := unstructured.NestedSlice(config, kongConstants.AllowField)
+		if found && err == nil {
+			for _, val := range allow {
+				if strVal, ok := val.(string); ok && strVal != kongConstants.EmptyString {
+					if !allowValueSet[strVal] {
+						allowValueSet[strVal] = true
+						allowValues = append(allowValues, strVal)
+					}
+				}
+			}
+		}
+	}
+
+	return allowValues, nil
 }

@@ -20,6 +20,8 @@ package utils
 import (
 	"slices"
 	"strings"
+
+	"github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/constants"
 )
 
 // FilterItems filter items
@@ -46,7 +48,7 @@ func AddItems(items []string, addItems []string) []string {
 // TrimSpaces removes empty strings from string array
 func TrimSpaces(items []string) []string {
 	return slices.DeleteFunc(items, func(e string) bool {
-		return e == ""
+		return e == constants.EmptyString
 	})
 }
 
@@ -63,12 +65,12 @@ func PrepareCredentials(credentials []string, addItems []string, removeItems []s
 
 // PrepareAnnotations adds/removes listed annotations from given list of annotations
 func PrepareAnnotations(annotations string, addItems []string, removeItems []string) string {
-	result := strings.Split(annotations, ",")
+	result := strings.Split(annotations, constants.CommaString)
 	if removeItems != nil {
 		result = FilterItems(result, removeItems)
 	}
 	if addItems != nil {
 		result = AddItems(result, addItems)
 	}
-	return strings.Join(result, ",")
+	return strings.Join(result, constants.CommaString)
 }

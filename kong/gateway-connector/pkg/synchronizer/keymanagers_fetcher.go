@@ -31,15 +31,12 @@ import (
 
 	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
 	eventhubTypes "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/eventhub/types"
-	sync "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/synchronizer"
+	synchronizer "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/synchronizer"
+	"github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/constants"
 	k8sclient "github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/internal/k8sClient"
-	logger "github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/internal/loggers"
+	logger "github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/pkg/loggers"
 	"github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/pkg/transformer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-)
-
-const (
-	retryCount int = 5
 )
 
 var retryAttempt int
@@ -51,9 +48,9 @@ func FetchKeyManagersOnStartUp(c client.Client) {
 		logger.LoggerSynchronizer.Errorf("Error reading configs: %v", errReadConfig)
 	}
 
-	resolvedKeyManagers, errorMsg := sync.FetchKeyManagersOnStartUp(c)
+	resolvedKeyManagers, errorMsg := synchronizer.FetchKeyManagersOnStartUp(c)
 	if resolvedKeyManagers != nil {
-		if len(resolvedKeyManagers) == 0 && errorMsg != "" {
+		if len(resolvedKeyManagers) == 0 && errorMsg != constants.EmptyString {
 			go retryFetchData(conf, errorMsg, c)
 		} else {
 			applyAllKeyManagerConfiguration(c, resolvedKeyManagers)
@@ -67,7 +64,7 @@ func retryFetchData(conf *config.Config, errorMessage string, c client.Client) {
 	time.Sleep(conf.ControlPlane.RetryInterval * time.Second)
 	FetchKeyManagersOnStartUp(c)
 	retryAttempt++
-	if retryAttempt >= retryCount {
+	if retryAttempt > constants.MaxRetries {
 		logger.LoggerSynchronizer.Error(errorMessage)
 		return
 	}
@@ -80,25 +77,35 @@ func applyAllKeyManagerConfiguration(c client.Client, resolvedKeyManagers []even
 	}
 
 	for _, resolvedKeyManager := range resolvedKeyManagers {
-		if resolvedKeyManager.KeyManagerConfig.CertificateType == "PEM" {
-			publicKey, err := ExtractPublicKey(resolvedKeyManager.KeyManagerConfig.CertificateValue)
+		if resolvedKeyManager.KeyManagerConfig.CertificateType == constants.PEMCertificateType {
+			err := CreateAndDeployKeyManagerSecret(resolvedKeyManager, conf, c)
 			if err != nil {
-				return err
+				logger.LoggerSynchronizer.Errorf("Failed to create and deploy key manager secret for %s: %v", resolvedKeyManager.Name, err)
+				continue
 			}
-
-			config := map[string]string{
-				"issuer":     resolvedKeyManager.KeyManagerConfig.Issuer,
-				"public_key": publicKey,
-			}
-			secretLabels := map[string]string{
-				"type": "issuer",
-			}
-			keyManagerSecret := transformer.GenerateK8sSecret(resolvedKeyManager.Name, secretLabels, config)
-			keyManagerSecret.Namespace = conf.DataPlane.Namespace
-
-			k8sclient.DeploySecretCR(keyManagerSecret, c)
 		}
 	}
+	return nil
+}
+
+// CreateAndDeployKeyManagerSecret creates and deploys a Kubernetes secret for the given key manager
+func CreateAndDeployKeyManagerSecret(resolvedKeyManager eventhubTypes.ResolvedKeyManager, conf *config.Config, c client.Client) error {
+	publicKey, err := ExtractPublicKey(resolvedKeyManager.KeyManagerConfig.CertificateValue)
+	if err != nil || publicKey == constants.EmptyString {
+		return err
+	}
+
+	config := map[string]string{
+		constants.IssuerField:    resolvedKeyManager.KeyManagerConfig.Issuer,
+		constants.PublicKeyField: publicKey,
+	}
+	secretLabels := map[string]string{
+		constants.TypeLabel: constants.IssuerSecretType,
+	}
+	keyManagerSecret := transformer.GenerateK8sSecret(resolvedKeyManager.Name, secretLabels, config)
+	keyManagerSecret.Namespace = conf.DataPlane.Namespace
+	k8sclient.DeploySecretCR(keyManagerSecret, c)
+	logger.LoggerSynchronizer.Infof("Successfully deployed key manager secret for: %s", resolvedKeyManager.Name)
 	return nil
 }
 
@@ -106,30 +113,30 @@ func applyAllKeyManagerConfiguration(c client.Client, resolvedKeyManagers []even
 func ExtractPublicKey(encodedPemCert string) (string, error) {
 	pemCert, err := base64.StdEncoding.DecodeString(encodedPemCert)
 	if err != nil {
-		logger.LoggerMessaging.Errorf("Failed to decode certificate: %v", err)
-		return "", err
+		logger.LoggerSynchronizer.Errorf("Failed to decode certificate: %v", err)
+		return constants.EmptyString, err
 	}
 
 	block, _ := pem.Decode([]byte(pemCert))
 	if block == nil {
-		logger.LoggerMessaging.Error("Failed to parse PEM block containing the certificate")
-		return "", nil
+		logger.LoggerSynchronizer.Error("Failed to parse PEM block containing the certificate")
+		return constants.EmptyString, nil
 	}
 
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
-		logger.LoggerMessaging.Errorf("Failed to parse certificate: %v", err)
-		return "", err
+		logger.LoggerSynchronizer.Errorf("Failed to parse certificate: %v", err)
+		return constants.EmptyString, err
 	}
 
 	publicKeyBytes, err := x509.MarshalPKIXPublicKey(cert.PublicKey)
 	if err != nil {
-		logger.LoggerMessaging.Errorf("Failed to marshal public key: %v", err)
-		return "", err
+		logger.LoggerSynchronizer.Errorf("Failed to marshal public key: %v", err)
+		return constants.EmptyString, err
 	}
 
 	pubKeyPem := pem.EncodeToMemory(&pem.Block{
-		Type:  "PUBLIC KEY",
+		Type:  constants.PublicKeyType,
 		Bytes: publicKeyBytes,
 	})
 

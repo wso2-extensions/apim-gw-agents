@@ -24,48 +24,53 @@ import (
 	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/eventhub"
 	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/eventhub/types"
 	msg "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/messaging"
+	"github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/constants"
 	k8sclient "github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/internal/k8sClient"
 	logger "github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/internal/loggers"
 	"github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/pkg/synchronizer"
-	"github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/pkg/transformer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // HandleKMConfiguration to handle Key Manager configurations
 func HandleKMConfiguration(keyManager *types.KeyManager, notification msg.EventKeyManagerNotification, c client.Client) {
-	conf, errReadConfig := config.ReadConfigs()
-	if errReadConfig != nil {
-		logger.LoggerSynchronizer.Errorf("Error reading configs: %v", errReadConfig)
+	logger.LoggerEvents.Infof("Processing KM event with EventType: %s", notification.Event.PayloadData.EventType)
+	if !strings.EqualFold(msg.KeyManagerConfigEvent, notification.Event.PayloadData.EventType) {
+		return
 	}
 
-	if strings.EqualFold(msg.KeyManagerConfigEvent, notification.Event.PayloadData.EventType) {
-		if strings.EqualFold(msg.ActionDelete, notification.Event.PayloadData.Action) {
-			k8sclient.UnDeploySecretCR(notification.Event.PayloadData.Name, c, conf)
-		} else if keyManager != nil {
-			if strings.EqualFold(msg.ActionAdd, notification.Event.PayloadData.Action) ||
-				strings.EqualFold(msg.ActionUpdate, notification.Event.PayloadData.Action) {
-				resolvedKeyManager := eventhub.MarshalKeyManager(keyManager)
+	conf, errReadConfig := config.ReadConfigs()
+	if errReadConfig != nil {
+		logger.LoggerEvents.Errorf("Error reading configs: %v", errReadConfig)
+		return
+	}
 
-				if resolvedKeyManager.KeyManagerConfig.CertificateType == "PEM" {
-					publicKey, err := synchronizer.ExtractPublicKey(resolvedKeyManager.KeyManagerConfig.CertificateValue)
-					if err == nil && publicKey != "" {
-						config := map[string]string{
-							"issuer":     resolvedKeyManager.KeyManagerConfig.Issuer,
-							"public_key": publicKey,
-						}
-						secretLabels := map[string]string{
-							"type": "issuer",
-						}
-						keyManagerSecret := transformer.GenerateK8sSecret(notification.Event.PayloadData.Name, secretLabels, config)
-						keyManagerSecret.Namespace = conf.DataPlane.Namespace
+	action := notification.Event.PayloadData.Action
+	name := notification.Event.PayloadData.Name
 
-						k8sclient.DeploySecretCR(keyManagerSecret, c)
-					}
-				} else {
-					logger.LoggerMessaging.Infoln("Only PEM certificate type is supported")
-					k8sclient.UnDeploySecretCR(notification.Event.PayloadData.Name, c, conf)
-				}
-			}
-		}
+	if strings.EqualFold(msg.ActionDelete, action) {
+		k8sclient.UnDeploySecretCR(name, c, conf)
+		return
+	}
+
+	if keyManager == nil {
+		return
+	}
+
+	if !strings.EqualFold(msg.ActionAdd, action) && !strings.EqualFold(msg.ActionUpdate, action) {
+		return
+	}
+
+	resolvedKeyManager := eventhub.MarshalKeyManager(keyManager)
+
+	if !strings.EqualFold(constants.PEMCertificateType, resolvedKeyManager.KeyManagerConfig.CertificateType) {
+		logger.LoggerEvents.Infoln("Only PEM certificate type is supported")
+		k8sclient.UnDeploySecretCR(name, c, conf)
+		return
+	}
+
+	err := synchronizer.CreateAndDeployKeyManagerSecret(resolvedKeyManager, conf, c)
+	if err != nil {
+		logger.LoggerEvents.Errorf("Failed to create and deploy key manager secret for %s: %v", resolvedKeyManager.Name, err)
+		return
 	}
 }

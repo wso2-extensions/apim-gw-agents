@@ -31,14 +31,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// MapAndCreateCR will read the CRD Yaml and based on the Kind of the CR, unmarshal and maps the
+// MapAndCreateCR will read the CRD YAML and based on the Kind of the CR, unmarshal and maps the
 // data and sends to the K8-Client for creating the respective CR inside the cluster
 func MapAndCreateCR(k8sArtifact transformer.K8sArtifacts, k8sClient client.Client) *error {
-	namespace, err := getDeploymentNamespace(k8sArtifact)
+	namespace, err := getDeploymentNamespace()
 	if err != nil {
 		return &err
 	}
-	k8sArtifact.Namespace = namespace
 	for _, httpRoutes := range k8sArtifact.HTTPRoutes {
 		httpRoutes.Namespace = namespace
 		internalk8sClient.DeployHTTPRouteCR(httpRoutes, k8sClient)
@@ -54,7 +53,7 @@ func MapAndCreateCR(k8sArtifact transformer.K8sArtifacts, k8sClient client.Clien
 	return nil
 }
 
-func getDeploymentNamespace(k8sArtifact transformer.K8sArtifacts) (string, error) {
+func getDeploymentNamespace() (string, error) {
 	conf, errReadConfig := config.ReadConfigs()
 	if errReadConfig != nil {
 		logger.LoggerMapper.Errorf("Error reading configs: %v", errReadConfig)

@@ -74,29 +74,17 @@ func processNotificationEvent(conf *config.Config, notification *msg.EventNotifi
 		return err
 	}
 
-	AgentMode := conf.Agent.Mode
 	eventType = notification.Event.PayloadData.EventType
 	if strings.Contains(eventType, constants.APILifeCycleChange) {
-		if AgentMode == "CPtoDP" {
-			agent.HandleLifeCycleEvents(decodedByte)
-		}
+		agent.HandleLifeCycleEvents(decodedByte)
 	} else if strings.Contains(eventType, constants.APIEventType) {
-		if AgentMode == "CPtoDP" {
-			agent.HandleAPIEvents(decodedByte, eventType, conf, c)
-		}
+		agent.HandleAPIEvents(decodedByte, eventType, conf, c)
 	} else if strings.Contains(eventType, constants.ApplicationEventType) {
 		agent.HandleApplicationEvents(decodedByte, eventType, c)
 	} else if strings.Contains(eventType, constants.SubscriptionEventType) {
 		agent.HandleSubscriptionEvents(decodedByte, eventType, c)
 	} else if strings.Contains(eventType, constants.PolicyEventType) {
-		var policyEvent msg.PolicyInfo
-		policyEventErr := json.Unmarshal([]byte(string(decodedByte)), &policyEvent)
-		if policyEventErr != nil {
-			logger.LoggerMessaging.Errorf("Error occurred while unmarshalling Throttling Policy event data %v", policyEventErr)
-		}
-		if AgentMode == "CPtoDP" || strings.EqualFold(policyEvent.PolicyType, "SUBSCRIPTION") {
-			agent.HandlePolicyEvents(decodedByte, eventType, c)
-		}
+		agent.HandlePolicyEvents(decodedByte, eventType, c)
 	} else if strings.Contains(eventType, constants.AIProviderEventType) {
 		agent.HandleAIProviderEvents(decodedByte, eventType, c)
 	} else if strings.Contains(eventType, constants.ScopeEventType) {

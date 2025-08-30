@@ -24,7 +24,7 @@ import (
 
 	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
 	logger "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/loggers"
-	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/utils"
+	utils "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/utils"
 )
 
 // HandleDeleteEvent processes a delete event and returns an error if it fails
@@ -72,8 +72,12 @@ func HandleCreateOrUpdateEvent(event APICPEvent) (string, string, error) {
 		}
 	}
 
-	// Generate API and deployment YAMLs
-	apiYaml, definition, endpointsYaml := CreateAPIYaml(&event)
+	// Generate API and deployment YAMLs using the injected API YAML creator
+	if apiYamlCreator == nil {
+		logger.LoggerMgtServer.Errorf("API YAML creator not set.")
+		return "", "", fmt.Errorf("API YAML creator not configured")
+	}
+	apiYaml, definition, endpointsYaml := apiYamlCreator.CreateAPIYaml(&event)
 	deploymentContent := CreateDeploymentYaml(event.API.Vhost)
 	logger.LoggerMgtServer.Debugf("Created apiYaml: %s, \n\n\n created definition file: %s", apiYaml, definition)
 

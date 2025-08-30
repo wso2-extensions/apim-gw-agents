@@ -1,0 +1,9 @@
+apiVersion: configuration.konghq.com/v1
+config:
+  allow:
+  - api-comments-production-new
+kind: KongPlugin
+metadata:
+  name: acl-comments-api-plugin
+  namespace: kong
+plugin: acl

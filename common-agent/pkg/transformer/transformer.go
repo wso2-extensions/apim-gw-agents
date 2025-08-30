@@ -41,7 +41,7 @@ import (
 )
 
 // GenerateConf will Generate the mapped .apk-conf file for a given API Project zip
-func GenerateConf(APIJson string, certArtifact CertificateArtifact, endpoints string, organizationID string, envLabel string) (string, string, uint32, map[string]eventHub.RateLimitPolicy, []EndpointSecurityConfig, *API, *AIRatelimit, *AIRatelimit, error) {
+func GenerateConf(APIJson string, certArtifact CertificateArtifact, endpoints string, organizationID string, envLabel string) (string, string, string, uint32, map[string]eventHub.RateLimitPolicy, []EndpointSecurityConfig, *API, *AIRatelimit, *AIRatelimit, error) {
 
 	apk := &API{}
 
@@ -65,12 +65,12 @@ func GenerateConf(APIJson string, certArtifact CertificateArtifact, endpoints st
 
 	if apiYamlError != nil {
 		logger.LoggerTransformer.Error("Error while unmarshalling api.json/api.yaml content", apiYamlError)
-		return "", "null", 0, nil, []EndpointSecurityConfig{}, nil, nil, nil, apiYamlError
+		return "", "null", "null", 0, nil, []EndpointSecurityConfig{}, nil, nil, nil, apiYamlError
 	}
 
 	if endpointsYamlError != nil {
 		logger.LoggerTransformer.Error("Error while unmarshalling endpoints.json/endpoints.yaml content", endpointsYamlError)
-		return "", "null", 0, nil, []EndpointSecurityConfig{}, nil, nil, nil, endpointsYamlError
+		return "", "null", "null", 0, nil, []EndpointSecurityConfig{}, nil, nil, nil, endpointsYamlError
 	}
 
 	endpointList := endpointsYaml.Data
@@ -82,7 +82,7 @@ func GenerateConf(APIJson string, certArtifact CertificateArtifact, endpoints st
 	// Check if the API is initiated from the gateway
 	if apiYamlData.InitiatedFromGateway {
 		logger.LoggerTransformer.Infof("API is initiated from the gateway. Hence skipping the API...")
-		return "", "null", 0, nil, []EndpointSecurityConfig{}, nil, nil, nil, fmt.Errorf("api is initiated from the gateway")
+		return "", "null", "null", 0, nil, []EndpointSecurityConfig{}, nil, nil, nil, fmt.Errorf("api is initiated from the gateway")
 	}
 
 	apk.Name = apiYamlData.Name
@@ -135,7 +135,7 @@ func GenerateConf(APIJson string, certArtifact CertificateArtifact, endpoints st
 		err := json.Unmarshal([]byte(apiYamlData.SubtypeConfiguration.Configuration), &config)
 		if err != nil {
 			fmt.Println("Error unmarshalling _configuration:", err)
-			return "", "null", 0, nil, []EndpointSecurityConfig{}, nil, nil, nil, err
+			return "", "null", "null", 0, nil, []EndpointSecurityConfig{}, nil, nil, nil, err
 		}
 		sha1ValueforCRName := config.LLMProviderID
 		apk.AIProvider = &AIProvider{
@@ -219,7 +219,7 @@ func GenerateConf(APIJson string, certArtifact CertificateArtifact, endpoints st
 		certErr := json.Unmarshal([]byte(certArtifact.EndpointCerts), &endpointCertList)
 		if certErr != nil {
 			logger.LoggerTransformer.Errorf("Error while unmarshalling endpoint_cert.json content: %v", apiYamlError)
-			return "", "null", 0, nil, []EndpointSecurityConfig{}, nil, nil, nil, certErr
+			return "", "null", "null", 0, nil, []EndpointSecurityConfig{}, nil, nil, nil, certErr
 		}
 		endCertAvailable = true
 	}
@@ -250,7 +250,7 @@ func GenerateConf(APIJson string, certArtifact CertificateArtifact, endpoints st
 		certErr := json.Unmarshal([]byte(certArtifact.ClientCerts), &certList)
 		if certErr != nil {
 			logger.LoggerTransformer.Errorf("Error while unmarshalling client_cert.json content: %v", apiYamlError)
-			return "", "null", 0, nil, []EndpointSecurityConfig{}, nil, nil, nil, certErr
+			return "", "null", "null", 0, nil, []EndpointSecurityConfig{}, nil, nil, nil, certErr
 		}
 		certAvailable = true
 	}
@@ -289,9 +289,9 @@ func GenerateConf(APIJson string, certArtifact CertificateArtifact, endpoints st
 
 	if marshalError != nil {
 		logger.LoggerTransformer.Error("Error while marshalling apk yaml", marshalError)
-		return "", "null", 0, nil, []EndpointSecurityConfig{}, nil, prodAIRatelimit, sandAIRatelimit, marshalError
+		return "", "null", "null", 0, nil, []EndpointSecurityConfig{}, nil, prodAIRatelimit, sandAIRatelimit, marshalError
 	}
-	return string(c), apiYamlData.RevisionedAPIID, apiYamlData.RevisionID, configuredRateLimitPoliciesMap, endpointSecurityDataList, apk, prodAIRatelimit, sandAIRatelimit, nil
+	return string(c), apiYamlData.Name, apiYamlData.RevisionedAPIID, apiYamlData.RevisionID, configuredRateLimitPoliciesMap, endpointSecurityDataList, apk, prodAIRatelimit, sandAIRatelimit, nil
 }
 
 // Generate the interceptor policy if request or response policy exists

@@ -129,6 +129,9 @@ type dataPlane struct {
 	Enabled            bool
 	K8ResourceEndpoint string
 	Namespace          string
+	GatewayClassName   string
+	GatewayHTTPSPort   int
+	GatewayHTTPPort    int
 }
 
 type requestWorkerPool struct {

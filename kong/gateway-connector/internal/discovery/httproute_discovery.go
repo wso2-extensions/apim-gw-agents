@@ -19,351 +19,130 @@ package discovery
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
 	discoverPkg "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/discovery"
-	loggers "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/loggers"
 	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/managementserver"
+	"github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/constants"
+	"github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/internal/loggers"
 )
 
-// InitializeHTTPRoutesState fetches all existing HTTPRoutes and populates discoverPkg.APIMap
-func InitializeHTTPRoutesState() {
-	gvr := schema.GroupVersionResource{Group: "gateway.networking.k8s.io", Version: "v1", Resource: "httproutes"}
-	list, err := CRWatcher.DynamicClient.Resource(gvr).Namespace("default").List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		loggers.LoggerWatcher.Errorf("Failed to list HTTPRoutes in namespace default: %v", err)
-		return
-	}
-
-	// Group HTTPRoutes by apiUUID
-	routesByUUID := make(map[string][]*unstructured.Unstructured)
-	for i := range list.Items {
-		route := &list.Items[i]
-
-		// If to hide the API in CP
-		showInCP, found := route.GetLabels()["showInCP"]
-		if found && showInCP == "false" {
-			continue
-		}
-
-		apiUUID, found := route.GetLabels()["apiUUID"]
-		if !found {
-			// Generate apiUUID for routes without it
-			apiUUID = uuid.New().String()
-			loggers.LoggerWatcher.Infof("Generated apiUUID %s for existing HTTPRoute %s/%s", apiUUID, route.GetNamespace(), route.GetName())
-			updateHTTPRouteLabel(route, "apiUUID", apiUUID)
-		}
-
-		routesByUUID[apiUUID] = append(routesByUUID[apiUUID], route)
-	}
-
-	// Build discoverPkg.API for each apiUUID group
-	apiMutex.Lock()
-	defer apiMutex.Unlock()
-	for apiUUID, routes := range routesByUUID {
-		// Check revisionID consistency
-		revisionID := ""
-		apiVersion := "v1"
-		needsRevisionUpdate := false
-		for _, route := range routes {
-			// Check for api version in route labels
-			routeAPIVersion, found := route.GetLabels()["apiVersion"]
-			if found {
-				apiVersion = routeAPIVersion
-			}
-
-			if rev, found := route.GetLabels()["revisionID"]; found {
-				if revisionID == "" {
-					revisionID = rev
-				} else if revisionID != rev {
-					needsRevisionUpdate = true // Mismatch detected
-					break
-				}
-			} else {
-				needsRevisionUpdate = true // Missing revisionID
-				break
-			}
-		}
-
-		api := buildAPIFromHTTPRoutes(routes, apiVersion, apiUUID)
-		discoverPkg.APIHashMap[apiUUID] = computeAPIHash(api)
-
-		if needsRevisionUpdate || revisionID == "" {
-			revisionID = generateRevisionID()
-			api.RevisionID = revisionID
-			for _, route := range routes {
-				updateHTTPRouteLabel(route, "revisionID", revisionID)
-			}
-			loggers.LoggerWatcher.Debugf("Revision ID updated: %s", revisionID)
-		} else {
-			api.RevisionID = revisionID
-			loggers.LoggerWatcher.Debugf("Using existing revision ID: %s", revisionID)
-		}
-
-		discoverPkg.APIMap[apiUUID] = api
-		loggers.LoggerWatcher.Infof("Initialized discoverPkg.API %s with %d HTTPRoutes", apiUUID, len(routes))
-	}
-	loggers.LoggerWatcher.Debugf("HTTPRoutes state initialization completed with %d APIs", len(routesByUUID))
-}
-
 // handleAddHttpRouteResource handles the addition of an HTTPRoute
-func handleAddHttpRouteResource(u *unstructured.Unstructured) {
-	loggers.LoggerWatcher.Debugf("Processing new HTTPRoute: %s/%s", u.GetNamespace(), u.GetName())
+func handleAddHttpRouteResource(route *unstructured.Unstructured) {
+	loggers.LoggerWatcher.Infof("Processing new HTTPRoute addition: %s/%s (Generation: %d, ResourceVersion: %s)",
+		route.GetNamespace(), route.GetName(), route.GetGeneration(), route.GetResourceVersion())
 
-	// If to hide the API in CP
-	showInCP, found := u.GetLabels()["showInCP"]
-	if found && showInCP == "false" {
-		return
-	}
-
-	apiUUID, found := u.GetLabels()["apiUUID"]
-	if !found {
-		apiUUID = uuid.New().String()
-		loggers.LoggerWatcher.Infof("Generated apiUUID %s for HTTPRoute %s/%s", apiUUID, u.GetNamespace(), u.GetName())
-		updateHTTPRouteLabel(u, "apiUUID", apiUUID)
-	}
-
-	apiVersion, found := u.GetLabels()["apiVersion"]
-	if !found {
-		apiVersion = "v1"
-		loggers.LoggerWatcher.Infof("Generated apiVersion %s for HTTPRoute %s/%s", apiVersion, u.GetNamespace(), u.GetName())
-		updateHTTPRouteLabel(u, "apiVersion", apiVersion)
-	}
-
-	apiMutex.Lock()
-	defer apiMutex.Unlock()
-
-	existingAPI, apiExists := discoverPkg.APIMap[apiUUID]
-	revisionID, hasRevision := u.GetLabels()["revisionID"]
-
-	if apiExists && hasRevision && revisionID == existingAPI.RevisionID {
-		loggers.LoggerWatcher.Infof("HTTPRoute %s/%s already processed for discoverPkg.API %s with revisionID %s, skipping", u.GetNamespace(), u.GetName(), apiUUID, revisionID)
-		return
-	}
-
-	// Fetch all HTTPRoutes with this apiUUID and rebuild discoverPkg.API if first time or revisionID mismatch
-	httpRoutes := fetchAllHTTPRoutesWithAPIUUID(u.GetNamespace(), apiUUID)
-	api := buildAPIFromHTTPRoutes(httpRoutes, apiVersion, apiUUID)
-	newHash := computeAPIHash(api)
-	currentHash := ""
-	if apiExists {
-		currentHash = discoverPkg.APIHashMap[apiUUID]
-	}
-
-	// Only update if discoverPkg.API is new or changed
-	if !apiExists || currentHash != newHash {
-		revisionID := generateRevisionID()
-		api.RevisionID = revisionID
-		discoverPkg.APIHashMap[apiUUID] = newHash
-		discoverPkg.APIMap[apiUUID] = api
-
-		discoverPkg.QueueEvent(managementserver.CreateEvent, api, u.GetName(), u.GetNamespace())
-		// Update revisionID label on all related HTTPRoutes
-		for _, route := range httpRoutes {
-			updateHTTPRouteLabel(route, "revisionID", revisionID)
-		}
-	} else {
-		loggers.LoggerWatcher.Infof("discoverPkg.API %s unchanged after adding %s/%s, skipping CP update", apiUUID, u.GetNamespace(), u.GetName())
+	serviceNames := getHTTPRouteReferencedServices(route)
+	for _, serviceName := range serviceNames {
+		ReconcileAPI(route.GetNamespace(), serviceName)
 	}
 }
 
-// handleUpdateHTTPRouteResource handles the update of an HTTPRoute
-func handleUpdateHTTPRouteResource(_, newU *unstructured.Unstructured) {
-	loggers.LoggerWatcher.Debugf("Processing HTTPRoute update|%s/%s\n", newU.GetNamespace(), newU.GetName())
+// handleUpdateHttpRouteResource handles the update of an HTTPRoute
+func handleUpdateHttpRouteResource(_, route *unstructured.Unstructured) {
+	loggers.LoggerWatcher.Infof("Processing HTTPRoute modification: %s/%s (Generation: %d, ResourceVersion: %s)",
+		route.GetNamespace(), route.GetName(), route.GetGeneration(), route.GetResourceVersion())
 
-	// If to hide the API in CP
-	showInCP, found := newU.GetLabels()["showInCP"]
-	if found && showInCP == "false" {
-		return
-	}
-
-	apiUUID, found := newU.GetLabels()["apiUUID"]
-	if !found {
-		loggers.LoggerWatcher.Warnf("HTTPRoute %s/%s has no apiUUID label, treating as new", newU.GetNamespace(), newU.GetName())
-		handleAddHttpRouteResource(newU)
-		return
-	}
-
-	apiMutex.Lock()
-	defer apiMutex.Unlock()
-
-	api, exists := discoverPkg.APIMap[apiUUID]
-	if !exists {
-		loggers.LoggerWatcher.Warnf("discoverPkg.API %s not found for HTTPRoute %s/%s, treating as new", apiUUID, newU.GetNamespace(), newU.GetName())
-		handleAddHttpRouteResource(newU)
-		return
-	}
-
-	// Update discoverPkg.API incrementally
-	updateAPIFromHTTPRoute(&api, newU)
-	newHash := computeAPIHash(api)
-	apiHash := discoverPkg.APIHashMap[api.APIUUID]
-	if apiHash != newHash {
-		revisionID := generateRevisionID()
-		api.RevisionID = revisionID
-		discoverPkg.APIHashMap[apiUUID] = newHash
-		discoverPkg.APIMap[apiUUID] = api
-		discoverPkg.QueueEvent(managementserver.CreateEvent, api, newU.GetName(), newU.GetNamespace())
-		updateHTTPRouteLabel(newU, "revisionID", revisionID)
-		loggers.LoggerWatcher.Infof("API updated|UUID:%s Revision:%s\n", apiUUID, revisionID)
-	} else {
-		loggers.LoggerWatcher.Infof("discoverPkg.API %s unchanged after updating %s/%s, skipping CP update", apiUUID, newU.GetNamespace(), newU.GetName())
+	serviceNames := getHTTPRouteReferencedServices(route)
+	for _, serviceName := range serviceNames {
+		ReconcileAPI(route.GetNamespace(), serviceName)
 	}
 }
 
 // handleDeleteHttpRouteResource handles the deletion of an HTTPRoute
-func handleDeleteHttpRouteResource(u *unstructured.Unstructured) {
-	loggers.LoggerWatcher.Debugf("Processing HTTPRoute deletion|%s/%s\n", u.GetNamespace(), u.GetName())
+func handleDeleteHttpRouteResource(route *unstructured.Unstructured) {
+	loggers.LoggerWatcher.Infof("Processing HTTPRoute deletion: %s/%s (Generation: %d, ResourceVersion: %s)",
+		route.GetNamespace(), route.GetName(), route.GetGeneration(), route.GetResourceVersion())
 
-	apiUUID, found := u.GetLabels()["apiUUID"]
-	if !found {
-		loggers.LoggerWatcher.Warnf("HTTPRoute %s/%s has no apiUUID label, skipping deletion", u.GetNamespace(), u.GetName())
-		return
+	serviceNames := getHTTPRouteReferencedServices(route)
+	for _, serviceName := range serviceNames {
+		ReconcileAPI(route.GetNamespace(), serviceName)
 	}
-
-	apiMutex.Lock()
-	defer apiMutex.Unlock()
-
-	apiHash, exists := discoverPkg.APIHashMap[apiUUID]
-	if !exists {
-		loggers.LoggerWatcher.Warnf("discoverPkg.APIHash %s not found for deleted HTTPRoute %s/%s", apiUUID, u.GetNamespace(), u.GetName())
-	} else {
-		delete(discoverPkg.APIHashMap, apiUUID)
-		loggers.LoggerWatcher.Warnf("discoverPkg.APIHash %s deleted", apiHash)
-	}
-
-	api, exists := discoverPkg.APIMap[apiUUID]
-	if !exists {
-		loggers.LoggerWatcher.Warnf("discoverPkg.API %s not found for deleted HTTPRoute %s/%s", apiUUID, u.GetNamespace(), u.GetName())
-		return
-	}
-	delete(discoverPkg.APIMap, apiUUID)
-
-	discoverPkg.QueueEvent(managementserver.DeleteEvent, api, u.GetName(), u.GetNamespace())
-	loggers.LoggerWatcher.Warnf("discoverPkg.API %s deleted", apiUUID)
 }
 
-// fetchAllHTTPRoutesWithAPIUUID fetches all HTTPRoutes with a given apiUUID
-func fetchAllHTTPRoutesWithAPIUUID(namespace, apiUUID string) []*unstructured.Unstructured {
-	loggers.LoggerWatcher.Debugf("Fetching HTTPRoutes with apiUUID|%s\n", apiUUID)
-
-	gvr := schema.GroupVersionResource{Group: "gateway.networking.k8s.io", Version: "v1", Resource: "httproutes"}
-	selector := labels.SelectorFromSet(map[string]string{"apiUUID": apiUUID})
-	list, err := CRWatcher.DynamicClient.Resource(gvr).Namespace(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: selector.String()})
-	if err != nil {
-		loggers.LoggerWatcher.Errorf("Failed to fetch HTTPRoutes with apiUUID %s in namespace %s: %v", apiUUID, namespace, err)
-		return []*unstructured.Unstructured{}
-	}
-	items := make([]*unstructured.Unstructured, len(list.Items))
-	for i := range list.Items {
-		// If to hide the API in CP
-		showInCP, found := list.Items[i].GetLabels()["showInCP"]
-		if found && showInCP == "false" {
-			continue
-		}
-
-		items[i] = &list.Items[i]
-	}
-	return items
+func updateHTTPRouteLabels(u *unstructured.Unstructured, labelsToSet map[string]string) {
+	updateResourceLabels(u, constants.HTTPRouteGVR, constants.HTTPRouteKind, labelsToSet)
 }
 
-// buildAPIFromHTTPRoutes constructs an discoverPkg.API from a list of HTTPRoutes
-func buildAPIFromHTTPRoutes(httpRoutes []*unstructured.Unstructured, apiVersion string, apiUUID string) managementserver.API {
-	loggers.LoggerWatcher.Debugf("Building API from HTTPRoutes|UUID:%s Routes:%d\n", apiUUID, len(httpRoutes))
+// buildAPIFromHTTPRoutesAndService constructs an discoverPkg.API from a list of HTTPRoutes
+func buildAPIFromHTTPRoutesAndService(service *unstructured.Unstructured, httpRoutes []*unstructured.Unstructured, apiVersion string, kongAPIUUID string) managementserver.API {
+	loggers.LoggerWatcher.Debugf("Building API from HTTPRoutes - UUID: %s, Version: %s, Route count: %d", kongAPIUUID, apiVersion, len(httpRoutes))
 
 	api := managementserver.API{
-		APIUUID:          apiUUID,
-		APIName:          fmt.Sprintf("api-%s", apiUUID),
+		APIUUID:          kongAPIUUID,
+		APIName:          fmt.Sprintf("%s%s", constants.APIPrefix, kongAPIUUID),
 		APIVersion:       apiVersion,
 		IsDefaultVersion: true,
-		APIType:          "rest",
+		APIType:          constants.DefaultAPIType,
 	}
 
-	apiDef, err := discoverPkg.GenerateOpenAPIDefinition(httpRoutes, apiUUID)
-	if err == nil {
-		data, err := json.Marshal(apiDef)
-		if err != nil {
-			loggers.LoggerWatcher.Error("Failed to convert api definition to bytes")
-		} else {
-			api.Definition = string(data)
-		}
-	}
-
+	generateAndAttachAPIDefinition(&api, httpRoutes, kongAPIUUID)
+	updateAPIFromService(&api, service)
 	for _, u := range httpRoutes {
 		updateAPIFromHTTPRoute(&api, u)
 	}
 	return api
 }
 
+// generateAndAttachAPIDefinition generates the OpenAPI definition for an API and attaches it
+func generateAndAttachAPIDefinition(api *managementserver.API, httpRoutes []*unstructured.Unstructured, kongAPIUUID string) {
+	conf, _ := config.ReadConfigs()
+	apiDefinition, err := discoverPkg.GenerateOpenAPIDefinition(httpRoutes, kongAPIUUID, conf)
+	if err != nil {
+		loggers.LoggerWatcher.Errorf("Failed to generate OpenAPI definition for API %s: %v", kongAPIUUID, err)
+		return
+	}
+
+	data, err := json.Marshal(apiDefinition)
+	if err != nil {
+		loggers.LoggerWatcher.Errorf("Failed to convert API definition to JSON bytes for API %s: %v", kongAPIUUID, err)
+		return
+	}
+
+	api.Definition = string(data)
+}
+
 // updateAPIFromHTTPRoute merges HTTPRoute data into an existing discoverPkg.API
 func updateAPIFromHTTPRoute(api *managementserver.API, u *unstructured.Unstructured) {
 	loggers.LoggerWatcher.Debugf("Updating API from HTTPRoute|%s/%s\n", u.GetNamespace(), u.GetName())
 
-	// If to hide the API in CP
-	showInCP, found := u.GetLabels()["showInCP"]
-	if found && showInCP == "false" {
-		loggers.LoggerWatcher.Debugf("HTTPRoute hidden from CP, skipping|%s/%s\n", u.GetNamespace(), u.GetName())
-		return
-	}
+	env, _ := u.GetLabels()[constants.EnvironmentLabel]
 
-	// Set display name if exists
-	apiName, found := u.GetLabels()["apiName"]
-	if found && apiName != "" {
-		api.APIName = apiName
-	}
-
-	// Set api version if exists
-	apiVersion, found := u.GetLabels()["apiVersion"]
-	if found && apiVersion != "" {
-		api.APIVersion = apiVersion
-	}
-
-	// Set environment (default to "production" if not found)
-	env, found := u.GetLabels()["environment"]
-	if !found {
-		env = "production"
-		updateHTTPRouteLabel(u, "environment", env)
-	}
-	// Set organization
-	organization, found := u.GetLabels()["organization"]
-	if found {
-		api.Organization = organization
-	}
-
-	// Access spec.hostnames directly from unstructured data
-	hostnames, found, err := unstructured.NestedSlice(u.Object, "spec", "hostnames")
+	hostnames, hasHostnames, err := unstructured.NestedSlice(u.Object, constants.SpecField, constants.HostnamesField)
 	if err != nil {
 		loggers.LoggerWatcher.Errorf("Failed to access hostnames for HTTPRoute %s/%s: %v", u.GetNamespace(), u.GetName(), err)
 		return
 	}
 
-	// Update environment-specific fields
-	if found && len(hostnames) > 0 {
+	if hasHostnames && len(hostnames) > 0 {
 		if hostname, ok := hostnames[0].(string); ok {
-			switch env {
-			case "production":
-				if api.Vhost == "" {
+
+			effectiveEnv := constants.EnvironmentProduction
+			if env == constants.EnvironmentSandbox {
+				effectiveEnv = env
+			}
+
+			switch effectiveEnv {
+			case constants.EnvironmentProduction:
+				if api.Vhost == constants.EmptyString {
 					api.Vhost = hostname
 				}
-			case "sandbox":
-				if api.SandVhost == "" {
+			case constants.EnvironmentSandbox:
+				if api.SandVhost == constants.EmptyString {
 					api.SandVhost = hostname
 				}
 			}
 		}
 	}
-	// Aggregate operations
 	newOps := extractOperations(u)
 	for _, newOp := range newOps {
 		if !operationExists(api.Operations, newOp) {
@@ -371,45 +150,38 @@ func updateAPIFromHTTPRoute(api *managementserver.API, u *unstructured.Unstructu
 		}
 	}
 
-	// Update BasePath based on all operations
 	api.BasePath = extractBasePath(api.Operations)
 
-	// Process plugins from annotations
-	if plugins, ok := u.GetAnnotations()["konghq.com/plugins"]; ok {
+	if plugins, ok := u.GetAnnotations()[constants.KongPluginsAnnotation]; ok {
 		pluginList := strings.Split(plugins, ",")
 		for _, pluginName := range pluginList {
 			pluginName = strings.TrimSpace(pluginName)
-			if pluginName == "" {
+			if pluginName == constants.EmptyString {
 				continue
 			}
-			kongPlugin := fetchKongPlugin(u.GetNamespace(), pluginName)
+			kongPlugin := FetchKongPlugin(u.GetNamespace(), pluginName)
 			if kongPlugin == nil {
 				loggers.LoggerWatcher.Warnf("Failed to fetch KongPlugin %s for HTTPRoute %s/%s", pluginName, u.GetNamespace(), u.GetName())
 				continue
 			}
-			pluginType, found, _ := unstructured.NestedString(kongPlugin.Object, "plugin")
+			pluginType, found, _ := unstructured.NestedString(kongPlugin.Object, constants.PluginField)
 			if !found {
 				loggers.LoggerWatcher.Warnf("KongPlugin %s has no plugin field", pluginName)
 				continue
 			}
 			switch pluginType {
-			case "cors":
+			case constants.CORSPlugin:
 				api.CORSPolicy = extractCORSPolicyFromKongPlugin(kongPlugin)
 			}
 		}
 	}
 }
 
-// fetchKongPlugin retrieves a KongPlugin CR by name
-func fetchKongPlugin(namespace, name string) *unstructured.Unstructured {
+// FetchKongPlugin retrieves a KongPlugin CR by name
+func FetchKongPlugin(namespace, name string) *unstructured.Unstructured {
 	loggers.LoggerWatcher.Debugf("Fetching KongPlugin|%s/%s\n", namespace, name)
 
-	gvr := schema.GroupVersionResource{
-		Group:    "configuration.konghq.com",
-		Version:  "v1",
-		Resource: "kongplugins",
-	}
-	kongPlugin, err := CRWatcher.DynamicClient.Resource(gvr).Namespace(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	kongPlugin, err := CRWatcher.DynamicClient.Resource(constants.KongPluginGVR).Namespace(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		loggers.LoggerWatcher.Errorf("Error fetching KongPlugin %s/%s: %v", namespace, name, err)
 		return nil
@@ -421,25 +193,23 @@ func fetchKongPlugin(namespace, name string) *unstructured.Unstructured {
 func extractOperations(httpRoute *unstructured.Unstructured) []managementserver.OperationFromDP {
 	loggers.LoggerWatcher.Debugf("Extracting operations from HTTPRoute|%s/%s\n", httpRoute.GetNamespace(), httpRoute.GetName())
 
-	var operations []managementserver.OperationFromDP
-
-	// Access spec.rules from unstructured data
-	rules, found, err := unstructured.NestedSlice(httpRoute.Object, "spec", "rules")
+	rules, found, err := unstructured.NestedSlice(httpRoute.Object, constants.SpecField, constants.RulesField)
 	if err != nil {
 		loggers.LoggerWatcher.Errorf("Failed to access rules for HTTPRoute %s/%s: %v", httpRoute.GetNamespace(), httpRoute.GetName(), err)
-		return operations
+		return nil
 	}
 	if !found || len(rules) == 0 {
 		loggers.LoggerWatcher.Debugf("No rules found for HTTPRoute %s/%s", httpRoute.GetNamespace(), httpRoute.GetName())
-		return operations
+		return nil
 	}
+	var operations []managementserver.OperationFromDP
 
 	for _, rule := range rules {
 		ruleMap, ok := rule.(map[string]interface{})
 		if !ok {
 			continue
 		}
-		matches, found, err := unstructured.NestedSlice(ruleMap, "matches")
+		matches, found, err := unstructured.NestedSlice(ruleMap, constants.MatchesField)
 		if err != nil || !found {
 			continue
 		}
@@ -449,30 +219,37 @@ func extractOperations(httpRoute *unstructured.Unstructured) []managementserver.
 				continue
 			}
 
-			// Extract path
-			path := ""
-			if pathObj, found := matchMap["path"]; found {
-				if pathMap, ok := pathObj.(map[string]interface{}); ok {
-					if val, ok := pathMap["value"].(string); ok {
-						path = val
-					}
-				}
-			}
-
-			// Extract method (verb)
-			verb := "GET" // Default
-			if method, ok := matchMap["method"].(string); ok {
-				verb = method
-			}
-
-			operations = append(operations, managementserver.OperationFromDP{
+			path := extractPathFromMatch(matchMap)
+			verb := extractVerbFromMatch(matchMap)
+			operation := managementserver.OperationFromDP{
 				Path:   path,
 				Verb:   verb,
 				Scopes: []string{},
-			})
+			}
+			operations = append(operations, operation)
 		}
 	}
 	return operations
+}
+
+// extractPathFromMatch safely extracts path from match map
+func extractPathFromMatch(matchMap map[string]interface{}) string {
+	if pathObj, found := matchMap[constants.PathField]; found {
+		if pathMap, ok := pathObj.(map[string]interface{}); ok {
+			if val, ok := pathMap[constants.ValueField].(string); ok && val != constants.EmptyString {
+				return val
+			}
+		}
+	}
+	return constants.EmptyString
+}
+
+// extractVerbFromMatch safely extracts HTTP verb from match map
+func extractVerbFromMatch(matchMap map[string]interface{}) string {
+	if method, ok := matchMap[constants.MethodField].(string); ok && method != constants.EmptyString {
+		return method
+	}
+	return constants.DefaultHTTPMethod
 }
 
 // operationExists checks if an operation is already in the list
@@ -494,7 +271,7 @@ func extractBasePath(operations []managementserver.OperationFromDP) string {
 		paths = append(paths, op.Path)
 	}
 	if len(paths) == 0 {
-		return "/"
+		return constants.DefaultBasePath
 	}
 	return findCommonPrefix(paths)
 }
@@ -504,12 +281,12 @@ func findCommonPrefix(paths []string) string {
 	loggers.LoggerWatcher.Debugf("Finding common prefix|%d paths\n", len(paths))
 
 	if len(paths) == 0 {
-		return "/"
+		return constants.DefaultBasePath
 	}
 	if len(paths) == 1 {
-		parts := strings.Split(paths[0], "/")
-		if len(parts) > 2 {
-			return "/" + parts[1]
+		parts := strings.Split(paths[0], constants.PathSeparator)
+		if len(parts) > constants.MinPathParts {
+			return constants.PathSeparator + parts[1]
 		}
 		return paths[0]
 	}
@@ -518,30 +295,30 @@ func findCommonPrefix(paths []string) string {
 	for _, path := range paths[1:] {
 		for !strings.HasPrefix(path, prefix) {
 			prefix = prefix[:len(prefix)-1]
-			if prefix == "" {
-				return "/"
+			if prefix == constants.EmptyString {
+				return constants.DefaultBasePath
 			}
 		}
 	}
-	parts := strings.Split(prefix, "/")
-	if len(parts) > 2 {
-		return "/" + parts[1]
+	parts := strings.Split(prefix, constants.PathSeparator)
+	if len(parts) > constants.MinPathParts {
+		return constants.PathSeparator + parts[1]
 	}
 	return prefix
 }
 
 // extractCORSPolicyFromKongPlugin pulls CORS details from a KongPlugin
 func extractCORSPolicyFromKongPlugin(kongPlugin *unstructured.Unstructured) *managementserver.CORSPolicy {
-	loggers.LoggerWatcher.Debugf("Extracting CORS policy|%s\n", kongPlugin.GetName())
+	loggers.LoggerWatcher.Debugf("Extracting CORS policy from KongPlugin: %s/%s", kongPlugin.GetNamespace(), kongPlugin.GetName())
 
 	cors := &managementserver.CORSPolicy{
-		AccessControlAllowCredentials: false,
+		AccessControlAllowCredentials: constants.DefaultCORSCredentials,
 		AccessControlAllowOrigins:     []string{},
 		AccessControlAllowMethods:     []string{},
 		AccessControlAllowHeaders:     []string{},
 	}
-	if config, found, _ := unstructured.NestedMap(kongPlugin.Object, "config"); found {
-		if origins, ok := config["origins"].([]interface{}); ok {
+	if config, found, _ := unstructured.NestedMap(kongPlugin.Object, constants.ConfigField); found {
+		if origins, ok := config[constants.CORSOriginsField].([]interface{}); ok {
 			cors.AccessControlAllowOrigins = make([]string, len(origins))
 			for i, o := range origins {
 				if str, ok := o.(string); ok {
@@ -549,7 +326,7 @@ func extractCORSPolicyFromKongPlugin(kongPlugin *unstructured.Unstructured) *man
 				}
 			}
 		}
-		if methods, ok := config["methods"].([]interface{}); ok {
+		if methods, ok := config[constants.CORSMethodsField].([]interface{}); ok {
 			cors.AccessControlAllowMethods = make([]string, len(methods))
 			for i, m := range methods {
 				if str, ok := m.(string); ok {
@@ -557,7 +334,7 @@ func extractCORSPolicyFromKongPlugin(kongPlugin *unstructured.Unstructured) *man
 				}
 			}
 		}
-		if headers, ok := config["headers"].([]interface{}); ok {
+		if headers, ok := config[constants.CORSHeadersField].([]interface{}); ok {
 			cors.AccessControlAllowHeaders = make([]string, len(headers))
 			for i, m := range headers {
 				if str, ok := m.(string); ok {
@@ -565,61 +342,53 @@ func extractCORSPolicyFromKongPlugin(kongPlugin *unstructured.Unstructured) *man
 				}
 			}
 		}
-		if credentials, ok := config["credentials"].(bool); ok {
+		if credentials, ok := config[constants.CORSCredentialsField].(bool); ok {
 			cors.AccessControlAllowCredentials = credentials
 		}
 	}
 	return cors
 }
 
-// extractRateLimitFromKongPlugin pulls rate limit details from a KongPlugin
-func extractRateLimitFromKongPlugin(kongPlugin *unstructured.Unstructured) *managementserver.AIRL {
-	loggers.LoggerWatcher.Debugf("Extracting rate limit|%s\n", kongPlugin.GetName())
+// updateResourceLabels updates multiple labels on a resource
+func updateResourceLabels(resource *unstructured.Unstructured, gvr schema.GroupVersionResource, resourceType string, labelsToSet map[string]string) {
+	loggers.LoggerWatcher.Debugf("Updating %s labels on %s/%s", resourceType, resource.GetNamespace(), resource.GetName())
 
-	rl := &managementserver.AIRL{
-		TimeUnit: "min", // Default to "min" as per allowedTimeUnits
-	}
-	if config, found, _ := unstructured.NestedMap(kongPlugin.Object, "config"); found {
-		for unit, mappedUnit := range allowedTimeUnits {
-			if count, ok := config[unit].(int64); ok {
-				count32 := uint32(count)
-				rl.RequestCount = &count32
-				rl.TimeUnit = mappedUnit
-				break // Stop after finding the first valid time unit
+	for attempt := 0; attempt < constants.MaxRetries; attempt++ {
+		loggers.LoggerWatcher.Debugf("Attempt %d: fetching latest version of %s %s/%s", attempt+1, resourceType, resource.GetNamespace(), resource.GetName())
+		latest, err := CRWatcher.DynamicClient.Resource(gvr).Namespace(resource.GetNamespace()).Get(context.Background(), resource.GetName(), metav1.GetOptions{})
+		if err != nil {
+			loggers.LoggerWatcher.Errorf("Failed to fetch latest %s %s/%s on attempt %d: %v", resourceType, resource.GetNamespace(), resource.GetName(), attempt+1, err)
+			if attempt < constants.MaxRetries {
+				time.Sleep(time.Duration((attempt+1)*constants.RetryDelayMultiplier) * time.Millisecond)
+				continue
 			}
+			return
+		}
+
+		labels, _, _ := unstructured.NestedStringMap(latest.Object, constants.MetadataField, constants.LabelsField)
+		if labels == nil {
+			labels = make(map[string]string)
+		}
+		maps.Copy(labels, labelsToSet)
+		unstructured.SetNestedStringMap(latest.Object, labels, constants.MetadataField, constants.LabelsField)
+
+		_, err = CRWatcher.DynamicClient.Resource(gvr).Namespace(latest.GetNamespace()).Update(context.Background(), latest, metav1.UpdateOptions{})
+		if err != nil {
+			if strings.Contains(err.Error(), constants.ObjectModifiedError) {
+				loggers.LoggerWatcher.Warnf("%s %s/%s was modified during update, retrying attempt %d: %v", resourceType, latest.GetNamespace(), latest.GetName(), attempt+1, err)
+				if attempt < constants.MaxRetries {
+					time.Sleep(time.Duration((attempt+1)*constants.RetryDelayMultiplier) * time.Millisecond)
+					continue
+				}
+			} else {
+				loggers.LoggerWatcher.Errorf("Failed to update %s %s/%s (non-conflict error): %v", resourceType, latest.GetNamespace(), latest.GetName(), err)
+				return
+			}
+		} else {
+			loggers.LoggerWatcher.Infof("Successfully updated labels on %s %s/%s", resourceType, latest.GetNamespace(), latest.GetName())
+			return
 		}
 	}
-	return rl
-}
-
-// computeAPIHash generates a hash of the discoverPkg.API struct for comparison
-func computeAPIHash(api managementserver.API) string {
-	data := fmt.Sprintf("%v%v%v%v%v", api.Operations, api.CORSPolicy, api.ProdAIRL, api.SandAIRL, api.Environment)
-	hash := sha256.Sum256([]byte(data))
-	return hex.EncodeToString(hash[:])
-}
-
-// generateRevisionID creates a unique revision ID
-func generateRevisionID() string {
-	return fmt.Sprintf("%d", time.Now().UnixNano())
-}
-
-// updateHTTPRouteLabel updates a label on the HTTPRoute
-func updateHTTPRouteLabel(u *unstructured.Unstructured, key, value string) {
-	loggers.LoggerWatcher.Debugf("Updating HTTPRoute label|%s=%s\n", key, value)
-
-	labels, found, _ := unstructured.NestedMap(u.Object, "metadata", "labels")
-	if !found {
-		labels = make(map[string]interface{})
-	}
-	labels[key] = value
-	unstructured.SetNestedMap(u.Object, labels, "metadata", "labels")
-
-	gvr := schema.GroupVersionResource{Group: "gateway.networking.k8s.io", Version: "v1", Resource: "httproutes"}
-	_, err := CRWatcher.DynamicClient.Resource(gvr).Namespace(u.GetNamespace()).Update(context.Background(), u, metav1.UpdateOptions{})
-	if err != nil {
-		loggers.LoggerWatcher.Errorf("Failed to update HTTPRoute %s/%s with label %s: %v", u.GetNamespace(), u.GetName(), key, err)
-	} else {
-		loggers.LoggerWatcher.Infof("Updated HTTPRoute %s/%s with label %s: %s", u.GetNamespace(), u.GetName(), key, value)
-	}
+	loggers.LoggerWatcher.Errorf("Failed to update %s %s/%s after %d retry attempts due to resource version conflicts",
+		resourceType, resource.GetNamespace(), resource.GetName(), constants.MaxRetries)
 }

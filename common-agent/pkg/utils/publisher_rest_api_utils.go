@@ -285,7 +285,7 @@ func DeleteAPIRevision(apiUUID string, revisionID string, body string) error {
 	}
 	defer resp.Body.Close()
 	respBody, _ := ioutil.ReadAll(resp.Body)
-	logger.LoggerTLSUtils.Errorf("For the API undeploy revision request we received response status %s, code: %+v, body: %+v", resp.Status, resp.StatusCode, string(respBody))
+	logger.LoggerTLSUtils.Infof("For the API undeploy revision request we received response status %s, code: %+v, body: %+v", resp.Status, resp.StatusCode, string(respBody))
 	if resp.StatusCode == http.StatusServiceUnavailable {
 		return fmt.Errorf("could not reach APIM. Received service unavailable reponse")
 	}

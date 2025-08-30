@@ -36,13 +36,16 @@ controlPlane:
   serviceURL: https://apim-wso2am-acp-1-service.apk.svc.cluster.local:9443/
   username: admin
   password: admin
-  environmentLabels: Default
+  environmentLabels: kong_k8s_gw
   skipSSLVerification: true
   eventListeningEndpoints: amqp://admin:admin@apim-wso2am-acp-1-service.apk.svc.cluster.local:5672?retries='10'&connectdelay='30'
   # internalKeyIssuer: https://am.wso2.com:443/oauth2/token
 dataPlane:
   enabled: true
-  namespace: apk
+  namespace: kong
+  # gatewayClassName: kong
+  # GatewayHTTPSPort: 8443
+  # GatewayHTTPPort: 8000
 metrics:
   enabled: false
 agent:
