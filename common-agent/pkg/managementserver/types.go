@@ -48,8 +48,11 @@ type SecurityScheme struct {
 
 // APICPEvent holds data of a specific API event from adapter
 type APICPEvent struct {
-	Event EventType `json:"event"`
-	API   API       `json:"payload"`
+	Event     EventType `json:"event"`
+	API       API       `json:"payload"`
+	Name      string    `json:"name"`
+	Namespace string    `json:"namespace"`
+	AgentName string    `json:"agentName"`
 }
 
 // EventType is the type of api event. One of (CREATE, UPDATE, DELETE)

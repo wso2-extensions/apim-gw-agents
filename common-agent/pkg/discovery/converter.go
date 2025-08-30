@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
 	loggers "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/loggers"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -60,7 +61,7 @@ type response struct {
 }
 
 // GenerateOpenAPIDefinition generates an OpenAPI 3.0 definition from a set of HTTPRoutes
-func GenerateOpenAPIDefinition(httpRoutes []*unstructured.Unstructured, apiUUID string) (OpenAPI, error) {
+func GenerateOpenAPIDefinition(httpRoutes []*unstructured.Unstructured, apiUUID string, conf *config.Config) (OpenAPI, error) {
 	openAPI := OpenAPI{
 		OpenAPI: "3.0.0",
 		Info: info{
@@ -74,7 +75,7 @@ func GenerateOpenAPIDefinition(httpRoutes []*unstructured.Unstructured, apiUUID 
 	var servers []server
 	serverSet := make(map[string]struct{})
 	var allPaths []string // To collect paths for basePath extraction
-
+	httpsPort := conf.DataPlane.GatewayHTTPSPort
 	for _, route := range httpRoutes {
 		hostnames, found, err := unstructured.NestedSlice(route.Object, "spec", "hostnames")
 		if err != nil {
@@ -85,7 +86,13 @@ func GenerateOpenAPIDefinition(httpRoutes []*unstructured.Unstructured, apiUUID 
 			for _, hostname := range hostnames {
 				if h, ok := hostname.(string); ok && h != "" {
 					if _, exists := serverSet[h]; !exists {
-						servers = append(servers, server{URL: fmt.Sprintf("https://%s", h)}) // Base HTTPS URL
+						var serverURL string
+						if httpsPort != 0 && httpsPort != 443 {
+							serverURL = fmt.Sprintf("https://%s:%d", h, httpsPort)
+						} else {
+							serverURL = fmt.Sprintf("https://%s", h)
+						}
+						servers = append(servers, server{URL: serverURL})
 						serverSet[h] = struct{}{}
 					}
 				}

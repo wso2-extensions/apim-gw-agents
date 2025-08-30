@@ -4,12 +4,12 @@ Feature: API Deploying in DP to CP Flow
     Given The system is ready
     When I use the api crs files "artifacts/api_crs" in resources
     Then I apply the K8Artifacts belongs to that API
-    Then I wait for 10 seconds
+    Then I wait for 30 seconds
     And I have a DCR application
     And I have a valid Publisher access token
-    Then I find the apiUUID of the API created with the name "APIResourceEndpoint"
+    Then I find the apiUUID of the API created with the name "my-new-api"
     Then the response status code should be 200
-    And the response body should contain "APIResourceEndpoint"
+    And the response body should contain "my-new-api"
     And make the Change Lifecycle request
     Then the response status code should be 200
     And I have a valid Devportal access token
@@ -34,11 +34,11 @@ Feature: API Deploying in DP to CP Flow
     And I send "GET" request to "https://kong.wso2.com:8443/httpbin/1.0.0/get" with body ""
     And I eventually receive 200 response code, not accepting
       | 429 |
-    And the response body should contain "http://kong.wso2.com/get"
+    And the response body should contain "https://kong.wso2.com/get"
     And I send "POST" request to "https://kong.wso2.com:8443/httpbin/1.0.0/post" with body ""
     And I eventually receive 200 response code, not accepting
       | 429 |
-    And the response body should contain "http://kong.wso2.com/post"
+    And the response body should contain "https://kong.wso2.com/post"
 
   Scenario Outline: Undeploy API
     Given The system is ready
@@ -48,7 +48,7 @@ Feature: API Deploying in DP to CP Flow
     Then I delete the application "SampleApp" from devportal
     Then the response status code should be 200
     And I have a valid Publisher access token
-    Then I find the apiUUID of the API created with the name "APIResourceEndpoint"
+    Then I find the apiUUID of the API created with the name "my-new-api"
     Then I undeploy the selected API
     Then the response status code should be 200
 

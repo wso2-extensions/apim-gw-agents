@@ -914,7 +914,7 @@ func findAPIUUIDUsingName(ctx *utils.SharedContext, apiName string) error {
 	ctx.SetResponseBody(searchResp)
 
 	// Extract API UUID
-	apiUUID, err := utils.ExtractAPIUUID(ctx.GetResponseBody())
+	apiUUID, err := utils.ExtractAPIUUID(ctx.GetResponseBody(), apiName)
 	if apiUUID == "" || err != nil {
 		return fmt.Errorf("failed to extract API UUID")
 	}

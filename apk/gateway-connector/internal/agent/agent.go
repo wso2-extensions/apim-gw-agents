@@ -25,7 +25,9 @@ import (
 	"github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/loggers"
 	"github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/internal/synchronizer"
 	"github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/pkg/managementserver"
+	"github.com/wso2-extensions/apim-gw-connectors/apk/gateway-connector/pkg/utils"
 	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
+	commonMgmt "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/managementserver"
 
 	gatewayv1alpha1 "github.com/envoyproxy/gateway/api/v1alpha1"
 	cpv1alpha2 "github.com/wso2/apk/common-go-libs/apis/cp/v1alpha2"
@@ -56,11 +58,19 @@ func PreRun(conf *config.Config, scheme *runtime.Scheme) {
 	utilruntime.Must(gwapiv1a3.Install(scheme))
 }
 
+// initializeAPKIntegrations sets up APK-specific integrations with the common agent
+func initializeAPKIntegrations() {
+	loggers.LoggerAgent.Info("Starting APK integrations initialization")
+	apkAPIYamlCreator := utils.NewAPKAPIYamlCreator()
+	commonMgmt.SetAPIYamlCreator(apkAPIYamlCreator)
+}
+
 // Run starts the GRPC server and Rest API server.
 func Run(conf *config.Config, mgr manager.Manager) {
 	loggers.LoggerAgent.Info("Starting APK Gateway Connector Agent...")
 	AgentMode := conf.Agent.Mode
 	loggers.LoggerAgent.Infof("Agent Mode: %s", AgentMode)
+	initializeAPKIntegrations()
 
 	go managementserver.StartInternalServer(restPort)
 

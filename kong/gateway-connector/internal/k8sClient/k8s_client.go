@@ -20,11 +20,13 @@ package k8sclient
 
 import (
 	"context"
+	"fmt"
 
 	v1 "github.com/kong/kubernetes-configuration/api/configuration/v1"
 	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
+	"github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/constants"
 	"github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/internal/loggers"
-	"github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/pkg/utils"
+	"github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/internal/utils"
 	corev1 "k8s.io/api/core/v1"
 	k8error "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
@@ -37,8 +39,9 @@ func DeployHTTPRouteCR(httpRoute *gwapiv1.HTTPRoute, k8sClient client.Client) {
 	loggers.LoggerK8sClient.Debugf("Deploying HTTPRoute CR|Name:%s Namespace:%s\n", httpRoute.Name, httpRoute.ObjectMeta.Namespace)
 
 	crHTTPRoute := &gwapiv1.HTTPRoute{}
+	objKey := client.ObjectKey{Namespace: httpRoute.ObjectMeta.Namespace, Name: httpRoute.Name}
 	// Retrieve CR from Kubernetes cluster
-	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: httpRoute.ObjectMeta.Namespace, Name: httpRoute.Name}, crHTTPRoute); err != nil {
+	if err := k8sClient.Get(context.Background(), objKey, crHTTPRoute); err != nil {
 		if !k8error.IsNotFound(err) {
 			loggers.LoggerK8sClient.Error("Unable to get HTTPRoute CR: " + err.Error())
 		}
@@ -62,8 +65,9 @@ func DeployServiceCR(service *corev1.Service, k8sClient client.Client) {
 	loggers.LoggerK8sClient.Debugf("Deploying Service CR|Name:%s Namespace:%s\n", service.Name, service.ObjectMeta.Namespace)
 
 	crService := &corev1.Service{}
+	objKey := client.ObjectKey{Namespace: service.ObjectMeta.Namespace, Name: service.Name}
 	// Retrieve CR from Kubernetes cluster
-	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: service.ObjectMeta.Namespace, Name: service.Name}, crService); err != nil {
+	if err := k8sClient.Get(context.Background(), objKey, crService); err != nil {
 		if !k8error.IsNotFound(err) {
 			loggers.LoggerK8sClient.Error("Unable to get Service CR: " + err.Error())
 		}
@@ -87,8 +91,9 @@ func DeployKongPluginCR(plugin *v1.KongPlugin, k8sClient client.Client) {
 	loggers.LoggerK8sClient.Debugf("Deploying KongPlugin CR|Name:%s Namespace:%s\n", plugin.Name, plugin.ObjectMeta.Namespace)
 
 	crKongPlugin := &v1.KongPlugin{}
+	objKey := client.ObjectKey{Namespace: plugin.ObjectMeta.Namespace, Name: plugin.Name}
 	// Retrieve CR from Kubernetes cluster
-	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: plugin.ObjectMeta.Namespace, Name: plugin.Name}, crKongPlugin); err != nil {
+	if err := k8sClient.Get(context.Background(), objKey, crKongPlugin); err != nil {
 		if !k8error.IsNotFound(err) {
 			loggers.LoggerK8sClient.Error("Unable to get KongPlugin CR: " + err.Error())
 		}
@@ -112,8 +117,9 @@ func DeployKongConsumerCR(consumer *v1.KongConsumer, k8sClient client.Client) {
 	loggers.LoggerK8sClient.Debugf("Deploying KongConsumer CR|Name:%s Namespace:%s\n", consumer.Name, consumer.ObjectMeta.Namespace)
 
 	crKongConsumer := &v1.KongConsumer{}
+	objKey := client.ObjectKey{Namespace: consumer.ObjectMeta.Namespace, Name: consumer.Name}
 	// Retrieve CR from Kubernetes cluster
-	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: consumer.ObjectMeta.Namespace, Name: consumer.Name}, crKongConsumer); err != nil {
+	if err := k8sClient.Get(context.Background(), objKey, crKongConsumer); err != nil {
 		if !k8error.IsNotFound(err) {
 			loggers.LoggerK8sClient.Error("Unable to get KongConsumer CR: " + err.Error())
 		}
@@ -133,13 +139,14 @@ func DeployKongConsumerCR(consumer *v1.KongConsumer, k8sClient client.Client) {
 	}
 }
 
-// DeploySecretCR applies the given Service struct to the Kubernetes cluster.
+// DeploySecretCR applies the given Secret struct to the Kubernetes cluster.
 func DeploySecretCR(k8sSecret *corev1.Secret, k8sClient client.Client) {
 	loggers.LoggerK8sClient.Debugf("Deploying Secret CR|Name:%s Namespace:%s\n", k8sSecret.Name, k8sSecret.ObjectMeta.Namespace)
 
 	crSecret := &corev1.Secret{}
+	objKey := client.ObjectKey{Namespace: k8sSecret.ObjectMeta.Namespace, Name: k8sSecret.Name}
 	// Retrieve CR from Kubernetes cluster
-	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: k8sSecret.ObjectMeta.Namespace, Name: k8sSecret.Name}, crSecret); err != nil {
+	if err := k8sClient.Get(context.Background(), objKey, crSecret); err != nil {
 		if !k8error.IsNotFound(err) {
 			loggers.LoggerK8sClient.Error("Unable to get Secret CR: " + err.Error())
 		}
@@ -163,16 +170,25 @@ func UnDeploySecretCR(name string, k8sClient client.Client, conf *config.Config)
 	loggers.LoggerK8sClient.Debugf("Undeploying Secret CR|Name:%s Namespace:%s\n", name, conf.DataPlane.Namespace)
 
 	resource := &corev1.Secret{}
+	objKey := client.ObjectKey{Namespace: conf.DataPlane.Namespace, Name: name}
 	// Retrieve CR from Kubernetes cluster
-	err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: conf.DataPlane.Namespace, Name: name}, resource)
+	err := k8sClient.Get(context.Background(), objKey, resource)
 	if err != nil {
-		loggers.LoggerK8sClient.Error("Unable to get Secret CR: " + err.Error())
-	} else {
-		if err := k8sClient.Delete(context.Background(), resource, &client.DeleteOptions{}); err != nil {
-			loggers.LoggerK8sClient.Errorf("Unable to delete Secret CR: %v", err)
-		} else {
-			loggers.LoggerK8sClient.Infof("Deleted Secret CR: %s", resource.Name)
+		if k8error.IsNotFound(err) {
+			loggers.LoggerK8sClient.Warnf("Secret CR %s already deleted or not found", name)
+			return
 		}
+		loggers.LoggerK8sClient.Error("Unable to get Secret CR: " + err.Error())
+		return
+	}
+	if err := k8sClient.Delete(context.Background(), resource, &client.DeleteOptions{}); err != nil {
+		if k8error.IsNotFound(err) {
+			loggers.LoggerK8sClient.Warnf("Secret CR %s already deleted or not found", name)
+		} else {
+			loggers.LoggerK8sClient.Errorf("Unable to delete Secret CR: %v", err)
+		}
+	} else {
+		loggers.LoggerK8sClient.Infof("Deleted Secret CR: %s", resource.Name)
 	}
 }
 
@@ -181,16 +197,25 @@ func UnDeployKongPluginCR(name string, k8sClient client.Client, conf *config.Con
 	loggers.LoggerK8sClient.Debugf("Undeploying KongPlugin CR|Name:%s Namespace:%s\n", name, conf.DataPlane.Namespace)
 
 	resource := &v1.KongPlugin{}
+	objKey := client.ObjectKey{Namespace: conf.DataPlane.Namespace, Name: name}
 	// Retrieve CR from Kubernetes cluster
-	err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: conf.DataPlane.Namespace, Name: name}, resource)
+	err := k8sClient.Get(context.Background(), objKey, resource)
 	if err != nil {
-		loggers.LoggerK8sClient.Error("Unable to get Kong Plugin CR: " + err.Error())
-	} else {
-		if err := k8sClient.Delete(context.Background(), resource, &client.DeleteOptions{}); err != nil {
-			loggers.LoggerK8sClient.Errorf("Unable to delete Kong Plugin CR: %v", err)
-		} else {
-			loggers.LoggerK8sClient.Infof("Deleted Kong Plugin CR: %s", resource.Name)
+		if k8error.IsNotFound(err) {
+			loggers.LoggerK8sClient.Warnf("Kong Plugin CR %s already deleted or not found", name)
+			return
 		}
+		loggers.LoggerK8sClient.Error("Unable to get Kong Plugin CR: " + err.Error())
+		return
+	}
+	if err := k8sClient.Delete(context.Background(), resource, &client.DeleteOptions{}); err != nil {
+		if k8error.IsNotFound(err) {
+			loggers.LoggerK8sClient.Warnf("Kong Plugin CR %s already deleted or not found", name)
+		} else {
+			loggers.LoggerK8sClient.Errorf("Unable to delete Kong Plugin CR: %v", err)
+		}
+	} else {
+		loggers.LoggerK8sClient.Infof("Deleted Kong Plugin CR: %s", resource.Name)
 	}
 }
 
@@ -199,8 +224,9 @@ func UnDeployKongConsumerCR(name string, k8sClient client.Client, conf *config.C
 	loggers.LoggerK8sClient.Debugf("Undeploying KongConsumer CR|Name:%s Namespace:%s\n", name, conf.DataPlane.Namespace)
 
 	resource := &v1.KongConsumer{}
+	objKey := client.ObjectKey{Namespace: conf.DataPlane.Namespace, Name: name}
 	// Retrieve CR from Kubernetes cluster
-	if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: conf.DataPlane.Namespace, Name: name}, resource); err != nil {
+	if err := k8sClient.Get(context.Background(), objKey, resource); err != nil {
 		loggers.LoggerK8sClient.Error("Unable to get Kong Consumer CR: " + err.Error())
 	} else {
 		if err := k8sClient.Delete(context.Background(), resource, &client.DeleteOptions{}); err != nil {
@@ -216,8 +242,9 @@ func GetKongConsumerCR(name string, k8sClient client.Client, conf *config.Config
 	loggers.LoggerK8sClient.Debugf("Getting KongConsumer CR|Name:%s Namespace:%s\n", name, conf.DataPlane.Namespace)
 
 	resource := &v1.KongConsumer{}
+	objKey := client.ObjectKey{Namespace: conf.DataPlane.Namespace, Name: name}
 	// Retrieve CR from Kubernetes cluster
-	err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: conf.DataPlane.Namespace, Name: name}, resource)
+	err := k8sClient.Get(context.Background(), objKey, resource)
 	if err != nil {
 		if !k8error.IsNotFound(err) {
 			loggers.LoggerK8sClient.Error("Unable to get Kong Consumer CR: " + err.Error())
@@ -232,8 +259,9 @@ func GetK8sSecrets(labelSelectors map[string]string, k8sClient client.Client, co
 	loggers.LoggerK8sClient.Debugf("Getting k8s secrets|Labels:%d Namespace:%s\n", len(labelSelectors), conf.DataPlane.Namespace)
 
 	resourceList := &corev1.SecretList{}
+	listOpts := &client.ListOptions{Namespace: conf.DataPlane.Namespace, LabelSelector: labels.SelectorFromSet(labelSelectors)}
 	// Retrieve all CRs from the Kubernetes cluster
-	err := k8sClient.List(context.Background(), resourceList, &client.ListOptions{Namespace: conf.DataPlane.Namespace, LabelSelector: labels.SelectorFromSet(labelSelectors)})
+	err := k8sClient.List(context.Background(), resourceList, listOpts)
 	if err != nil {
 		loggers.LoggerK8sClient.Errorf("Unable to list K8s Secret CRs: %v", err)
 	} else {
@@ -247,8 +275,9 @@ func GetK8sSecret(name string, k8sClient client.Client, conf *config.Config) *co
 	loggers.LoggerK8sClient.Debugf("Getting k8s secret|Name:%s Namespace:%s\n", name, conf.DataPlane.Namespace)
 
 	resource := &corev1.Secret{}
+	objKey := client.ObjectKey{Namespace: conf.DataPlane.Namespace, Name: name}
 	// Retrieve CR from the Kubernetes cluster
-	err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: conf.DataPlane.Namespace, Name: name}, resource)
+	err := k8sClient.Get(context.Background(), objKey, resource)
 	if err != nil {
 		loggers.LoggerK8sClient.Errorf("Unable to list K8s Secret CRs: %v", err)
 	} else {
@@ -268,7 +297,7 @@ func UndeployAPICRs(apiID string, k8sClient client.Client) {
 
 	undeployHTTPRoutes(apiID, k8sClient, conf)
 	undeployServices(apiID, k8sClient, conf)
-	undeployKongPlugins(k8sClient, conf, labels.SelectorFromSet(map[string]string{"apiUUID": apiID}))
+	undeployKongPlugins(k8sClient, conf, labels.SelectorFromSet(map[string]string{constants.APIUUIDLabel: apiID}))
 }
 
 // UndeployAPPCRs removes the APP Custom Resources from the Kubernetes cluster based on Application ID label.
@@ -280,8 +309,8 @@ func UndeployAPPCRs(appID string, k8sClient client.Client) {
 		loggers.LoggerK8sClient.Errorf("Error reading configurations: %v", errReadConfig)
 	}
 	undeployKongConsumers(appID, k8sClient, conf)
-	undeployKongPlugins(k8sClient, conf, labels.SelectorFromSet(map[string]string{"applicationUUID": appID}))
-	unDeploySecret(appID, k8sClient, conf)
+	undeployKongPlugins(k8sClient, conf, labels.SelectorFromSet(map[string]string{constants.ApplicationUUIDLabel: appID}))
+	unDeploySecrets(appID, k8sClient, conf)
 }
 
 // undeployHTTPRoutes removes the HTTPRoute Resources from the Kubernetes cluster based on API ID label.
@@ -289,8 +318,9 @@ func undeployHTTPRoutes(apiID string, k8sClient client.Client, conf *config.Conf
 	loggers.LoggerK8sClient.Debugf("Undeploying HTTPRoutes|APIID:%s\n", apiID)
 
 	resourceList := &gwapiv1.HTTPRouteList{}
+	listOpts := &client.ListOptions{Namespace: conf.DataPlane.Namespace, LabelSelector: labels.SelectorFromSet(map[string]string{constants.APIUUIDLabel: apiID})}
 	// Retrieve all CRs from the Kubernetes cluster
-	err := k8sClient.List(context.Background(), resourceList, &client.ListOptions{Namespace: conf.DataPlane.Namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"apiUUID": apiID})})
+	err := k8sClient.List(context.Background(), resourceList, listOpts)
 	if err != nil {
 		loggers.LoggerK8sClient.Errorf("Unable to list HTTPRoute CRs: %v", err)
 	} else {
@@ -310,8 +340,9 @@ func undeployServices(apiID string, k8sClient client.Client, conf *config.Config
 	loggers.LoggerK8sClient.Debugf("Undeploying Services|APIID:%s\n", apiID)
 
 	resourceList := &corev1.ServiceList{}
+	listOpts := &client.ListOptions{Namespace: conf.DataPlane.Namespace, LabelSelector: labels.SelectorFromSet(map[string]string{constants.APIUUIDLabel: apiID})}
 	// Retrieve all CRs from the Kubernetes cluster
-	err := k8sClient.List(context.Background(), resourceList, &client.ListOptions{Namespace: conf.DataPlane.Namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"apiUUID": apiID})})
+	err := k8sClient.List(context.Background(), resourceList, listOpts)
 	if err != nil {
 		loggers.LoggerK8sClient.Errorf("Unable to list Service CRs: %v", err)
 	} else {
@@ -331,8 +362,9 @@ func undeployKongPlugins(k8sClient client.Client, conf *config.Config, labelSele
 	loggers.LoggerK8sClient.Debugf("Undeploying KongPlugins|LabelSelector:%s\n", labelSelector.String())
 
 	resourceList := &v1.KongPluginList{}
+	listOpts := &client.ListOptions{Namespace: conf.DataPlane.Namespace, LabelSelector: labelSelector}
 	// Retrieve all CRs from the Kubernetes cluster
-	err := k8sClient.List(context.Background(), resourceList, &client.ListOptions{Namespace: conf.DataPlane.Namespace, LabelSelector: labelSelector})
+	err := k8sClient.List(context.Background(), resourceList, listOpts)
 	if err != nil {
 		loggers.LoggerK8sClient.Errorf("Unable to list KongPlugin CRs: %v", err)
 	} else {
@@ -352,8 +384,9 @@ func undeployKongConsumers(appID string, k8sClient client.Client, conf *config.C
 	loggers.LoggerK8sClient.Debugf("Undeploying KongConsumers|AppID:%s\n", appID)
 
 	resourceList := &v1.KongConsumerList{}
+	listOpts := &client.ListOptions{Namespace: conf.DataPlane.Namespace, LabelSelector: labels.SelectorFromSet(map[string]string{constants.ApplicationUUIDLabel: appID})}
 	// Retrieve all CRs from the Kubernetes cluster
-	err := k8sClient.List(context.Background(), resourceList, &client.ListOptions{Namespace: conf.DataPlane.Namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"applicationUUID": appID})})
+	err := k8sClient.List(context.Background(), resourceList, listOpts)
 	if err != nil {
 		loggers.LoggerK8sClient.Errorf("Unable to list KongConsumer CRs: %v", err)
 	} else {
@@ -368,13 +401,14 @@ func undeployKongConsumers(appID string, k8sClient client.Client, conf *config.C
 	}
 }
 
-// unDeploySecret removes the Secret Resources from the Kubernetes cluster based on application ID label.
-func unDeploySecret(appID string, k8sClient client.Client, conf *config.Config) {
+// unDeploySecrets removes the Secret Resources from the Kubernetes cluster based on application ID label.
+func unDeploySecrets(appID string, k8sClient client.Client, conf *config.Config) {
 	loggers.LoggerK8sClient.Debugf("Undeploying Secrets|AppID:%s\n", appID)
 
 	resourceList := &corev1.SecretList{}
+	listOpts := &client.ListOptions{Namespace: conf.DataPlane.Namespace, LabelSelector: labels.SelectorFromSet(map[string]string{constants.ApplicationUUIDLabel: appID})}
 	// Retrieve all CRs from the Kubernetes cluster
-	err := k8sClient.List(context.Background(), resourceList, &client.ListOptions{Namespace: conf.DataPlane.Namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"applicationUUID": appID})})
+	err := k8sClient.List(context.Background(), resourceList, listOpts)
 	if err != nil {
 		loggers.LoggerK8sClient.Errorf("Unable to list Secret CRs: %v", err)
 	} else {
@@ -390,57 +424,65 @@ func unDeploySecret(appID string, k8sClient client.Client, conf *config.Config) 
 }
 
 // UpdateKongConsumerCredential updates credentials in KongConsumer Resources from the Kubernetes cluster based on application ID and environment label.
-func UpdateKongConsumerCredential(appID string, env string, k8sClient client.Client, conf *config.Config, addCredentials []string, removeCredentials []string) {
+func UpdateKongConsumerCredential(appID string, env string, k8sClient client.Client, conf *config.Config, addCredentials []string, removeCredentials []string) error {
 	loggers.LoggerK8sClient.Debugf("Updating KongConsumer credentials|AppID:%s Env:%s Add:%d Remove:%d\n", appID, env, len(addCredentials), len(removeCredentials))
 
 	resourceList := &v1.KongConsumerList{}
-	labelSelectors := map[string]string{"applicationUUID": appID}
-	if env != "" {
-		labelSelectors["environment"] = env
+	labelSelectors := map[string]string{constants.ApplicationUUIDLabel: appID}
+	if env != constants.EmptyString {
+		labelSelectors[constants.EnvironmentLabel] = env
 	}
 
+	listOpts := &client.ListOptions{Namespace: conf.DataPlane.Namespace, LabelSelector: labels.SelectorFromSet(labelSelectors)}
 	// Retrieve all CRs from the Kubernetes cluster
-	err := k8sClient.List(context.Background(), resourceList, &client.ListOptions{Namespace: conf.DataPlane.Namespace, LabelSelector: labels.SelectorFromSet(labelSelectors)})
+	err := k8sClient.List(context.Background(), resourceList, listOpts)
 	if err != nil {
 		loggers.LoggerK8sClient.Errorf("Unable to list KongConsumer CRs: %v", err)
-	} else {
-		for _, resource := range resourceList.Items {
-			// update plugin credentials
-			resource.Credentials = utils.PrepareCredentials(resource.Credentials, addCredentials, removeCredentials)
-			err := k8sClient.Update(context.Background(), &resource, &client.UpdateOptions{})
-			if err != nil {
-				loggers.LoggerK8sClient.Errorf("Unable to update KongConsumer CR: %v", err)
-			} else {
-				loggers.LoggerK8sClient.Infof("Updated KongConsumer CR: %s", resource.Name)
-			}
+		return fmt.Errorf("failed to list KongConsumer CRs: %w", err)
+	}
+
+	for _, resource := range resourceList.Items {
+		// update plugin credentials
+		resource.Credentials = utils.PrepareCredentials(resource.Credentials, addCredentials, removeCredentials)
+		err := k8sClient.Update(context.Background(), &resource, &client.UpdateOptions{})
+		if err != nil {
+			loggers.LoggerK8sClient.Errorf("Unable to update KongConsumer CR: %v", err)
+			return fmt.Errorf("failed to update KongConsumer CR %s: %w", resource.Name, err)
+		} else {
+			loggers.LoggerK8sClient.Infof("Updated KongConsumer CR: %s", resource.Name)
 		}
 	}
+	return nil
 }
 
 // UpdateKongConsumerPluginAnnotation updates plugin annotation to Kong Consumer based on application and environment label.
-func UpdateKongConsumerPluginAnnotation(appID string, env string, k8sClient client.Client, conf *config.Config, addAnnotations []string, removeAnnotations []string) {
+func UpdateKongConsumerPluginAnnotation(appID string, env string, k8sClient client.Client, conf *config.Config, addAnnotations []string, removeAnnotations []string) error {
 	loggers.LoggerK8sClient.Debugf("Updating KongConsumer annotations|AppID:%s Env:%s Add:%d Remove:%d\n", appID, env, len(addAnnotations), len(removeAnnotations))
 
 	resourceList := &v1.KongConsumerList{}
-	labelSelectors := map[string]string{"applicationUUID": appID}
-	if env != "" {
-		labelSelectors["environment"] = env
+	labelSelectors := map[string]string{constants.ApplicationUUIDLabel: appID}
+	if env != constants.EmptyString {
+		labelSelectors[constants.EnvironmentLabel] = env
 	}
 
+	listOpts := &client.ListOptions{Namespace: conf.DataPlane.Namespace, LabelSelector: labels.SelectorFromSet(labelSelectors)}
 	// Retrieve all CRs from the Kubernetes cluster
-	err := k8sClient.List(context.Background(), resourceList, &client.ListOptions{Namespace: conf.DataPlane.Namespace, LabelSelector: labels.SelectorFromSet(labelSelectors)})
+	err := k8sClient.List(context.Background(), resourceList, listOpts)
 	if err != nil {
 		loggers.LoggerK8sClient.Errorf("Unable to list KongConsumer CRs: %v", err)
-	} else {
-		for _, resource := range resourceList.Items {
-			// update plugin annotations
-			resource.Annotations["konghq.com/plugins"] = utils.PrepareAnnotations(resource.Annotations["konghq.com/plugins"], addAnnotations, removeAnnotations)
-			err := k8sClient.Update(context.Background(), &resource, &client.UpdateOptions{})
-			if err != nil {
-				loggers.LoggerK8sClient.Errorf("Unable to add KongConsumer CR annotations: %v", err)
-			} else {
-				loggers.LoggerK8sClient.Infof("Updated KongConsumer CR annotations: %s", resource.Name)
-			}
+		return fmt.Errorf("failed to list KongConsumer CRs: %w", err)
+	}
+
+	for _, resource := range resourceList.Items {
+		// update plugin annotations
+		resource.Annotations[constants.KongPluginsAnnotation] = utils.PrepareAnnotations(resource.Annotations[constants.KongPluginsAnnotation], addAnnotations, removeAnnotations)
+		err := k8sClient.Update(context.Background(), &resource, &client.UpdateOptions{})
+		if err != nil {
+			loggers.LoggerK8sClient.Errorf("Unable to add KongConsumer CR annotations: %v", err)
+			return fmt.Errorf("failed to update KongConsumer CR annotations for %s: %w", resource.Name, err)
+		} else {
+			loggers.LoggerK8sClient.Infof("Updated KongConsumer CR annotations: %s", resource.Name)
 		}
 	}
+	return nil
 }

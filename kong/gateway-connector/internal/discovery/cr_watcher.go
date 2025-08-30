@@ -22,45 +22,61 @@ import (
 
 	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
 	discoveryPkg "github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/discovery"
-	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/loggers"
+	"github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/constants"
+	"github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/internal/loggers"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // Define the resources to watch
 var (
 	configOnce sync.Once
 	apiMutex   sync.RWMutex
-	gvrs       = []schema.GroupVersionResource{
-		{Group: "gateway.networking.k8s.io", Version: "v1", Resource: "httproutes"},
-	}
-	allowedTimeUnits = map[string]string{
-		"minute": "min",
-		"hour":   "hours",
-		"day":    "days",
-	}
 )
+
+// IsControlPlaneInitiated checks if the resource was initiated from control plane
+func IsControlPlaneInitiated(u *unstructured.Unstructured) bool {
+	if origin, exists := u.GetLabels()[constants.K8sInitiatedFromField]; exists {
+		return origin == constants.ControlPlaneOrigin
+	}
+	return false
+}
 
 // addResource handles the addition of a resource
 func addResource(u *unstructured.Unstructured) {
-	loggers.LoggerWatcher.Infof("Resource Added: %s/%s (Kind: %s)\n", u.GetNamespace(), u.GetName(), u.GetKind())
-	if u.GetKind() == "HTTPRoute" {
+	loggers.LoggerWatcher.Debugf("Resource Added: %s/%s (Kind: %s), APIVersion: %s, Labels: %v",
+		u.GetNamespace(), u.GetName(), u.GetKind(), u.GetAPIVersion(), u.GetLabels())
+	if u.GetKind() == constants.ServiceKind && !IsControlPlaneInitiated(u) {
+		handleAddServiceResource(u)
+	}
+	if u.GetKind() == constants.HTTPRouteKind && !IsControlPlaneInitiated(u) {
 		handleAddHttpRouteResource(u)
 	}
 }
 
 // updateResource handles the update of a resource
 func updateResource(oldU, newU *unstructured.Unstructured) {
-	loggers.LoggerWatcher.Infof("Resource Updated: %s/%s (Kind: %s)\n", newU.GetNamespace(), newU.GetName(), newU.GetKind())
-	if newU.GetKind() == "HTTPRoute" {
-		handleUpdateHTTPRouteResource(oldU, newU)
+	if oldU.GetResourceVersion() == newU.GetResourceVersion() {
+		loggers.LoggerWatcher.Debugf("Skipping resync event for %s/%s", newU.GetNamespace(), newU.GetName())
+		return
+	}
+	loggers.LoggerWatcher.Debugf("Resource Updated: %s/%s (Kind: %s), APIVersion: %s, Generation: %d -> %d",
+		newU.GetNamespace(), newU.GetName(), newU.GetKind(), newU.GetAPIVersion(), oldU.GetGeneration(), newU.GetGeneration())
+	if newU.GetKind() == constants.ServiceKind && !IsControlPlaneInitiated(newU) {
+		handleUpdateServiceResource(oldU, newU)
+	}
+	if newU.GetKind() == constants.HTTPRouteKind && !IsControlPlaneInitiated(newU) {
+		handleUpdateHttpRouteResource(oldU, newU)
 	}
 }
 
 // deleteResource handles the deletion of a resource
 func deleteResource(u *unstructured.Unstructured) {
-	loggers.LoggerWatcher.Infof("Resource Deleted: %s/%s (Kind: %s)\n", u.GetNamespace(), u.GetName(), u.GetKind())
-	if u.GetKind() == "HTTPRoute" {
+	loggers.LoggerWatcher.Debugf("Resource Deleted: %s/%s (Kind: %s), APIVersion: %s, UID: %s",
+		u.GetNamespace(), u.GetName(), u.GetKind(), u.GetAPIVersion(), u.GetUID())
+	if u.GetKind() == constants.ServiceKind && !IsControlPlaneInitiated(u) {
+		handleDeleteServiceResource(u)
+	}
+	if u.GetKind() == constants.HTTPRouteKind && !IsControlPlaneInitiated(u) {
 		handleDeleteHttpRouteResource(u)
 	}
 }
@@ -74,7 +90,7 @@ func init() {
 
 		CRWatcher = &discoveryPkg.CRWatcher{
 			Namespace:     conf.DataPlane.Namespace,
-			GroupVersions: gvrs,
+			GroupVersions: constants.GVRs,
 			AddFunc:       addResource,
 			UpdateFunc:    updateResource,
 			DeleteFunc:    deleteResource,

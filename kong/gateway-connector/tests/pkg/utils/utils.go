@@ -190,7 +190,7 @@ func GetGQLImportAPIURL() string {
 
 // GetAPISearchEndpoint returns the API search endpoint URL.
 func GetAPISearchEndpoint(queryValue string) string {
-	return fmt.Sprintf("https://%s:%s/%ssearch?query=content:%s",
+	return fmt.Sprintf("https://%s:%s/%ssearch?query=name:%s",
 		constants.DefaultAPIMAPIHost, constants.DefaultAPIMGWPort, constants.DefaultAPIMAPIDeployer, queryValue)
 }
 
@@ -335,7 +335,7 @@ func ExtractApplicationUUID(payload string) (string, error) {
 // }
 
 // ExtractAPIUUID extracts the "id" from the first item in the "list" array if count is 1.
-func ExtractAPIUUID(payload string) (string, error) {
+func ExtractAPIUUID(payload string, apiName string) (string, error) {
 	count := gjson.Get(payload, "count").Int()
 	if count < 1 {
 		return "", fmt.Errorf("no items found in the list")
@@ -352,11 +352,18 @@ func ExtractAPIUUID(payload string) (string, error) {
 
 	// If count > 1, filter the list by "type": "API"
 	filtered := gjson.Get(payload, "list").Array()
-	var apiItems []gjson.Result
+	var apiItems0 []gjson.Result
 
 	for _, item := range filtered {
 		if item.Get("type").String() == "API" {
-			apiItems = append(apiItems, item)
+			apiItems0 = append(apiItems0, item)
+		}
+	}
+
+	var apiItems []gjson.Result
+	for _, apiItem := range apiItems0 {
+		if apiItem.Get("name").String() == apiName {
+			apiItems = append(apiItems, apiItem)
 		}
 	}
 

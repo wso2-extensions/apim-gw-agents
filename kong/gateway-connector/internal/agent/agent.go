@@ -22,8 +22,10 @@ import (
 	v1alpha1 "github.com/kong/kubernetes-configuration/api/configuration/v1alpha1"
 	v1beta1 "github.com/kong/kubernetes-configuration/api/configuration/v1beta1"
 	"github.com/wso2-extensions/apim-gw-connectors/common-agent/config"
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/managementserver"
 	"github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/internal/discovery"
 	"github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/internal/loggers"
+	"github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/internal/utils"
 	"github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/pkg/synchronizer"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -37,22 +39,44 @@ func PreRun(conf *config.Config, scheme *runtime.Scheme) {
 	utilruntime.Must(v1beta1.AddToScheme(scheme))
 }
 
+// initializeKongIntegrations sets up Kong-specific integrations with the common agent
+func initializeKongIntegrations() {
+	kongAPIYamlCreator := utils.NewKongAPIYamlCreator()
+	managementserver.SetAPIYamlCreator(kongAPIYamlCreator)
+	loggers.LoggerAgent.Debugf("Successfully registered Kong API YAML creator with management server")
+
+	kongCallback := &discovery.KongAPIImportCallback{}
+	managementserver.RegisterAPIImportCallback(kongCallback)
+	loggers.LoggerAgent.Debugf("Successfully registered Kong API import callback for discovery mode")
+}
+
 // Run handles any configurations that runs on agent start.
 func Run(conf *config.Config, mgr manager.Manager) {
-	AgentMode := conf.Agent.Mode
+	loggers.LoggerAgent.Infof("Starting Kong agent")
 
-	if AgentMode == "CPtoDP" {
-		// Load initial Policy data from control plane
-		synchronizer.FetchRateLimitPoliciesOnEvent("", "", mgr.GetClient())
-	}
-	// Load initial Subscription Rate Limit data from control plane
+	loggers.LoggerAgent.Infof("Initializing Kong-specific integrations")
+	initializeKongIntegrations()
+
+	loggers.LoggerAgent.Infof("Fetching rate limit policies from control plane")
+	synchronizer.FetchRateLimitPoliciesOnEvent("", "", mgr.GetClient())
+
+	loggers.LoggerAgent.Infof("Fetching subscription rate limit policies from control plane")
 	synchronizer.FetchSubscriptionRateLimitPoliciesOnEvent("", "", mgr.GetClient(), true)
 
+	loggers.LoggerAgent.Infof("Fetching key managers on startup")
 	synchronizer.FetchKeyManagersOnStartUp(mgr.GetClient())
 
-	if AgentMode == "DPtoCP" {
-		loggers.LoggerAgent.Infof("Starting Kong CR Discovery...")
-		discovery.CRWatcher.Watch()
-		discovery.InitializeHTTPRoutesState()
+	loggers.LoggerAgent.Infof("Initializing Kong CR Watcher")
+	if err := discovery.CRWatcher.Initialize(); err != nil {
+		loggers.LoggerAgent.Errorf("Failed to initialize Kong CR Watcher: %v", err)
+		return
 	}
+
+	loggers.LoggerAgent.Infof("Initializing HTTPRoutes and Services state")
+	discovery.InitializeServicesState(conf.DataPlane.Namespace)
+
+	loggers.LoggerAgent.Infof("Starting Kong CR Discovery")
+	go discovery.CRWatcher.Watch()
+
+	loggers.LoggerAgent.Infof("Kong agent startup completed successfully")
 }

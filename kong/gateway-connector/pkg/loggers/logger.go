@@ -32,22 +32,14 @@ When you add a new logger instance add the related package name as a constant
 
 // package name constants
 const (
-	pkgAgent     = "github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/internal/agent"
-	pkgWatcher   = "github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/internal/discovery"
-	pkgEvents    = "github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/internal/events"
-	pkgK8sClient = "github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/internal/k8sclient"
-	pkgMapper    = "github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/internal/mapper"
-	pkgUtils     = "github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/internal/utils"
+	pkgSynchronizer = "github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/pkg/synchronizer"
+	pkgTransformer  = "github.com/wso2-extensions/apim-gw-connectors/kong/gateway-connector/pkg/transformer"
 )
 
 // logger package references
 var (
-	LoggerK8sClient logging.Log
-	LoggerMapper    logging.Log
-	LoggerWatcher   logging.Log
-	LoggerUtils     logging.Log
-	LoggerAgent     logging.Log
-	LoggerEvents    logging.Log
+	LoggerSynchronizer logging.Log
+	LoggerTransformer  logging.Log
 )
 
 func init() {
@@ -56,11 +48,7 @@ func init() {
 
 // UpdateLoggers initializes the logger package references
 func UpdateLoggers() {
-	LoggerK8sClient = logging.InitPackageLogger(pkgK8sClient)
-	LoggerMapper = logging.InitPackageLogger(pkgMapper)
-	LoggerWatcher = logging.InitPackageLogger(pkgWatcher)
-	LoggerUtils = logging.InitPackageLogger(pkgUtils)
-	LoggerAgent = logging.InitPackageLogger(pkgAgent)
-	LoggerEvents = logging.InitPackageLogger(pkgEvents)
-	logrus.Info("Updated kong agent internal loggers")
+	LoggerSynchronizer = logging.InitPackageLogger(pkgSynchronizer)
+	LoggerTransformer = logging.InitPackageLogger(pkgTransformer)
+	logrus.Info("Updated kong agent pkg loggers")
 }

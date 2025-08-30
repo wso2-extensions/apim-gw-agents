@@ -34,4 +34,6 @@ const (
 
 	// Policy Types
 	CommonType = "common"
+
+	DefaultKongAgentName = "Kong"
 )

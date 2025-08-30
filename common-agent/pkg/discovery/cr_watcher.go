@@ -22,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/wso2-extensions/apim-gw-connectors/common-agent/internal/constants"
 	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/loggers"
 	"github.com/wso2-extensions/apim-gw-connectors/common-agent/pkg/managementserver"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -53,22 +54,33 @@ type CRWatcher struct {
 	DeleteFunc    func(*unstructured.Unstructured)
 }
 
-// Watch starts watching the specified resources with the provided handlers
-func (cw *CRWatcher) Watch() {
+// Initialize sets up the dynamic client for the CRWatcher
+func (cw *CRWatcher) Initialize() error {
 	// Load in-cluster Kubernetes config
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		loggers.LoggerWatcher.Errorf("Failed to load in-cluster config: %v", err)
-		return
+		return err
 	}
 
 	// Create dynamic Kubernetes client
 	dynamicClient, err := dynamic.NewForConfig(config)
 	if err != nil {
 		loggers.LoggerWatcher.Errorf("Failed to create dynamic client: %v", err)
-		return
+		return err
 	}
 	cw.DynamicClient = dynamicClient
+	return nil
+}
+
+// Watch starts watching the specified resources with the provided handlers
+func (cw *CRWatcher) Watch() {
+	if cw.DynamicClient == nil {
+		if err := cw.Initialize(); err != nil {
+			loggers.LoggerWatcher.Errorf("Failed to initialize CRWatcher: %v", err)
+			return
+		}
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -189,8 +201,14 @@ func sendData() {
 					loggers.LoggerWatcher.Error("Revision field not present in response")
 					revisionID = ""
 				}
-				loggers.LoggerWatcher.Infof("Adding label update to API Labels: apiUUID: %s, revisionID: %s",
-					id, revisionID)
+				loggers.LoggerWatcher.Infof("Adding label update to API Labels: apiUUID: %s, apiID: %s, revisionID: %s",
+					event.API.APIUUID, id, revisionID)
+
+				if event.AgentName == constants.DefaultKongAgentName && id != "" {
+					if callback := managementserver.GetAPIImportCallback(); callback != nil && id != "" {
+						callback.OnAPIImportSuccess(event.API.APIUUID, id, revisionID, event.Name, event.Namespace, event.AgentName)
+					}
+				}
 			}
 			break
 		}
@@ -198,10 +216,13 @@ func sendData() {
 }
 
 // QueueEvent adds an event to the event queue
-func QueueEvent(eventType managementserver.EventType, api managementserver.API, crName, crNamespace string) {
+func QueueEvent(eventType managementserver.EventType, api managementserver.API, crName string, crNamespace string, agentName string) {
 	event := managementserver.APICPEvent{
-		Event: eventType,
-		API:   api,
+		Event:     eventType,
+		API:       api,
+		Name:      crName,
+		Namespace: crNamespace,
+		AgentName: agentName,
 	}
 	select {
 	case eventQueue <- event:
